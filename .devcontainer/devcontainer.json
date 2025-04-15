@@ -30,9 +30,9 @@
                 "github.vscode-github-actions",   // Falls du GitHub Actions nutzt
                 "bierner.markdown-preview-github-styles", // Gute Markdown Vorschau
                 "esbenp.prettier-vscode",         // Code Formatter (für JS/JSON/MD etc.)
-                "dbaeumer.vscode-eslint"          // Linter für JavaScript/TypeScript (falls du ESLint nutzt)
+                "dbaeumer.vscode-eslint",          // Linter für JavaScript/TypeScript (falls du ESLint nutzt)
                 // Füge hier Extensions für dein Frontend-Framework hinzu (z.B. Vue/React)
-                // "Vue.volar" oder "octref.vetur" für Vue
+                "Vue.volar" 
                 // "dsznajder.es7-react-js-snippets" für React
             ]
         },

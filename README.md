@@ -1,4 +1,11 @@
 # DnD-App
+
+cd /workspace/backend/build
+rm -f CMakeCache.txt
+cmake ..
+make
+./DnDApp
+
 ```
 DnD-App/
 ├── .devcontainer/          # Konfiguration für VS Code Remote Containers
