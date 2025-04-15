@@ -40,7 +40,7 @@
         "settings": {
             "terminal.integrated.defaultProfile.linux": "bash", // Stelle sicher, dass Bash der Standard ist
             // Beispiel: C++ Standard festlegen (kann auch über CMake erfolgen)
-            "C_Cpp.default.cppStandard": "c++17",
+            "C_Cpp.default.cppStandard": "c++17"
             // Pfade für den Compiler/CMake (sollten im Container meist automatisch gefunden werden)
             // "cmake.configureOnOpen": true // CMake automatisch beim Öffnen konfigurieren
         }

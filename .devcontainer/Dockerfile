@@ -52,4 +52,4 @@ RUN groupadd --gid $USER_GID $USERNAME \
 USER $USERNAME
 
 # Optional: Standard-Shell auf bash setzen (ist meist eh Standard)
-# RUN sudo chsh --shell /bin/bash vscode
+RUN sudo chsh --shell /bin/bash vscode
