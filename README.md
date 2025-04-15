@@ -47,3 +47,5 @@ DnD-App/
 ├── .gitignore              # Definiert, welche Dateien *nicht* zu Git hinzugefügt werden
 └── README.md               # Beschreibung deines Projekts
 ```
+
+Das ist der grundlegende Workflow: Code ändern -> make -> ./DnDApp -> Testen mit curl -> Server stoppen (Ctrl+C).

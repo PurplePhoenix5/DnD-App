@@ -21,6 +21,8 @@ RUN apt-get update && apt-get install -y \
     # CMark Bibliothek (Entwicklungsversion mit Headern)
     libcmark-dev \
     cmark \
+    libasio-dev \
+    libboost-system-dev \
     # Node.js und npm (Beispiel für Node 18.x, passe Version ggf. an)
     ca-certificates \
     gnupg \
