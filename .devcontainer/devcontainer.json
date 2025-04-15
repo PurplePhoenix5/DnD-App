@@ -1,0 +1,55 @@
+{
+    "name": "DnD App Dev Container",
+    // Sagt VS Code, dass es das Dockerfile in diesem Ordner zum Bauen nutzen soll
+    "build": {
+        "dockerfile": "Dockerfile",
+        // Argumente können an das Dockerfile übergeben werden (optional)
+        "args": {
+            "USERNAME": "vscode"
+        }
+    },
+
+    // Ports weiterleiten:
+    // - 8080 (Beispiel): Der Port, auf dem dein C++ Backend hören wird.
+    // - 5173 (Beispiel): Ein typischer Port für Frontend Dev Server (z.B. Vite). Passe dies an!
+    "forwardPorts": [8080, 5173],
+
+    // Pfad zum Projektordner *innerhalb* des Containers
+    "workspaceFolder": "/workspace",
+
+    // Wie der lokale Projektordner in den Container gemountet wird
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+
+    // VS Code Extensions, die *im Container* installiert werden sollen
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools-extension-pack", // C/C++ Unterstützung
+                "ms-vscode.cmake-tools",          // CMake Integration
+                "ms-azuretools.vscode-docker",      // Docker Integration (auch im Container nützlich)
+                "github.vscode-github-actions",   // Falls du GitHub Actions nutzt
+                "bierner.markdown-preview-github-styles", // Gute Markdown Vorschau
+                "esbenp.prettier-vscode",         // Code Formatter (für JS/JSON/MD etc.)
+                "dbaeumer.vscode-eslint"          // Linter für JavaScript/TypeScript (falls du ESLint nutzt)
+                // Füge hier Extensions für dein Frontend-Framework hinzu (z.B. Vue/React)
+                // "Vue.volar" oder "octref.vetur" für Vue
+                // "dsznajder.es7-react-js-snippets" für React
+            ]
+        },
+        // Einstellungen, die nur gelten, wenn du in diesem Container arbeitest
+        "settings": {
+            "terminal.integrated.defaultProfile.linux": "bash", // Stelle sicher, dass Bash der Standard ist
+            // Beispiel: C++ Standard festlegen (kann auch über CMake erfolgen)
+            "C_Cpp.default.cppStandard": "c++17",
+            // Pfade für den Compiler/CMake (sollten im Container meist automatisch gefunden werden)
+            // "cmake.configureOnOpen": true // CMake automatisch beim Öffnen konfigurieren
+        }
+    },
+
+    // Befehle, die nach Erstellung des Containers ausgeführt werden
+    // Kann leer bleiben oder z.B. npm install ausführen
+    // "postCreateCommand": "cd frontend && npm install",
+
+    // Benutzer, als der VS Code im Container laufen soll (muss im Dockerfile erstellt werden)
+    "remoteUser": "vscode"
+}
