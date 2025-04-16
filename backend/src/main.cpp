@@ -5,8 +5,7 @@
 // Crow Header - oft reicht "crow.h", wenn über CMake eingebunden
 #include "crow.h"
 
-// nlohmann/json Header (stelle sicher, dass der Pfad stimmt,
-// entweder über external/ oder FetchContent via target_include_directories)
+// nlohmann/json Header 
 #include "nlohmann/json.hpp"
 
 // Für bequemeren Zugriff auf den json-Typ
