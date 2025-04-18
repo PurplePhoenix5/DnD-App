@@ -13,6 +13,7 @@ const selectedEncounterId = ref(null);
 const loadedEncounterData = ref(null); // Das volle Objekt vom Backend für den ausgewählten Encounter
 const combatants = ref([]); // Aktive Kreaturen im Kampf: [{ id: 'goblin_1', baseMonsterId: 'goblin', name: 'Goblin 1', initiative: 15, currentHp: 7, maxHp: 7, ac: 15, cr: 0.25, statusEffects: [] }, ...]
 const selectedCombatantId = ref(null);
+const loadedDifficulty = ref('N/A');
 const damageHealAmount = ref(0); // Gebunden an das Inputfeld in InteractionPanel
 const isLoading = ref(false);
 const error = ref(null);
@@ -20,6 +21,10 @@ const error = ref(null);
 // --- Computed Properties (Abgeleitete Daten) ---
 const selectedCombatant = computed(() => {
   return combatants.value.find(c => c.id === selectedCombatantId.value) || null;
+});
+
+const selectedConditions = computed(() => {
+   return selectedCombatant.value?.statusEffects || []; // Gibt leeres Array zurück, wenn niemand ausgewählt ist
 });
 
 const uniqueMonsterStatBlocks = computed(() => {
@@ -40,18 +45,6 @@ const uniqueMonsterStatBlocks = computed(() => {
   return uniqueBlocks;
 });
 
-// Beispiel für Schwierigkeitsberechnung (stark vereinfacht!)
-const encounterDifficulty = computed(() => {
-  if (!combatants.value.length) return 'N/A';
-  const totalCR = combatants.value.reduce((sum, c) => sum + (c.cr || 0), 0); // Annahme: cr ist im combatant-Objekt
-  if (totalCR < 2) return 'Trivial';
-  if (totalCR < 5) return 'Easy';
-  if (totalCR < 10) return 'Medium';
-  if (totalCR < 15) return 'Hard';
-  return 'Deadly';
-});
-
-
 // --- Methoden ---
 async function fetchAndLoadEncounter(encounterId) {
   if (!encounterId) return;
@@ -60,6 +53,8 @@ async function fetchAndLoadEncounter(encounterId) {
   selectedEncounterId.value = encounterId;
   selectedCombatantId.value = null; // Auswahl zurücksetzen
   combatants.value = []; // Alte Liste leeren
+  loadedEncounterData.value = null; 
+  loadedDifficulty.value = 'N/A'; 
   
   try {
     // --- API CALL ---
@@ -67,6 +62,7 @@ async function fetchAndLoadEncounter(encounterId) {
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
     loadedEncounterData.value = data; // Speichere die Rohdaten
+    loadedDifficulty.value = data.calculatedDifficulty || 'Unknown';
 
     // Erzeuge die Combatant-Liste aus den Encounter-Daten
     const newCombatants = [];
@@ -84,7 +80,6 @@ async function fetchAndLoadEncounter(encounterId) {
           ac: monsterDef.statBlock.AC,
           cr: monsterDef.statBlock.CR, // Stelle sicher, dass CR im statBlock ist
           statusEffects: [], // Startet ohne Effekte
-          // ... weitere benötigte Basis-Infos könnten hierhin kopiert werden ...
         });
       }
     });
@@ -96,6 +91,7 @@ async function fetchAndLoadEncounter(encounterId) {
     error.value = 'Failed to load encounter data.';
     loadedEncounterData.value = null;
     combatants.value = [];
+    loadedDifficulty.value = 'Error'; 
   } finally {
     isLoading.value = false;
   }
@@ -131,6 +127,30 @@ function handleApplyHealing(amount) {
   }
 }
 
+function handleAddCondition(conditionId) {
+  const combatant = selectedCombatant.value; // Finde den aktuell ausgewählten
+  if (combatant) {
+    // Prüfe, ob die Bedingung nicht schon vorhanden ist
+    if (!combatant.statusEffects.includes(conditionId)) {
+      combatant.statusEffects.push(conditionId); // Füge die ID zum Array hinzu
+      // Vue's Reaktivität sorgt dafür, dass CombatantItem aktualisiert wird
+    }
+    // Optional: Füge Logik hinzu, um eine Bedingung wieder zu entfernen
+  }
+}
+
+function handleRemoveCondition(conditionId) {
+  const combatant = selectedCombatant.value;
+  if (combatant) {
+    // Finde den Index der Bedingung im Array
+    const index = combatant.statusEffects.indexOf(conditionId);
+    if (index > -1) {
+      // Entferne die Bedingung aus dem Array
+      combatant.statusEffects.splice(index, 1);
+    }
+  }
+}
+
 function sortCombatants() {
   combatants.value.sort((a, b) => b.initiative - a.initiative); // Absteigend sortieren
 }
@@ -143,19 +163,22 @@ watch(combatants, (newVal, oldVal) => {
 
 </script>
 
+      
 <template>
+  <!-- v-container fluid sorgt weiterhin für den äußeren Abstand und volle Breite -->
   <v-container fluid>
     <v-row>
       <!-- Spalte 1: Encounter Auswahl & Initiative Liste -->
-      <v-col cols="12" md="4">
+      <!-- md="5" nimmt 5/12 (ca. 41.7%, nahe 40%) der Breite auf md+ Screens -->
+      <!-- cols="12" sorgt für volle Breite auf xs/sm Screens (Stacking) -->
+      <v-col cols="12" md="5">
         <EncounterSelector @encounter-selected="handleEncounterSelected" />
-        
         <v-divider class="my-4"></v-divider>
 
         <div v-if="isLoading">Loading Encounter... <v-progress-circular indeterminate></v-progress-circular></div>
         <v-alert v-if="error" type="error">{{ error }}</v-alert>
-        
-        <InitiativeList 
+
+        <InitiativeList
           v-if="combatants.length > 0"
           :combatants="combatants"
           :selected-combatant-id="selectedCombatantId"
@@ -171,20 +194,26 @@ watch(combatants, (newVal, oldVal) => {
       </v-col>
 
       <!-- Spalte 2: Interaktion -->
+      <!-- md="3" nimmt 3/12 (exakt 25%) der Breite auf md+ Screens -->
       <v-col cols="12" md="3">
         <InteractionPanel
           :calculated-difficulty="encounterDifficulty"
           :selected-combatant-id="selectedCombatantId"
+          :selected-combatant-conditions="selectedConditions"
           @apply-damage="handleApplyDamage"
           @apply-healing="handleApplyHealing"
+          @add-condition="handleAddCondition"
+          @remove-condition="handleRemoveCondition"
+          
         />
       </v-col>
 
       <!-- Spalte 3: Stat Blocks -->
-      <v-col cols="12" md="5">
-         <StatBlockDisplay 
+      <!-- md="4" nimmt 4/12 (ca. 33.3%, nahe 35%) der Breite auf md+ Screens -->
+      <v-col cols="12" md="4">
+         <StatBlockDisplay
            v-if="uniqueMonsterStatBlocks.length > 0"
-           :unique-monster-stat-blocks="uniqueMonsterStatBlocks" 
+           :unique-monster-stat-blocks="uniqueMonsterStatBlocks"
          />
          <div v-else-if="selectedEncounterId && !isLoading">
             No monster stats to display for this encounter.

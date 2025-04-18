@@ -49,17 +49,14 @@ const tabs = ref([
             v-slot:default 
             eager
           >
-            <v-container fluid> 
-              <component :is="tab.component" v-if="tab.component" />
+            <component :is="tab.component" v-if="tab.component" />
 
-              <v-card flat v-else>
-                <v-card-text>
-                  <h2>{{ tab.title }}</h2>
-                  <p>Content for "{{ tab.title }}" is not implemented yet.</p>
-                </v-card-text>
-              </v-card>
-            </v-container> 
-
+            <v-card flat v-else>
+              <v-card-text>
+                <h2>{{ tab.title }}</h2>
+                <p>Content for "{{ tab.title }}" is not implemented yet.</p>
+              </v-card-text>
+            </v-card>
           </v-window-item>
       </v-window> 
     </v-main>

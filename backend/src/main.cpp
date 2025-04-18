@@ -49,10 +49,6 @@ int main() {
 
     // ----- API Endpunkte (Routen) definieren -----
 
-    // 1. Einfacher Status-Endpunkt (GET /api/status)
-    //    Zeigt, dass der Server läuft und antwortet.
-    //    CROW_ROUTE definiert eine Route für eine bestimmte URL.
-    //    Der Lambda-Ausdruck [](){ ... } wird ausgeführt, wenn die Route aufgerufen wird.
     CROW_ROUTE(app, "/api/status")([]() {
         // Erstelle ein JSON-Objekt für die Antwort
         json response;
@@ -65,13 +61,11 @@ int main() {
         return crow::response(response.dump());
     });
 
-    // 2. Beispiel-Endpunkt für Monster (GET /api/monsters)
-    //    Gibt eine feste Liste von Monstern zurück (später liest du das aus JSON-Dateien).
     CROW_ROUTE(app, "/api/encounters")([]() {
         json encounter_list = json::array(); // Erstelle ein leeres JSON-Array
 
         // Verzeichnis mit Encounter-Dateien
-        const std::string encounters_dir = "backend/data/encounters";
+        const std::string encounters_dir = "../data/encounters";
 
         // Iteriere über alle Dateien im Verzeichnis
         for (const auto& entry : std::filesystem::directory_iterator(encounters_dir)) {
@@ -103,27 +97,87 @@ int main() {
         return crow::response(encounter_list.dump());
     });
 
-    // 3. Beispiel-Endpunkt, der einen Parameter aus der URL liest (GET /api/monsters/<monster_id>)
-    //    <string> fängt den Teil der URL nach /api/monsters/ ab und übergibt ihn als String.
-    CROW_ROUTE(app, "/api/monsters/<string>")([](const std::string& monster_id) {
-        // In einer echten Anwendung: Suche das Monster mit dieser ID in deinen Daten.
-        // Hier nur ein einfaches Beispiel:
-        if (monster_id == "goblin_1") {
-            json monster_data = {
-                {"id", "goblin_1"},
-                {"name", "Goblin"},
-                {"hp", 7},
-                {"ac", 15},
-                {"description", "Ein kleiner, fieser Goblin."}
-            };
-            return crow::response(monster_data.dump());
-        } else {
-            // Monster nicht gefunden - gib einen 404 Fehler zurück
-            json error_response;
-            error_response["error"] = "Monster nicht gefunden";
-            error_response["requested_id"] = monster_id;
-            // Erstelle eine Antwort mit Statuscode 404 (Not Found)
-            return crow::response(404, error_response.dump());
+    CROW_ROUTE(app, "/api/encounters/<string>")
+        ([](const crow::request& /*req*/, const std::string& encounter_id) {
+        //   ^--- `req` wird übergeben, aber nicht direkt genutzt (durch /*req*/ markiert)
+        //        `encounter_id` enthält den Wert aus dem <string> Platzhalter
+
+        // 1. Basispfad definieren (relativ zum Ausführungsverzeichnis, also 'build')
+        const std::string base_dir = "../data/encounters";
+
+        // 2. Vollständigen Dateipfad konstruieren
+        //    Wir nehmen die encounter_id und hängen ".json" an.
+        //    Verwende std::filesystem::path für sicherere Pfadoperationen.
+        std::filesystem::path file_path;
+        try {
+             // Verwende / Operator von std::filesystem::path für plattformunabhängige Verknüpfung
+            file_path = std::filesystem::path(base_dir) / (encounter_id + ".json");
+             // Bereinige den Pfad (löst z.B. ../ auf, falls base_dir komplexer wäre)
+            file_path = std::filesystem::absolute(file_path).lexically_normal();
+        } catch (const std::exception& e) {
+             std::cerr << "Fehler beim Erstellen des Dateipfads für ID '" << encounter_id << "': " << e.what() << std::endl;
+             return crow::response(500, "{\"error\": \"Interner Fehler beim Erstellen des Dateipfads.\"}");
+        }
+
+        // Füge Logging hinzu, um den gesuchten Pfad zu sehen
+        std::cout << "Suche nach Encounter-Datei: " << file_path << std::endl;
+
+
+        // 3. Fehlerbehandlung mit try-catch für Dateisystem- und Leseoperationen
+        try {
+            // 4. Prüfen, ob die Datei existiert und eine reguläre Datei ist
+            if (!std::filesystem::exists(file_path)) {
+                 std::cerr << "Fehler: Datei nicht gefunden - " << file_path << std::endl;
+                 json error_resp;
+                 error_resp["error"] = "Encounter nicht gefunden.";
+                 error_resp["requested_id"] = encounter_id;
+                 error_resp["searched_path"] = file_path.string(); // Zum Debuggen hinzufügen
+                 return crow::response(404, error_resp.dump());
+            }
+            if (!std::filesystem::is_regular_file(file_path)) {
+                 std::cerr << "Fehler: Pfad ist keine reguläre Datei - " << file_path << std::endl;
+                 json error_resp;
+                 error_resp["error"] = "Angeforderter Pfad ist keine Datei.";
+                 error_resp["requested_id"] = encounter_id;
+                 error_resp["searched_path"] = file_path.string();
+                 return crow::response(400, error_resp.dump()); // 400 Bad Request könnte hier passen
+            }
+
+            // 5. Datei öffnen
+            std::ifstream file(file_path);
+            if (!file.is_open()) {
+                // Dieser Fall sollte selten sein, wenn exists() und is_regular_file() true waren,
+                // könnte aber bei Berechtigungsproblemen auftreten.
+                std::cerr << "Fehler: Datei konnte nicht geöffnet werden (Berechtigungen?) - " << file_path << std::endl;
+                json error_resp;
+                error_resp["error"] = "Encounter-Datei konnte nicht geöffnet werden.";
+                return crow::response(500, error_resp.dump());
+            }
+
+            // 6. Gesamten Dateiinhalt in einen String lesen
+            std::stringstream buffer;
+            buffer << file.rdbuf(); // Effizientes Lesen des gesamten Inhalts
+            std::string file_content = buffer.str();
+
+            // 7. Erfolgreiche Antwort senden
+            //    Wir senden den rohen JSON-String aus der Datei.
+            //    Setze den Content-Type Header korrekt.
+            crow::response res(200, file_content);
+            res.set_header("Content-Type", "application/json");
+            return res;
+
+        } catch (const std::filesystem::filesystem_error& e) {
+            // Fängt Fehler von std::filesystem::exists, is_regular_file etc. ab
+            std::cerr << "Dateisystemfehler beim Zugriff auf " << file_path << ": " << e.what() << std::endl;
+            json error_resp;
+            error_resp["error"] = "Interner Dateisystemfehler.";
+            return crow::response(500, error_resp.dump());
+        } catch (const std::exception& e) {
+            // Fängt andere mögliche Fehler ab (z.B. von std::stringstream)
+            std::cerr << "Allgemeiner Fehler beim Verarbeiten der Datei " << file_path << ": " << e.what() << std::endl;
+            json error_resp;
+            error_resp["error"] = "Interner Serverfehler beim Verarbeiten der Anfrage.";
+            return crow::response(500, error_resp.dump());
         }
     });
 
