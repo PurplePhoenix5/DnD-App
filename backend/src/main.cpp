@@ -2,202 +2,358 @@
 #include <string>
 #include <vector>
 #include <filesystem> // Für std::filesystem
-#include <fstream>    // Für std::ifstream
+#include <fstream>    // Für std::ifstream/ofstream
+#include <sstream>    // Für std::stringstream
+#include <exception>  // Für std::exception
+#include <cmath>      // Für std::floor
+#include <iomanip>    // Für std::setw (im dump für pretty print)
 
-// Crow Header - oft reicht "crow.h", wenn über CMake eingebunden
+// Crow Header
 #include "crow.h"
-
-// nlohmann/json Header 
+// nlohmann/json Header
 #include "nlohmann/json.hpp"
 
+// Deine CorsMiddleware (wie gehabt)
 struct CorsMiddleware {
-    struct context {};
-
+    // ... (Middleware Code wie zuvor) ...
+     struct context {};
     void before_handle(crow::request& req, crow::response& res, context& /*ctx*/) {
-        // Erlaube Anfragen von deinem Frontend-Entwicklungsserver
-        res.add_header("Access-Control-Allow-Origin", "http://localhost:5173"); 
-        
-        // Erlaube bestimmte Methoden (GET, POST, OPTIONS sind häufig)
-        res.add_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-        
-        // Erlaube bestimmte Header in der Anfrage (z.B. für POST mit JSON)
-        res.add_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-        // Handle Preflight-Anfragen (Browser sendet OPTIONS vor komplexeren Anfragen wie POST)
-        if (req.method == "OPTIONS"_method) {
-            res.code = 204; // No Content
-            res.end();      // Beende die Antwort hier für OPTIONS
-            return;         // WICHTIG: Sofort zurückkehren!
-        }
-    }
-
-    void after_handle(crow::request& /*req*/, crow::response& res, context& /*ctx*/) {
-        // Stelle sicher, dass die CORS-Header in der endgültigen Antwort enthalten sind
         res.add_header("Access-Control-Allow-Origin", "http://localhost:5173");
         res.add_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         res.add_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        if (req.method == "OPTIONS"_method) {
+            res.code = 204;
+            res.end();
+            return;
+        }
+    }
+    void after_handle(crow::request& /*req*/, crow::response& res, context& /*ctx*/) {
+        
     }
 };
 
-
-// Für bequemeren Zugriff auf den json-Typ
 using json = nlohmann::json;
 
+// --- Hilfsfunktion zum Laden eines Monster-Statblocks ---
+// Gibt ein leeres JSON-Objekt zurück, wenn Laden fehlschlägt oder Felder fehlen
+json load_monster_statblock(const std::string& monster_id) {
+    const std::string monsters_base_dir = "../data/monsters";
+    std::filesystem::path monster_file_path;
+
+    try {
+        monster_file_path = std::filesystem::path(monsters_base_dir) / (monster_id + ".json");
+        monster_file_path = std::filesystem::absolute(monster_file_path).lexically_normal();
+
+        if (!std::filesystem::exists(monster_file_path) || !std::filesystem::is_regular_file(monster_file_path)) {
+            std::cerr << "Fehler: Monster-Datei nicht gefunden oder keine Datei: " << monster_file_path << std::endl;
+            return nullptr; // Signalisiert Fehler (oder leeres Objekt)
+        }
+
+        std::ifstream monster_file(monster_file_path);
+        if (!monster_file.is_open()) {
+            std::cerr << "Fehler: Monster-Datei konnte nicht geöffnet werden: " << monster_file_path << std::endl;
+             return nullptr;
+        }
+
+        json monster_data;
+        monster_file >> monster_data; // Parse JSON
+        return monster_data;
+
+    } catch (const json::parse_error& e) {
+        std::cerr << "Fehler beim Parsen der Monster-JSON-Datei " << monster_file_path << ": " << e.what() << std::endl;
+        return nullptr;
+    } catch (const std::exception& e) {
+        std::cerr << "Fehler beim Laden der Monster-Datei " << monster_file_path << ": " << e.what() << std::endl;
+        return nullptr;
+    }
+}
+
+
 int main() {
-    // Erstelle das Crow App Objekt MIT Middleware
     crow::App<CorsMiddleware> app;
+    const std::string encounters_base_dir = "../data/encounters";
+    const std::string monsters_base_dir = "../data/monsters"; // Wiederverwendet
 
-    // ----- API Endpunkte (Routen) definieren -----
-
-    CROW_ROUTE(app, "/api/status")([]() {
-        // Erstelle ein JSON-Objekt für die Antwort
+    // --- GET /api/status ---
+    CROW_ROUTE(app, "/api/status")([]() { /* ... wie zuvor ... */
         json response;
         response["status"] = "OK";
         response["message"] = "DnD Backend ist bereit!";
+        crow::response res(response.dump());
+        res.set_header("Content-Type", "application/json");
+        return res;
+     });
 
-        // Gib eine Crow-Antwort zurück.
-        // .dump() wandelt das JSON-Objekt in einen String um.
-        // Der Content-Type wird automatisch auf application/json gesetzt.
-        return crow::response(response.dump());
-    });
-
-    CROW_ROUTE(app, "/api/encounters")([]() {
-        json encounter_list = json::array(); // Erstelle ein leeres JSON-Array
-
-        // Verzeichnis mit Encounter-Dateien
-        const std::string encounters_dir = "../data/encounters";
-
-        // Iteriere über alle Dateien im Verzeichnis
-        for (const auto& entry : std::filesystem::directory_iterator(encounters_dir)) {
-            if (entry.is_regular_file() && entry.path().extension() == ".json") {
-                // Öffne die JSON-Datei
-                std::ifstream file(entry.path());
-                if (file.is_open()) {
-                    try {
-                        // Lese den Inhalt der Datei in ein JSON-Objekt
-                        json encounter_data;
-                        file >> encounter_data;
-
-                        // Extrahiere die Felder "id" und "name", falls vorhanden
-                        if (encounter_data.contains("id") && encounter_data.contains("name")) {
-                            encounter_list.push_back({
-                                {"id", encounter_data["id"]},
-                                {"name", encounter_data["name"]}
-                            });
+    // --- GET /api/encounters ---
+    CROW_ROUTE(app, "/api/encounters")([&]() { // Capture base_dir
+        json encounter_list = json::array();
+        try {
+            for (const auto& entry : std::filesystem::directory_iterator(encounters_base_dir)) {
+                if (entry.is_regular_file() && entry.path().extension() == ".json") {
+                    std::ifstream file(entry.path());
+                    if (file.is_open()) {
+                        try {
+                            json data;
+                            file >> data;
+                            if (data.contains("id") && data.contains("name")) {
+                                encounter_list.push_back({{"id", data["id"]}, {"name", data["name"]}});
+                            }
+                        } catch (const std::exception& e) {
+                             std::cerr << "Fehler beim Verarbeiten von " << entry.path() << ": " << e.what() << std::endl;
                         }
-                    } catch (const std::exception& e) {
-                        // Fehler beim Parsen der Datei - überspringe sie
-                        std::cerr << "Fehler beim Lesen der Datei " << entry.path() << ": " << e.what() << std::endl;
                     }
                 }
             }
+        } catch (const std::exception& e) {
+            std::cerr << "Fehler beim Auflisten von Encountern in " << encounters_base_dir << ": " << e.what() << std::endl;
+            return crow::response(500, "{\"error\": \"Serverfehler beim Auflisten der Encounter.\"}");
         }
-
-        // Gib die Liste als JSON-Antwort zurück
-        return crow::response(encounter_list.dump());
+        crow::response res(encounter_list.dump());
+        res.set_header("Content-Type", "application/json");
+        return res;
     });
 
-    CROW_ROUTE(app, "/api/encounters/<string>")
-        ([](const crow::request& /*req*/, const std::string& encounter_id) {
-        //   ^--- `req` wird übergeben, aber nicht direkt genutzt (durch /*req*/ markiert)
-        //        `encounter_id` enthält den Wert aus dem <string> Platzhalter
-
-        // 1. Basispfad definieren (relativ zum Ausführungsverzeichnis, also 'build')
-        const std::string base_dir = "../data/encounters";
-
-        // 2. Vollständigen Dateipfad konstruieren
-        //    Wir nehmen die encounter_id und hängen ".json" an.
-        //    Verwende std::filesystem::path für sicherere Pfadoperationen.
-        std::filesystem::path file_path;
+    // --- GET /api/encounters/{id} ---
+    // Gibt jetzt die *angereicherte* Version zurück, damit Combat Tracker sie hat
+     CROW_ROUTE(app, "/api/encounters/<string>")
+        ([&](const crow::request& /*req*/, const std::string& encounter_id) {
+        std::filesystem::path encounter_file_path;
         try {
-             // Verwende / Operator von std::filesystem::path für plattformunabhängige Verknüpfung
-            file_path = std::filesystem::path(base_dir) / (encounter_id + ".json");
-             // Bereinige den Pfad (löst z.B. ../ auf, falls base_dir komplexer wäre)
-            file_path = std::filesystem::absolute(file_path).lexically_normal();
-        } catch (const std::exception& e) {
-             std::cerr << "Fehler beim Erstellen des Dateipfads für ID '" << encounter_id << "': " << e.what() << std::endl;
-             return crow::response(500, "{\"error\": \"Interner Fehler beim Erstellen des Dateipfads.\"}");
-        }
+            encounter_file_path = std::filesystem::path(encounters_base_dir) / (encounter_id + ".json");
+            encounter_file_path = std::filesystem::absolute(encounter_file_path).lexically_normal();
 
-        // Füge Logging hinzu, um den gesuchten Pfad zu sehen
-        std::cout << "Suche nach Encounter-Datei: " << file_path << std::endl;
-
-
-        // 3. Fehlerbehandlung mit try-catch für Dateisystem- und Leseoperationen
-        try {
-            // 4. Prüfen, ob die Datei existiert und eine reguläre Datei ist
-            if (!std::filesystem::exists(file_path)) {
-                 std::cerr << "Fehler: Datei nicht gefunden - " << file_path << std::endl;
-                 json error_resp;
-                 error_resp["error"] = "Encounter nicht gefunden.";
-                 error_resp["requested_id"] = encounter_id;
-                 error_resp["searched_path"] = file_path.string(); // Zum Debuggen hinzufügen
-                 return crow::response(404, error_resp.dump());
-            }
-            if (!std::filesystem::is_regular_file(file_path)) {
-                 std::cerr << "Fehler: Pfad ist keine reguläre Datei - " << file_path << std::endl;
-                 json error_resp;
-                 error_resp["error"] = "Angeforderter Pfad ist keine Datei.";
-                 error_resp["requested_id"] = encounter_id;
-                 error_resp["searched_path"] = file_path.string();
-                 return crow::response(400, error_resp.dump()); // 400 Bad Request könnte hier passen
+            if (!std::filesystem::exists(encounter_file_path) || !std::filesystem::is_regular_file(encounter_file_path)) {
+                return crow::response(404, "{\"error\": \"Encounter nicht gefunden.\"}");
             }
 
-            // 5. Datei öffnen
-            std::ifstream file(file_path);
+            std::ifstream file(encounter_file_path);
             if (!file.is_open()) {
-                // Dieser Fall sollte selten sein, wenn exists() und is_regular_file() true waren,
-                // könnte aber bei Berechtigungsproblemen auftreten.
-                std::cerr << "Fehler: Datei konnte nicht geöffnet werden (Berechtigungen?) - " << file_path << std::endl;
-                json error_resp;
-                error_resp["error"] = "Encounter-Datei konnte nicht geöffnet werden.";
-                return crow::response(500, error_resp.dump());
+                 return crow::response(500, "{\"error\": \"Encounter-Datei konnte nicht geöffnet werden.\"}");
             }
 
-            // 6. Gesamten Dateiinhalt in einen String lesen
-            std::stringstream buffer;
-            buffer << file.rdbuf(); // Effizientes Lesen des gesamten Inhalts
-            std::string file_content = buffer.str();
+            // Lese die *gespeicherte* Encounter-Datei (die bereits die angereicherten Infos enthält)
+            json encounter_data;
+            file >> encounter_data;
 
-            // 7. Erfolgreiche Antwort senden
-            //    Wir senden den rohen JSON-String aus der Datei.
-            //    Setze den Content-Type Header korrekt.
-            crow::response res(200, file_content);
+            crow::response res(encounter_data.dump());
             res.set_header("Content-Type", "application/json");
             return res;
 
-        } catch (const std::filesystem::filesystem_error& e) {
-            // Fängt Fehler von std::filesystem::exists, is_regular_file etc. ab
-            std::cerr << "Dateisystemfehler beim Zugriff auf " << file_path << ": " << e.what() << std::endl;
-            json error_resp;
-            error_resp["error"] = "Interner Dateisystemfehler.";
-            return crow::response(500, error_resp.dump());
+        } catch (const json::parse_error& e) {
+            std::cerr << "Fehler beim Parsen der Encounter-Datei " << encounter_file_path << ": " << e.what() << std::endl;
+            return crow::response(500, "{\"error\": \"Fehler beim Lesen der Encounter-Daten.\"}");
         } catch (const std::exception& e) {
-            // Fängt andere mögliche Fehler ab (z.B. von std::stringstream)
-            std::cerr << "Allgemeiner Fehler beim Verarbeiten der Datei " << file_path << ": " << e.what() << std::endl;
-            json error_resp;
-            error_resp["error"] = "Interner Serverfehler beim Verarbeiten der Anfrage.";
-            return crow::response(500, error_resp.dump());
+            std::cerr << "Allgemeiner Fehler beim Holen des Encounters " << encounter_id << ": " << e.what() << std::endl;
+            return crow::response(500, "{\"error\": \"Interner Serverfehler.\"}");
         }
-
-//    CROW_ROUTE(app, "/api/monsters/summary")([]() {
-//        
-//    });
-
     });
 
-    // ----- Server Konfiguration und Start -----
+     // --- GET /api/monsters/summary ---
+     CROW_ROUTE(app, "/api/monsters/summary")([&]() { // Capture base_dir
+        json monster_summary_list = json::array();
+        try {
+             for (const auto& entry : std::filesystem::directory_iterator(monsters_base_dir)) {
+                 if (entry.is_regular_file() && entry.path().extension() == ".json") {
+                     std::ifstream file(entry.path());
+                     if (file.is_open()) {
+                         try {
+                             json data;
+                             file >> data;
+                             // Extrahiere nur die benötigten Felder für die Zusammenfassung
+                             json summary_item;
+                             summary_item["id"] = entry.path().stem().string(); // ID aus Dateinamen
+                             summary_item["name"] = data.value("name", "Unknown");
+                             summary_item["cr"] = data.value("CR", 0); // Verwende value für Default
+                             summary_item["size"] = data.value("size", "Medium");
+                             summary_item["type"] = data.value("type", "unknown");
+                             monster_summary_list.push_back(summary_item);
+                         } catch (const std::exception& e) {
+                             std::cerr << "Fehler beim Verarbeiten der Monster-Datei " << entry.path() << ": " << e.what() << std::endl;
+                             // Überspringe fehlerhafte Dateien
+                         }
+                     }
+                 }
+             }
+        } catch (const std::exception& e) {
+            std::cerr << "Fehler beim Auflisten der Monster in " << monsters_base_dir << ": " << e.what() << std::endl;
+            return crow::response(500, "{\"error\": \"Serverfehler beim Auflisten der Monster.\"}");
+        }
+        crow::response res(monster_summary_list.dump());
+        res.set_header("Content-Type", "application/json");
+        return res;
+    });
 
-    // Setze den Port, auf dem der Server lauschen soll (z.B. 8080)
-    app.port(8080)
-        // Aktiviere Multithreading, damit der Server mehrere Anfragen gleichzeitig bearbeiten kann
-        .multithreaded()
-        // Starte den Server. Dieser Aufruf blockiert, d.h. das Programm läuft hier weiter,
-        // bis der Server gestoppt wird (z.B. mit Ctrl+C im Terminal).
-        .run();
 
-    // Dieser Teil wird erst erreicht, wenn der Server gestoppt wird.
+    // --- POST /api/encounters (Erstellen/Aktualisieren) ---
+    CROW_ROUTE(app, "/api/encounters").methods("POST"_method)
+        ([&](const crow::request& req){ // Capture base_dirs
+        json incoming_data;
+        try {
+            incoming_data = json::parse(req.body);
+        } catch (const json::parse_error& e) {
+            std::cerr << "Fehler beim Parsen des Request Body: " << e.what() << std::endl;
+            return crow::response(400, "{\"error\": \"Ungültiges JSON im Request Body.\"}");
+        }
+
+        // 1. Daten validieren/extrahieren (Beispielhaft)
+        if (!incoming_data.contains("name") || !incoming_data["name"].is_string() ||
+            !incoming_data.contains("monsters") || !incoming_data["monsters"].is_array()) {
+            return crow::response(400, "{\"error\": \"Fehlende oder ungültige Felder 'name' oder 'monsters'.\"}");
+        }
+
+        std::string encounter_id = incoming_data.value("id", ""); // ID aus Request oder leer
+        std::string encounter_name = incoming_data["name"];
+        bool is_new_encounter = encounter_id.empty();
+
+        // Wenn keine ID vorhanden, generiere eine aus dem Namen (oder Timestamp)
+        if (is_new_encounter) {
+            encounter_id = encounter_name;
+            // Einfache ID-Generierung: Kleinbuchstaben, ersetze Leerzeichen/Sonderzeichen durch '_'
+            std::transform(encounter_id.begin(), encounter_id.end(), encounter_id.begin(), ::tolower);
+            std::replace_if(encounter_id.begin(), encounter_id.end(), [](char c){ return !std::isalnum(c); }, '_');
+            // Optional: Prüfen, ob die generierte ID schon existiert und ggf. Suffix hinzufügen
+             std::cout << "Generierte neue Encounter-ID: " << encounter_id << std::endl;
+        }
+
+        // 2. Ziel-Dateipfad erstellen
+        std::filesystem::path target_file_path;
+         try {
+             target_file_path = std::filesystem::path(encounters_base_dir) / (encounter_id + ".json");
+             target_file_path = std::filesystem::absolute(target_file_path).lexically_normal();
+         } catch (const std::exception& e) {
+             std::cerr << "Fehler beim Erstellen des Zielpfads für Encounter '" << encounter_id << "': " << e.what() << std::endl;
+             return crow::response(500, "{\"error\": \"Interner Fehler beim Erstellen des Dateipfads.\"}");
+         }
+
+         // Prüfe, ob Datei schon existiert, um Statuscode 200 oder 201 zu setzen
+         bool file_existed = std::filesystem::exists(target_file_path);
+
+
+        // 3. Finale JSON-Struktur aufbauen (mit Anreicherung)
+        json final_encounter_data;
+        final_encounter_data["id"] = encounter_id;
+        final_encounter_data["name"] = encounter_name;
+        final_encounter_data["description"] = incoming_data.value("description", "");
+        final_encounter_data["party"] = incoming_data.value("party", json::object({{"playerCount", 4}, {"averageLevel", 1}})); // Default Party
+        final_encounter_data["calculatedDifficulty"] = incoming_data.value("calculatedDifficulty", "Unknown");
+
+        // Monster anreichern
+        final_encounter_data["monsters"] = json::array();
+        try {
+            for (const auto& monster_ref : incoming_data["monsters"]) {
+                if (!monster_ref.contains("monsterId") || !monster_ref.contains("count")) {
+                     std::cerr << "Warnung: Ungültiger Monstereintrag im Request übersprungen." << std::endl;
+                     continue;
+                }
+                std::string m_id = monster_ref["monsterId"];
+                int m_count = monster_ref["count"];
+
+                json monster_full_data = load_monster_statblock(m_id);
+                if (monster_full_data == nullptr) {
+                    // Konnte Monster nicht laden, entscheide, wie damit umgegangen wird
+                    // Option A: Fehler werfen und Speichern abbrechen
+                     json error_resp;
+                     error_resp["error"] = "Referenziertes Monster nicht gefunden oder konnte nicht geladen werden.";
+                     error_resp["monsterId"] = m_id;
+                     return crow::response(400, error_resp.dump()); // 400 Bad Request, da Input fehlerhaft
+                    // Option B: Monster überspringen (führt evtl. zu inkonsistenten Encountern)
+                    // std::cerr << "Warnung: Monster " << m_id << " konnte nicht geladen werden, wird im Encounter übersprungen." << std::endl;
+                    // continue;
+                }
+
+                // Benötigte Felder extrahieren
+                int ac = monster_full_data.value("AC", 10);
+                double cr = monster_full_data.value("CR", 0.0); // CR kann double sein (1/8 etc.)
+
+                // HP berechnen (Durchschnitt)
+                json hp_obj = monster_full_data.value("HP", json::object({{"HD", 1}, {"type", 8}, {"modifier", 0}}));
+                int hd = hp_obj.value("HD", 1);
+                int type = hp_obj.value("type", 8);
+                int modifier = hp_obj.value("modifier", 0);
+                int avg_hp = std::max(1, static_cast<int>(std::floor(hd * (static_cast<double>(type) / 2.0 + 0.5)) + modifier)); // Durchschnitt berechnen
+
+                // Initiative Bonus berechnen
+                json stats_obj = monster_full_data.value("stats", json::object({{"DEX", 10}}));
+                int dex = stats_obj.value("DEX", 10);
+                int init_bonus = static_cast<int>(std::floor((dex - 10) / 2.0));
+
+                // Angereicherten Eintrag erstellen
+                json enriched_monster;
+                enriched_monster["monsterId"] = m_id;
+                enriched_monster["count"] = m_count;
+                enriched_monster["name"] = monster_full_data.value("name", m_id); // Name aus Statblock
+                enriched_monster["AC"] = ac;
+                enriched_monster["CR"] = cr;
+                enriched_monster["averageHp"] = avg_hp;
+                enriched_monster["initiativeBonus"] = init_bonus;
+                // Füge keine vollen Statblocks hinzu! Nur die extrahierten Werte.
+
+                final_encounter_data["monsters"].push_back(enriched_monster);
+            }
+        } catch (const std::exception& e) {
+             std::cerr << "Fehler beim Anreichern der Monsterdaten: " << e.what() << std::endl;
+             return crow::response(500, "{\"error\": \"Interner Fehler beim Verarbeiten der Monsterdaten.\"}");
+        }
+
+
+        // 4. In Datei schreiben
+        try {
+            std::ofstream output_file(target_file_path);
+            if (!output_file.is_open()) {
+                 std::cerr << "Fehler: Zieldatei konnte nicht zum Schreiben geöffnet werden: " << target_file_path << std::endl;
+                 return crow::response(500, "{\"error\": \"Encounter konnte nicht gespeichert werden (Dateizugriff).\"}");
+            }
+            // Schreibe JSON pretty-printed (Einrückung 4 Leerzeichen)
+            output_file << final_encounter_data.dump(4);
+            output_file.close(); // Schließen, um sicherzustellen, dass alles geschrieben wurde
+             std::cout << "Encounter erfolgreich gespeichert: " << target_file_path << std::endl;
+
+        } catch (const std::exception& e) {
+             std::cerr << "Fehler beim Schreiben der Encounter-Datei " << target_file_path << ": " << e.what() << std::endl;
+             return crow::response(500, "{\"error\": \"Interner Fehler beim Speichern des Encounters.\"}");
+        }
+
+        // 5. Erfolgsantwort senden
+        int status_code = file_existed ? 200 : 201; // OK oder Created
+        crow::response res(status_code, final_encounter_data.dump()); // Gib die gespeicherten Daten zurück
+        res.set_header("Content-Type", "application/json");
+        return res;
+    });
+
+
+    // --- DELETE /api/encounters/{encounterId} (NEU) ---
+     CROW_ROUTE(app, "/api/encounters/<string>").methods("DELETE"_method)
+        ([&](const std::string& encounter_id) { // Capture base_dir
+         std::filesystem::path file_path;
+         try {
+             file_path = std::filesystem::path(encounters_base_dir) / (encounter_id + ".json");
+             file_path = std::filesystem::absolute(file_path).lexically_normal();
+
+             if (!std::filesystem::exists(file_path)) {
+                 return crow::response(404, "{\"error\": \"Encounter nicht gefunden.\"}");
+             }
+              if (!std::filesystem::is_regular_file(file_path)) {
+                 return crow::response(400, "{\"error\": \"Angegebene ID gehört nicht zu einer Datei.\"}");
+             }
+
+             // Versuche zu löschen
+             if (std::filesystem::remove(file_path)) {
+                 std::cout << "Encounter gelöscht: " << file_path << std::endl;
+                 return crow::response(204); // No Content - Standard für erfolgreiches DELETE
+             } else {
+                  std::cerr << "Fehler: Encounter-Datei konnte nicht gelöscht werden (Berechtigungen?): " << file_path << std::endl;
+                  return crow::response(500, "{\"error\": \"Datei konnte nicht gelöscht werden.\"}");
+             }
+
+         } catch (const std::exception& e) {
+             std::cerr << "Fehler beim Löschen des Encounters '" << encounter_id << "' (" << file_path << "): " << e.what() << std::endl;
+             return crow::response(500, "{\"error\": \"Interner Serverfehler beim Löschen.\"}");
+         }
+     });
+
+
+    // --- Server Start ---
+    app.port(8080).multithreaded().run();
     std::cout << "Server wird beendet." << std::endl;
-
     return 0;
 }
