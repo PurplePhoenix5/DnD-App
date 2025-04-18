@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 
 // --- Props ---
 const props = defineProps({
@@ -88,11 +88,25 @@ function toggleCondition(conditionId) {
   }
 }
 
+async function handleAmountFocus(event) {
+  // Wir verwenden event.target, um das tatsächliche <input>-Element zu bekommen,
+  // das den Fokus erhalten hat. Das ist oft zuverlässiger als über die Ref
+  // auf das Vuetify-Komponenten-Objekt zu gehen.
+  const inputElement = event.target;
+
+  if (inputElement && typeof inputElement.select === 'function') {
+    // Warte auf den nächsten DOM-Update-Tick, bevor select() aufgerufen wird.
+    // Dies stellt sicher, dass der Fokus-Event vollständig verarbeitet wurde
+    // und die Auswahl zuverlässig funktioniert.
+    await nextTick();
+    inputElement.select();
+  }
+}
+
 </script>
 
 <template>
   <v-card>
-    <v-card-title>Interaction</v-card-title>
     <v-card-text>
       <!-- Zeige Encounter Schwierigkeit -->
       <div class="mb-4">
@@ -104,6 +118,7 @@ function toggleCondition(conditionId) {
 
       <!-- Eingabefeld für Schaden/Heilung -->
       <v-text-field
+        ref="amountInputRef"     
         v-model.number="amount"
         label="Amount"
         type="number"
@@ -113,13 +128,14 @@ function toggleCondition(conditionId) {
         variant="outlined"
         :disabled="!selectedCombatantId" 
         hide-details="auto"
+        @focus="handleAmountFocus"
       ></v-text-field>
       <!-- :disabled: Feld ist deaktiviert, wenn keine Kreatur ausgewählt ist -->
 
       <!-- Knöpfe für Aktionen -->
       <div class="d-flex justify-space-around mt-4">
         <v-btn
-          color="warning"
+          color="#2E7D32"
           @click="applyHealing"
           :disabled="!canInteract" 
           prepend-icon="mdi-heart-plus" 
@@ -127,7 +143,7 @@ function toggleCondition(conditionId) {
           Heal
         </v-btn>
         <v-btn
-          color="error"
+          color="#D50000"
           @click="applyDamage"
           :disabled="!canInteract" 
           prepend-icon="mdi-sword"   
@@ -142,9 +158,10 @@ function toggleCondition(conditionId) {
          Select a combatant in the list to apply damage or healing.
        </div>
 
+
         <!-- === NEU: Abschnitt für Conditions === -->
         <v-divider class="my-4"></v-divider>
-        <h4 class="mb-2">Add Condition</h4>
+        <h4 class="mb-2">Toggle Condition</h4>
         <div v-if="!canModifyCondition" class="text-caption text-center mb-2">
           (Select a combatant first)
         </div>

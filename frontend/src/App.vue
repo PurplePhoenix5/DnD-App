@@ -2,17 +2,20 @@
 import { ref } from 'vue';
 import CombatTracker from './components/CombatTracker/CombatTracker.vue';
 import StatusDisplay from './components/StatusDisplay.vue';
+import EncounterCreator from './components/EncounterCreator/EncounterCreator.vue';
 
 const activeTab = ref('tab-start');
 const tabs = ref([
   { id: 'tab-start', title: 'Startseite', component: StatusDisplay },
   { id: 'tab-combat', title: 'Combat Tracker', component: CombatTracker },
-  { id: 'tab-encounter', title: 'Encounter Creation', component: null },
+  { id: 'tab-encounter', title: 'Encounter Creator', component: EncounterCreator },
   { id: 'tab-dmscreen', title: 'DM Screen', component: null },
   { id: 'tab-monster', title: 'Monster Creator', component: null },
   { id: 'tab-maps', title: 'Maps', component: null },
   { id: 'tab-settings', title: 'Settings', component: null },
 ]);
+
+
 </script>
 
 <template>

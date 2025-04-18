@@ -197,7 +197,7 @@ watch(combatants, (newVal, oldVal) => {
       <!-- md="3" nimmt 3/12 (exakt 25%) der Breite auf md+ Screens -->
       <v-col cols="12" md="3">
         <InteractionPanel
-          :calculated-difficulty="encounterDifficulty"
+          :encounter-difficulty-prop="loadedDifficulty"
           :selected-combatant-id="selectedCombatantId"
           :selected-combatant-conditions="selectedConditions"
           @apply-damage="handleApplyDamage"

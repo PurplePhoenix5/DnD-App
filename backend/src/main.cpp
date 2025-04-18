@@ -179,6 +179,11 @@ int main() {
             error_resp["error"] = "Interner Serverfehler beim Verarbeiten der Anfrage.";
             return crow::response(500, error_resp.dump());
         }
+
+//    CROW_ROUTE(app, "/api/monsters/summary")([]() {
+//        
+//    });
+
     });
 
     // ----- Server Konfiguration und Start -----
