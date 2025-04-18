@@ -1,0 +1,23 @@
+{
+    "id": "encounterexample1",
+    "name": "Goblin Cave - Main Room",
+    "description": "Eine Beschreibung des Encounters.",
+    "monsters": [
+      {
+        "monsterId": "Goblin", 
+        "count": 3 
+      },
+      {
+        "monsterId": "Archmage", 
+        "count": 1 
+      },
+      {
+         "monsterId": "Tarrasque", 
+         "count": 1
+      }
+    ],
+    "party": {
+       "playerCount": 5,
+       "averageLevel": 4 
+    }
+  }

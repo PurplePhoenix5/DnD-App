@@ -1,0 +1,283 @@
+{
+    "name": "Goblin",
+    "nickname": "",
+    "saveVersion": 10,
+    "useArticleInToken": false,
+    "alphaTraits": true,
+    "size": "Small",
+    "type": "Humanoid goblinoid",
+    "alignment": "neutral evil",
+    "languages": "Common, Goblin",
+    "AC": 15,
+    "ACType": "leather armor, shield",
+    "CR": 2,
+    "lairCr": -1,
+    "lairCrNote": "in lair",
+    "useCrDisplayOverride": false,
+    "crOverride": "",
+    "proficiency": 2,
+    "proficiencyOverride": false,
+    "HP": {
+        "HD": 2,
+        "type": 6,
+        "modifier": 0
+    },
+    "hpModifierOverride": false,
+    "hpDieTypeOverride": false,
+    "stats": {
+        "STR": 8,
+        "DEX": 14,
+        "CON": 10,
+        "INT": 10,
+        "WIS": 8,
+        "CHA": 8
+    },
+    "saves": {
+        "STR": {
+            "proficient": false,
+            "override": false,
+            "overrideValue": 0
+        },
+        "DEX": {
+            "proficient": false,
+            "override": false,
+            "overrideValue": 0
+        },
+        "CON": {
+            "proficient": false,
+            "override": false,
+            "overrideValue": 0
+        },
+        "INT": {
+            "proficient": false,
+            "override": false,
+            "overrideValue": 0
+        },
+        "WIS": {
+            "proficient": false,
+            "override": false,
+            "overrideValue": 0
+        },
+        "CHA": {
+            "proficient": false,
+            "override": false,
+            "overrideValue": 0
+        }
+    },
+    "speeds": [
+        {
+            "id": "5c29fdf7-de4e-4e5e-8576-dc18b01d660c",
+            "type": "walk",
+            "speed": 30,
+            "note": ""
+        }
+    ],
+    "skills": [
+        {
+            "key": "STEALTH",
+            "skill": {
+                "stat": "DEX",
+                "label": "Stealth"
+            },
+            "proficient": false,
+            "expertise": true,
+            "override": false,
+            "overrideValue": 6
+        }
+    ],
+    "resistances": [],
+    "immunities": [],
+    "vulnerabilities": [],
+    "conditions": [],
+    "senses": {
+        "blindsight": 0,
+        "darkvision": 60,
+        "tremorsense": 0,
+        "truesight": 0
+    },
+    "sensesNotes": "",
+    "passivePerception": {
+        "override": true,
+        "overrideValue": null
+    },
+    "traits": [
+        {
+            "name": "Nimble Escape",
+            "id": "7293ef11-5759-4e93-a2de-a641ca831fa7",
+            "description": "The goblin can take the Disengage or Hide action as a bonus action on each of its turns.",
+            "limitedUse": {
+                "count": 0,
+                "rate": "DAY"
+            },
+            "customPreamble": false,
+            "crAnnotation": {
+                "maxDamage": 0,
+                "maxSave": 0,
+                "maxModifier": 0,
+                "multitarget": false,
+                "ehpMultiplier": 1,
+                "ehpModifier": 0,
+                "acModifier": 0,
+                "include": true,
+                "automatic": true
+            }
+        }
+    ],
+    "spellcasting": {
+        "stat": "INT",
+        "save": {
+            "override": false,
+            "overrideValue": 0
+        },
+        "modifier": {
+            "override": false,
+            "overrideValue": 0
+        },
+        "attack": {
+            "override": false,
+            "overrideValue": 0
+        },
+        "level": 1,
+        "slots": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+        ],
+        "atWill": [],
+        "standard": [],
+        "notes": "",
+        "atWillNotes": "",
+        "useCustomClassPreamble": false,
+        "customClassPreamble": "",
+        "useCustomInnatePreamble": false,
+        "customInnatePreamble": ""
+    },
+    "attacks": [
+        {
+            "id": "3c4a2016-a2bc-485a-8878-838767d679e5",
+            "name": "Scimitar",
+            "distance": "MELEE",
+            "kind": "WEAPON",
+            "modifier": {
+                "override": false,
+                "overrideValue": 0,
+                "stat": "DEX",
+                "proficient": true
+            },
+            "range": {
+                "standard": 5,
+                "long": 60,
+                "reach": 5
+            },
+            "targets": 1,
+            "damage": {
+                "dice": 6,
+                "count": 1,
+                "modifier": {
+                    "override": false,
+                    "overrideValue": 0,
+                    "stat": "DEX"
+                },
+                "type": "slashing"
+            },
+            "alternateDamage": {
+                "dice": 6,
+                "count": 1,
+                "modifier": {
+                    "override": false,
+                    "overrideValue": 0,
+                    "stat": "STR"
+                },
+                "type": "slashing",
+                "condition": "",
+                "active": false
+            },
+            "additionalDamage": [],
+            "save": 0,
+            "description": " ",
+            "legendaryOnly": false,
+            "useCustomRenderer": false,
+            "customRenderer": ""
+        },
+        {
+            "id": "d551481b-ee01-4b59-861f-6d6966788976",
+            "name": "Shortbow",
+            "distance": "RANGED",
+            "kind": "WEAPON",
+            "modifier": {
+                "override": false,
+                "overrideValue": 0,
+                "stat": "DEX",
+                "proficient": true
+            },
+            "range": {
+                "standard": 80,
+                "long": 320,
+                "reach": 80
+            },
+            "targets": 1,
+            "damage": {
+                "dice": 6,
+                "count": 1,
+                "modifier": {
+                    "override": false,
+                    "overrideValue": 0,
+                    "stat": "DEX"
+                },
+                "type": "piercing"
+            },
+            "alternateDamage": {
+                "dice": 6,
+                "count": 1,
+                "modifier": {
+                    "override": false,
+                    "overrideValue": 0,
+                    "stat": "STR"
+                },
+                "type": "slashing",
+                "condition": "",
+                "active": false
+            },
+            "additionalDamage": [],
+            "save": 0,
+            "description": " ",
+            "legendaryOnly": false,
+            "useCustomRenderer": false,
+            "customRenderer": ""
+        }
+    ],
+    "actions": [],
+    "multiattacks": [],
+    "multiattackOptions": {
+        "useCustomRenderer": false,
+        "customMultiattackRenderer": "",
+        "postscript": ""
+    },
+    "legendaryActions": {
+        "count": 0,
+        "actions": [],
+        "useCustomPreamble": false,
+        "customPreamble": ""
+    },
+    "mythicActions": {
+        "triggerName": "",
+        "triggerRecharge": "Recharges after a Short or Long Rest",
+        "triggerDescription": "If {NAME} would be reduced to 0 hit points, its current hit point total instead resets to {monster.hp} hit points. Additionally, the {NAME} can now use the options in the \"Mythic Actions\" section for 1 hour. Award a party an additional [x]XP ([x] XP total) for defeating the {}NAME} after this trait activates.",
+        "preamble": "If {NAME}'s mythic trait is active, it can use the options below as legendary actions.",
+        "actions": []
+    },
+    "reactions": [],
+    "useCustomLairActionPreamble": false,
+    "lairActionPreamble": "",
+    "lairActions": [],
+    "regionalEffects": [],
+    "regionalEffectDescription": "",
+    "inventory": "",
+    "autoEstimateDefenseCr": true
+}

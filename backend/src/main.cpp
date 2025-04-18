@@ -1,6 +1,8 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <filesystem> // Für std::filesystem
+#include <fstream>    // Für std::ifstream
 
 // Crow Header - oft reicht "crow.h", wenn über CMake eingebunden
 #include "crow.h"
@@ -8,12 +10,42 @@
 // nlohmann/json Header 
 #include "nlohmann/json.hpp"
 
+struct CorsMiddleware {
+    struct context {};
+
+    void before_handle(crow::request& req, crow::response& res, context& /*ctx*/) {
+        // Erlaube Anfragen von deinem Frontend-Entwicklungsserver
+        res.add_header("Access-Control-Allow-Origin", "http://localhost:5173"); 
+        
+        // Erlaube bestimmte Methoden (GET, POST, OPTIONS sind häufig)
+        res.add_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        
+        // Erlaube bestimmte Header in der Anfrage (z.B. für POST mit JSON)
+        res.add_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+        // Handle Preflight-Anfragen (Browser sendet OPTIONS vor komplexeren Anfragen wie POST)
+        if (req.method == "OPTIONS"_method) {
+            res.code = 204; // No Content
+            res.end();      // Beende die Antwort hier für OPTIONS
+            return;         // WICHTIG: Sofort zurückkehren!
+        }
+    }
+
+    void after_handle(crow::request& /*req*/, crow::response& res, context& /*ctx*/) {
+        // Stelle sicher, dass die CORS-Header in der endgültigen Antwort enthalten sind
+        res.add_header("Access-Control-Allow-Origin", "http://localhost:5173");
+        res.add_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        res.add_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    }
+};
+
+
 // Für bequemeren Zugriff auf den json-Typ
 using json = nlohmann::json;
 
 int main() {
-    // Erstelle das Crow App Objekt
-    crow::SimpleApp app;
+    // Erstelle das Crow App Objekt MIT Middleware
+    crow::App<CorsMiddleware> app;
 
     // ----- API Endpunkte (Routen) definieren -----
 
@@ -35,24 +67,40 @@ int main() {
 
     // 2. Beispiel-Endpunkt für Monster (GET /api/monsters)
     //    Gibt eine feste Liste von Monstern zurück (später liest du das aus JSON-Dateien).
-    CROW_ROUTE(app, "/api/monsters")([]() {
-        json monster_list = json::array(); // Erstelle ein leeres JSON-Array
+    CROW_ROUTE(app, "/api/encounters")([]() {
+        json encounter_list = json::array(); // Erstelle ein leeres JSON-Array
 
-        // Füge Beispiel-Monster hinzu
-        monster_list.push_back({
-            {"id", "goblin_1"},
-            {"name", "Goblin"},
-            {"hp", 7},
-            {"ac", 15}
-        });
-        monster_list.push_back({
-            {"id", "skeleton_1"},
-            {"name", "Skeleton"},
-            {"hp", 13},
-            {"ac", 13}
-        });
+        // Verzeichnis mit Encounter-Dateien
+        const std::string encounters_dir = "backend/data/encounters";
 
-        return crow::response(monster_list.dump());
+        // Iteriere über alle Dateien im Verzeichnis
+        for (const auto& entry : std::filesystem::directory_iterator(encounters_dir)) {
+            if (entry.is_regular_file() && entry.path().extension() == ".json") {
+                // Öffne die JSON-Datei
+                std::ifstream file(entry.path());
+                if (file.is_open()) {
+                    try {
+                        // Lese den Inhalt der Datei in ein JSON-Objekt
+                        json encounter_data;
+                        file >> encounter_data;
+
+                        // Extrahiere die Felder "id" und "name", falls vorhanden
+                        if (encounter_data.contains("id") && encounter_data.contains("name")) {
+                            encounter_list.push_back({
+                                {"id", encounter_data["id"]},
+                                {"name", encounter_data["name"]}
+                            });
+                        }
+                    } catch (const std::exception& e) {
+                        // Fehler beim Parsen der Datei - überspringe sie
+                        std::cerr << "Fehler beim Lesen der Datei " << entry.path() << ": " << e.what() << std::endl;
+                    }
+                }
+            }
+        }
+
+        // Gib die Liste als JSON-Antwort zurück
+        return crow::response(encounter_list.dump());
     });
 
     // 3. Beispiel-Endpunkt, der einen Parameter aus der URL liest (GET /api/monsters/<monster_id>)

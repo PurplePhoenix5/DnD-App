@@ -1,0 +1,277 @@
+{
+    "name": "Archmage",
+    "nickname": "",
+    "saveVersion": 10,
+    "useArticleInToken": false,
+    "alphaTraits": true,
+    "size": "Medium",
+    "type": "Humanoid any race",
+    "alignment": "any alignment",
+    "languages": "any six languages",
+    "AC": 12,
+    "ACType": "15 with _mage armor_",
+    "CR": 15,
+    "lairCr": -1,
+    "lairCrNote": "in lair",
+    "useCrDisplayOverride": false,
+    "crOverride": "",
+    "proficiency": 4,
+    "proficiencyOverride": false,
+    "HP": {
+        "HD": 18,
+        "type": 8,
+        "modifier": 18
+    },
+    "hpModifierOverride": false,
+    "hpDieTypeOverride": false,
+    "stats": {
+        "STR": 10,
+        "DEX": 14,
+        "CON": 12,
+        "INT": 20,
+        "WIS": 15,
+        "CHA": 16
+    },
+    "saves": {
+        "STR": {
+            "proficient": false,
+            "override": false,
+            "overrideValue": 0
+        },
+        "DEX": {
+            "proficient": false,
+            "override": false,
+            "overrideValue": 0
+        },
+        "CON": {
+            "proficient": false,
+            "override": false,
+            "overrideValue": 0
+        },
+        "INT": {
+            "proficient": true,
+            "override": false,
+            "overrideValue": 0
+        },
+        "WIS": {
+            "proficient": true,
+            "override": false,
+            "overrideValue": 0
+        },
+        "CHA": {
+            "proficient": false,
+            "override": false,
+            "overrideValue": 0
+        }
+    },
+    "speeds": [
+        {
+            "id": "1d3af1aa-b96f-4b42-ad5a-28b241ddc7c0",
+            "type": "walk",
+            "speed": 30,
+            "note": ""
+        }
+    ],
+    "skills": [
+        {
+            "key": "ARCANA",
+            "skill": {
+                "stat": "INT",
+                "label": "Arcana"
+            },
+            "proficient": false,
+            "expertise": true,
+            "override": false,
+            "overrideValue": 13
+        },
+        {
+            "key": "HISTORY",
+            "skill": {
+                "stat": "INT",
+                "label": "History"
+            },
+            "proficient": false,
+            "expertise": true,
+            "override": false,
+            "overrideValue": 13
+        }
+    ],
+    "resistances": [
+        "damage from spells; non magical bludgeoning",
+        "piercing",
+        "and slashing (from stoneskin)"
+    ],
+    "immunities": [],
+    "vulnerabilities": [],
+    "conditions": [],
+    "senses": {
+        "blindsight": 0,
+        "darkvision": 0,
+        "tremorsense": 0,
+        "truesight": 0
+    },
+    "sensesNotes": "",
+    "passivePerception": {
+        "override": true,
+        "overrideValue": null
+    },
+    "traits": [
+        {
+            "name": "Magic Resistance",
+            "id": "ff488dbe-f88c-4e70-9900-58ad0f75a8d5",
+            "description": "The archmage has advantage on saving throws against spells and other magical effects.",
+            "limitedUse": {
+                "count": 0,
+                "rate": "DAY"
+            },
+            "customPreamble": false,
+            "crAnnotation": {
+                "maxDamage": 0,
+                "maxSave": 0,
+                "maxModifier": 0,
+                "multitarget": false,
+                "ehpMultiplier": 1,
+                "ehpModifier": 0,
+                "acModifier": 0,
+                "include": true,
+                "automatic": true
+            }
+        }
+    ],
+    "spellcasting": {
+        "stat": "INT",
+        "save": {
+            "override": false,
+            "overrideValue": 0
+        },
+        "modifier": {
+            "override": false,
+            "overrideValue": 0
+        },
+        "attack": {
+            "override": false,
+            "overrideValue": 0
+        },
+        "class": "wizard",
+        "level": 18,
+        "slots": [
+            4,
+            3,
+            0,
+            3,
+            3,
+            1,
+            1,
+            1,
+            1
+        ],
+        "atWill": [
+            "Fire Bolt",
+            "Light",
+            "Mage Hand",
+            "Prestidigitation",
+            "Shocking Grasp"
+        ],
+        "standard": [
+            "Detect Magic",
+            "Identify",
+            "Mage Armor",
+            "Magic Missile",
+            "Detect Thoughts",
+            "Mirror Image",
+            "Misty Step",
+            "Banishment",
+            "Fire Shield",
+            "Stoneskin",
+            "Cone of Cold",
+            "Scrying",
+            "Wall of Force",
+            "Globe of Invulnerability",
+            "Teleport",
+            "Mind Blank",
+            "Time Stop"
+        ],
+        "notes": "",
+        "atWillNotes": "",
+        "useCustomClassPreamble": false,
+        "customClassPreamble": "",
+        "useCustomInnatePreamble": false,
+        "customInnatePreamble": ""
+    },
+    "attacks": [
+        {
+            "id": "5fcbf7d8-b233-4057-9c93-bd16e5a9c856",
+            "name": "Dagger",
+            "distance": "BOTH",
+            "kind": "WEAPON",
+            "modifier": {
+                "override": false,
+                "overrideValue": 0,
+                "stat": "DEX",
+                "proficient": true
+            },
+            "range": {
+                "standard": 20,
+                "long": 60,
+                "reach": 5
+            },
+            "targets": 1,
+            "damage": {
+                "dice": 4,
+                "count": 1,
+                "modifier": {
+                    "override": false,
+                    "overrideValue": 0,
+                    "stat": "DEX"
+                },
+                "type": "piercing"
+            },
+            "alternateDamage": {
+                "dice": 6,
+                "count": 1,
+                "modifier": {
+                    "override": false,
+                    "overrideValue": 0,
+                    "stat": "STR"
+                },
+                "type": "slashing",
+                "condition": "",
+                "active": false
+            },
+            "additionalDamage": [],
+            "save": 0,
+            "description": " ",
+            "legendaryOnly": false,
+            "useCustomRenderer": false,
+            "customRenderer": ""
+        }
+    ],
+    "actions": [],
+    "multiattacks": [],
+    "multiattackOptions": {
+        "useCustomRenderer": false,
+        "customMultiattackRenderer": "",
+        "postscript": ""
+    },
+    "legendaryActions": {
+        "count": 0,
+        "actions": [],
+        "useCustomPreamble": false,
+        "customPreamble": ""
+    },
+    "mythicActions": {
+        "triggerName": "",
+        "triggerRecharge": "Recharges after a Short or Long Rest",
+        "triggerDescription": "If {NAME} would be reduced to 0 hit points, its current hit point total instead resets to {monster.hp} hit points. Additionally, the {NAME} can now use the options in the \"Mythic Actions\" section for 1 hour. Award a party an additional [x]XP ([x] XP total) for defeating the {}NAME} after this trait activates.",
+        "preamble": "If {NAME}'s mythic trait is active, it can use the options below as legendary actions.",
+        "actions": []
+    },
+    "reactions": [],
+    "useCustomLairActionPreamble": false,
+    "lairActionPreamble": "",
+    "lairActions": [],
+    "regionalEffects": [],
+    "regionalEffectDescription": "",
+    "inventory": "",
+    "autoEstimateDefenseCr": true
+}

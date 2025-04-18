@@ -1,0 +1,611 @@
+{
+    "name": "Tarrasque",
+    "nickname": "",
+    "saveVersion": 10,
+    "useArticleInToken": false,
+    "alphaTraits": true,
+    "size": "Gargantuan",
+    "type": "Monstrosity titan",
+    "alignment": "unaligned",
+    "languages": "",
+    "AC": 25,
+    "ACType": "natural armor",
+    "CR": 33,
+    "lairCr": -1,
+    "lairCrNote": "in lair",
+    "useCrDisplayOverride": false,
+    "crOverride": "",
+    "proficiency": 9,
+    "proficiencyOverride": false,
+    "HP": {
+        "HD": 33,
+        "type": 20,
+        "modifier": 330
+    },
+    "hpModifierOverride": false,
+    "hpDieTypeOverride": false,
+    "stats": {
+        "STR": 30,
+        "DEX": 11,
+        "CON": 30,
+        "INT": 3,
+        "WIS": 11,
+        "CHA": 11
+    },
+    "saves": {
+        "STR": {
+            "proficient": false,
+            "override": false,
+            "overrideValue": 0
+        },
+        "DEX": {
+            "proficient": false,
+            "override": false,
+            "overrideValue": 0
+        },
+        "CON": {
+            "proficient": false,
+            "override": false,
+            "overrideValue": 0
+        },
+        "INT": {
+            "proficient": true,
+            "override": false,
+            "overrideValue": 0
+        },
+        "WIS": {
+            "proficient": true,
+            "override": false,
+            "overrideValue": 0
+        },
+        "CHA": {
+            "proficient": true,
+            "override": false,
+            "overrideValue": 0
+        }
+    },
+    "speeds": [
+        {
+            "id": "926bfc65-1498-490c-bdf3-eadf21b9d1d1",
+            "type": "walk",
+            "speed": 40,
+            "note": ""
+        }
+    ],
+    "skills": [],
+    "resistances": [],
+    "immunities": [
+        "fire",
+        "poison; bludgeoning",
+        "piercing",
+        "and slashing from nonmagical attacks"
+    ],
+    "vulnerabilities": [],
+    "conditions": [
+        "charmed",
+        "frightened",
+        "paralyzed",
+        "poisoned"
+    ],
+    "senses": {
+        "blindsight": 120,
+        "darkvision": 0,
+        "tremorsense": 0,
+        "truesight": 0
+    },
+    "sensesNotes": "",
+    "passivePerception": {
+        "override": true,
+        "overrideValue": null
+    },
+    "traits": [
+        {
+            "name": "Legendary Resistance",
+            "id": "0497c39e-38ac-4de0-8019-20c0bb63803d",
+            "description": "If the tarrasque fails a saving throw, it can choose to succeed instead.",
+            "limitedUse": {
+                "count": 3,
+                "rate": "DAY"
+            },
+            "customPreamble": false,
+            "crAnnotation": {
+                "maxDamage": 0,
+                "maxSave": 0,
+                "maxModifier": 0,
+                "multitarget": false,
+                "ehpMultiplier": 1,
+                "ehpModifier": 0,
+                "acModifier": 0,
+                "include": true,
+                "automatic": true
+            }
+        },
+        {
+            "name": "Magic Resistance",
+            "id": "65a45e80-21e1-4f2e-8393-c3afc55fa250",
+            "description": "The tarrasque has advantage on saving throws against spells and other magical effects.",
+            "limitedUse": {
+                "count": 0,
+                "rate": "DAY"
+            },
+            "customPreamble": false,
+            "crAnnotation": {
+                "maxDamage": 0,
+                "maxSave": 0,
+                "maxModifier": 0,
+                "multitarget": false,
+                "ehpMultiplier": 1,
+                "ehpModifier": 0,
+                "acModifier": 0,
+                "include": true,
+                "automatic": true
+            }
+        },
+        {
+            "name": "Reflective Carapace",
+            "id": "308ae0c4-21e1-4236-88b2-a5a7abb7efb5",
+            "description": "Any time the tarrasque is targeted by a magic missile spell, a line spell, or a spell that requires a ranged attack roll, roll a d6. On a 1 to 5, the tarrasque is unaffected. On a 6, the tarrasque is unaffected, and the effect is reflected back at the caster as though it originated from the tarrasque, turning the caster into the target.",
+            "limitedUse": {
+                "count": 0,
+                "rate": "DAY"
+            },
+            "customPreamble": false,
+            "crAnnotation": {
+                "maxDamage": 0,
+                "maxSave": 0,
+                "maxModifier": 0,
+                "multitarget": false,
+                "ehpMultiplier": 1,
+                "ehpModifier": 0,
+                "acModifier": 0,
+                "include": true,
+                "automatic": true
+            }
+        },
+        {
+            "name": "Siege Monster",
+            "id": "5ec9b983-1936-4c21-98ba-c8809dc6b685",
+            "description": "The tarrasque deals double damage to objects and structures.",
+            "limitedUse": {
+                "count": 0,
+                "rate": "DAY"
+            },
+            "customPreamble": false,
+            "crAnnotation": {
+                "maxDamage": 0,
+                "maxSave": 0,
+                "maxModifier": 0,
+                "multitarget": false,
+                "ehpMultiplier": 1,
+                "ehpModifier": 0,
+                "acModifier": 0,
+                "include": true,
+                "automatic": true
+            }
+        }
+    ],
+    "spellcasting": {
+        "stat": "INT",
+        "save": {
+            "override": false,
+            "overrideValue": 0
+        },
+        "modifier": {
+            "override": false,
+            "overrideValue": 0
+        },
+        "attack": {
+            "override": false,
+            "overrideValue": 0
+        },
+        "level": 1,
+        "slots": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+        ],
+        "atWill": [],
+        "standard": [],
+        "notes": "",
+        "atWillNotes": "",
+        "useCustomClassPreamble": false,
+        "customClassPreamble": "",
+        "useCustomInnatePreamble": false,
+        "customInnatePreamble": ""
+    },
+    "attacks": [
+        {
+            "id": "dccd1e91-6aa0-44b0-9541-df8be0eca668",
+            "name": "Bite",
+            "distance": "MELEE",
+            "kind": "WEAPON",
+            "modifier": {
+                "override": false,
+                "overrideValue": 0,
+                "stat": "STR",
+                "proficient": true
+            },
+            "range": {
+                "standard": 10,
+                "long": 60,
+                "reach": 10
+            },
+            "targets": 1,
+            "damage": {
+                "dice": 12,
+                "count": 4,
+                "modifier": {
+                    "override": false,
+                    "overrideValue": 0,
+                    "stat": "STR"
+                },
+                "type": "piercing"
+            },
+            "alternateDamage": {
+                "dice": 6,
+                "count": 1,
+                "modifier": {
+                    "override": false,
+                    "overrideValue": 0,
+                    "stat": "STR"
+                },
+                "type": "slashing",
+                "condition": "",
+                "active": false
+            },
+            "additionalDamage": [],
+            "save": 0,
+            "description": "  If the target is a creature, it is grappled (escape DC 20). Until this grapple ends, the target is restrained, and the tarrasque can't bite another target.",
+            "legendaryOnly": false,
+            "useCustomRenderer": false,
+            "customRenderer": ""
+        },
+        {
+            "id": "5a83b31c-00b7-4169-86d9-32f935c36f64",
+            "name": "Claw",
+            "distance": "MELEE",
+            "kind": "WEAPON",
+            "modifier": {
+                "override": false,
+                "overrideValue": 0,
+                "stat": "STR",
+                "proficient": true
+            },
+            "range": {
+                "standard": 15,
+                "long": 60,
+                "reach": 15
+            },
+            "targets": 1,
+            "damage": {
+                "dice": 8,
+                "count": 4,
+                "modifier": {
+                    "override": false,
+                    "overrideValue": 0,
+                    "stat": "STR"
+                },
+                "type": "slashing"
+            },
+            "alternateDamage": {
+                "dice": 6,
+                "count": 1,
+                "modifier": {
+                    "override": false,
+                    "overrideValue": 0,
+                    "stat": "STR"
+                },
+                "type": "slashing",
+                "condition": "",
+                "active": false
+            },
+            "additionalDamage": [],
+            "save": 0,
+            "description": " ",
+            "legendaryOnly": false,
+            "useCustomRenderer": false,
+            "customRenderer": ""
+        },
+        {
+            "id": "13208ae8-77fc-47e6-95dc-154511300856",
+            "name": "Horns",
+            "distance": "MELEE",
+            "kind": "WEAPON",
+            "modifier": {
+                "override": false,
+                "overrideValue": 0,
+                "stat": "STR",
+                "proficient": true
+            },
+            "range": {
+                "standard": 10,
+                "long": 60,
+                "reach": 10
+            },
+            "targets": 1,
+            "damage": {
+                "dice": 10,
+                "count": 4,
+                "modifier": {
+                    "override": false,
+                    "overrideValue": 0,
+                    "stat": "STR"
+                },
+                "type": "piercing"
+            },
+            "alternateDamage": {
+                "dice": 6,
+                "count": 1,
+                "modifier": {
+                    "override": false,
+                    "overrideValue": 0,
+                    "stat": "STR"
+                },
+                "type": "slashing",
+                "condition": "",
+                "active": false
+            },
+            "additionalDamage": [],
+            "save": 0,
+            "description": " ",
+            "legendaryOnly": false,
+            "useCustomRenderer": false,
+            "customRenderer": ""
+        },
+        {
+            "id": "5d78ad8e-b51f-4cce-b012-96e089010e9a",
+            "name": "Tail",
+            "distance": "MELEE",
+            "kind": "WEAPON",
+            "modifier": {
+                "override": false,
+                "overrideValue": 0,
+                "stat": "STR",
+                "proficient": true
+            },
+            "range": {
+                "standard": 20,
+                "long": 60,
+                "reach": 20
+            },
+            "targets": 1,
+            "damage": {
+                "dice": 6,
+                "count": 4,
+                "modifier": {
+                    "override": false,
+                    "overrideValue": 0,
+                    "stat": "STR"
+                },
+                "type": "bludgeoning"
+            },
+            "alternateDamage": {
+                "dice": 6,
+                "count": 1,
+                "modifier": {
+                    "override": false,
+                    "overrideValue": 0,
+                    "stat": "STR"
+                },
+                "type": "slashing",
+                "condition": "",
+                "active": false
+            },
+            "additionalDamage": [],
+            "save": 0,
+            "description": "  If the target is a creature, it must succeed on a DC 20 Strength saving throw or be knocked prone.",
+            "legendaryOnly": false,
+            "useCustomRenderer": false,
+            "customRenderer": ""
+        }
+    ],
+    "actions": [
+        {
+            "name": "Frightful Presence",
+            "id": "a876b1af-7e81-4603-908e-64f719f3a6bf",
+            "description": "Each creature of the tarrasque's choice within 120 feet of it and aware of it must succeed on a DC 17 Wisdom saving throw or become frightened for 1 minute. A creature can repeat the saving throw at the end of each of its turns, with disadvantage if the tarrasque is within line of sight, ending the effect on itself on a success. If a creature's saving throw is successful or the effect ends for it, the creature is immune to the tarrasque's Frightful Presence for the next 24 hours.",
+            "recharge": "",
+            "limitedUse": {
+                "count": 0,
+                "rate": "DAY"
+            },
+            "save": {
+                "override": false,
+                "overrideValue": 0
+            },
+            "range": "",
+            "stat": "none",
+            "effects": [],
+            "legendaryOnly": false,
+            "customPreamble": false,
+            "bonusAction": false,
+            "crAnnotation": {
+                "maxDamage": 0,
+                "maxSave": 0,
+                "maxModifier": 0,
+                "multitarget": false,
+                "ehpMultiplier": 1,
+                "ehpModifier": 0,
+                "acModifier": 0,
+                "include": true,
+                "automatic": true
+            }
+        },
+        {
+            "name": "Swallow",
+            "id": "61139de4-c7a6-4ee2-89db-cfaac341b8c5",
+            "description": "The tarrasque makes one bite attack against a Large or smaller creature it is grappling. If the attack hits, the target takes the bite's damage, the target is swallowed, and the grapple ends. While swallowed, the creature is blinded and restrained, it has total cover against attacks and other effects outside the tarrasque, and it takes {16d6} acid damage at the start of each of the tarrasque's turns.<br>If the tarrasque takes 60 damage or more on a single turn from a creature inside it, the tarrasque must succeed on a DC 20 Constitution saving throw at the end of that turn or regurgitate all swallowed creatures, which fall prone in a space within 10 feet of the tarrasque. If the tarrasque dies, a swallowed creature is no longer restrained by it and can escape from the corpse by using 30 feet of movement, exiting prone.",
+            "recharge": "",
+            "limitedUse": {
+                "count": 0,
+                "rate": "DAY"
+            },
+            "save": {
+                "override": false,
+                "overrideValue": 0
+            },
+            "range": "",
+            "stat": "none",
+            "effects": [],
+            "legendaryOnly": false,
+            "customPreamble": false,
+            "bonusAction": false,
+            "crAnnotation": {
+                "maxDamage": 56,
+                "maxSave": 0,
+                "maxModifier": 0,
+                "multitarget": false,
+                "ehpMultiplier": 1,
+                "ehpModifier": 0,
+                "acModifier": 0,
+                "include": true,
+                "automatic": true
+            }
+        },
+        {
+            "name": "Attack",
+            "id": "dce6a2d5-db9e-400d-ada6-979af116d73e",
+            "description": "The tarrasque makes one claw attack or tail attack.",
+            "recharge": "",
+            "limitedUse": {
+                "count": 0,
+                "rate": "DAY"
+            },
+            "save": {
+                "override": false,
+                "overrideValue": 0
+            },
+            "range": "",
+            "stat": "none",
+            "effects": [],
+            "legendaryOnly": true,
+            "customPreamble": false,
+            "bonusAction": false,
+            "crAnnotation": {
+                "maxDamage": 0,
+                "maxSave": 0,
+                "maxModifier": 0,
+                "multitarget": false,
+                "ehpMultiplier": 1,
+                "ehpModifier": 0,
+                "acModifier": 0,
+                "include": true,
+                "automatic": true
+            }
+        },
+        {
+            "name": "Move",
+            "id": "ada91283-974b-40be-8713-4e8fb2c66068",
+            "description": "The tarrasque moves up to half its speed.",
+            "recharge": "",
+            "limitedUse": {
+                "count": 0,
+                "rate": "DAY"
+            },
+            "save": {
+                "override": false,
+                "overrideValue": 0
+            },
+            "range": "",
+            "stat": "none",
+            "effects": [],
+            "legendaryOnly": true,
+            "customPreamble": false,
+            "bonusAction": false,
+            "crAnnotation": {
+                "maxDamage": 0,
+                "maxSave": 0,
+                "maxModifier": 0,
+                "multitarget": false,
+                "ehpMultiplier": 1,
+                "ehpModifier": 0,
+                "acModifier": 0,
+                "include": true,
+                "automatic": true
+            }
+        },
+        {
+            "name": "Chomp",
+            "id": "c369e36d-04f8-48a1-859f-6308f74996d0",
+            "description": "The tarrasque makes one bite attack or uses its Swallow.",
+            "recharge": "",
+            "limitedUse": {
+                "count": 0,
+                "rate": "DAY"
+            },
+            "save": {
+                "override": false,
+                "overrideValue": 0
+            },
+            "range": "",
+            "stat": "none",
+            "effects": [],
+            "legendaryOnly": true,
+            "customPreamble": false,
+            "bonusAction": false,
+            "crAnnotation": {
+                "maxDamage": 0,
+                "maxSave": 0,
+                "maxModifier": 0,
+                "multitarget": false,
+                "ehpMultiplier": 1,
+                "ehpModifier": 0,
+                "acModifier": 0,
+                "include": true,
+                "automatic": true
+            }
+        }
+    ],
+    "multiattacks": [
+        {
+            "id": "ca5163b6-679e-4a98-b970-f029cefc682e",
+            "attacks": [],
+            "actions": []
+        }
+    ],
+    "multiattackOptions": {
+        "useCustomRenderer": true,
+        "customMultiattackRenderer": "The tarrasque can use its Frightful Presence. It then makes five attacks: one with its bite, two with its claws, one with its horns, and one with its tail. It can use its Swallow instead of its bite.",
+        "postscript": ""
+    },
+    "legendaryActions": {
+        "count": 3,
+        "actions": [
+            {
+                "actionId": "dce6a2d5-db9e-400d-ada6-979af116d73e",
+                "cost": 1
+            },
+            {
+                "actionId": "ada91283-974b-40be-8713-4e8fb2c66068",
+                "cost": 1
+            },
+            {
+                "actionId": "c369e36d-04f8-48a1-859f-6308f74996d0",
+                "cost": 1
+            }
+        ],
+        "useCustomPreamble": true,
+        "customPreamble": "The tarrasque can take 3 legendary actions, choosing from the options below. Only one legendary action option can be used at a time and only at the end of another creature's turn. The tarrasque regains spent legendary actions at the start of its turn."
+    },
+    "mythicActions": {
+        "triggerName": "",
+        "triggerRecharge": "Recharges after a Short or Long Rest",
+        "triggerDescription": "If {NAME} would be reduced to 0 hit points, its current hit point total instead resets to {monster.hp} hit points. Additionally, the {NAME} can now use the options in the \"Mythic Actions\" section for 1 hour. Award a party an additional [x]XP ([x] XP total) for defeating the {}NAME} after this trait activates.",
+        "preamble": "If {NAME}'s mythic trait is active, it can use the options below as legendary actions.",
+        "actions": []
+    },
+    "reactions": [],
+    "useCustomLairActionPreamble": false,
+    "lairActionPreamble": "",
+    "lairActions": [],
+    "regionalEffects": [],
+    "regionalEffectDescription": "",
+    "inventory": "",
+    "autoEstimateDefenseCr": true
+}

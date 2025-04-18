@@ -48,4 +48,4 @@ DnD-App/
 └── README.md               # Beschreibung deines Projekts
 ```
 
-Das ist der grundlegende Workflow: Code ändern -> make -> ./DnDApp -> Testen mit curl -> Server stoppen (Ctrl+C).
+Das ist der grundlegende Workflow: Code ändern -> cd backend/build -> make -> ./DnDApp -> Testen mit curl -> Server stoppen (Ctrl+C).

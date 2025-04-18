@@ -1,0 +1,833 @@
+{
+    "$schema": "https://json-schema.org/draft/2019-09/schema",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "The name of the creature."
+      },
+      "nickname": {
+        "type": "string",
+        "description": "An optional nickname for the creature."
+      },
+      "saveVersion": {
+        "type": "integer",
+        "description": "Version number for the creature save format."
+      },
+      "useArticleInToken": {
+        "type": "boolean",
+        "description": "Whether to include 'a', 'an', or 'the' before the name in the token."
+      },
+  
+      "size": {
+        "type": "string",
+        "description": "The size of the creature (e.g., 'Medium', 'Large')."
+      },
+      "type": {
+        "type": ["string", "null"],
+        "description": "The type of the creature (e.g., 'humanoid', 'beast'). Null if unspecified."
+      },
+      "alignment": {
+        "type": ["string", "null"],
+        "description": "The alignment of the creature (e.g., 'lawful evil'). Null if unspecified."
+      },
+      "languages": {
+        "type": "string",
+        "description": "Languages the creature knows, as a comma-separated string."
+      },
+  
+      "stats": {
+        "type": "object",
+        "description": "The creature's six ability scores.",
+        "properties": {
+          "STR": { "type": "integer" },
+          "DEX": { "type": "integer" },
+          "CON": { "type": "integer" },
+          "INT": { "type": "integer" },
+          "WIS": { "type": "integer" },
+          "CHA": { "type": "integer" }
+        },
+        "required": [ "STR", "DEX", "CON", "INT", "WIS", "CHA" ]
+      },
+  
+      "proficiency": {
+        "type": "integer",
+        "description": "The creature's base proficiency bonus."
+      },
+      "proficiencyOverride": {
+        "type": "boolean",
+        "description": "Whether the proficiency bonus is manually set."
+      },
+  
+      "AC": {
+        "type": "integer",
+        "description": "The creature's Armor Class."
+      },
+      "ACType": {
+        "type": "string",
+        "description": "Description of the Armor Class type (e.g., 'natural armor', 'studded leather')."
+      },
+      "HP": {
+        "type": "object",
+        "description": "Hit Point information.",
+        "properties": {
+          "HD": {
+            "type": "integer",
+            "description": "Number of Hit Dice."
+          },
+          "type": {
+            "type": "integer",
+            "description": "Type of Hit Die (e.g., 8 for d8)."
+          },
+          "modifier": {
+            "type": "integer",
+            "description": "Modifier added to HP calculation (e.g., CON modifier * HD)."
+          }
+        },
+        "required": [ "HD", "type", "modifier" ]
+      },
+      "hpModifierOverride": {
+        "type": "boolean",
+        "description": "Whether the HP modifier is manually set."
+      },
+      "hpDieTypeOverride": {
+        "type": "boolean",
+        "description": "Whether the Hit Die type is manually set."
+      },
+  
+      "resistances": {
+        "type": "array",
+        "description": "List of damage resistances.",
+        "items": {
+          "type": "string"
+        }
+      },
+      "immunities": {
+        "type": "array",
+        "description": "List of damage immunities.",
+        "items": {
+          "type": "string"
+        }
+      },
+      "vulnerabilities": {
+        "type": "array",
+        "description": "List of damage vulnerabilities.",
+        "items": {
+          "type": "string"
+        }
+      },
+      "conditions": {
+        "type": "array",
+        "description": "List of condition immunities.",
+        "items": {
+          "type": "string"
+        }
+      },
+  
+      "speeds": {
+        "type": "array",
+        "description": "List of movement speeds (e.g., walk, fly, swim).",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "type": { "type": ["string", "null"] },
+            "speed": { "type": "integer" },
+            "note": { "type": "string" }
+          },
+          "required": [ "id", "type", "speed" ]
+        }
+      },
+  
+      "senses": {
+        "type": "object",
+        "description": "Special senses and their ranges.",
+        "properties": {
+          "blindsight": { "type": "integer" },
+          "darkvision": { "type": "integer" },
+          "tremorsense": { "type": "integer" },
+          "truesight": { "type": "integer" }
+        }
+      },
+      "sensesNotes": {
+        "type": "string",
+        "description": "Any additional notes about senses (e.g., 'passive Perception 15')."
+      },
+      "passivePerception": {
+        "type": "object",
+        "description": "Override setting for passive Perception.",
+        "properties": {
+          "override": { "type": "boolean" },
+          "overrideValue": { "type": ["integer", "null"] }
+        },
+        "required": [ "override" ]
+      },
+  
+      "saves": {
+        "type": "object",
+        "description": "Saving throw proficiencies and overrides.",
+        "properties": {
+          "STR": {
+            "type": "object",
+            "properties": {
+              "proficient": { "type": "boolean" },
+              "override": { "type": "boolean" },
+              "overrideValue": { "type": "integer" }
+            },
+            "required": [ "proficient", "override" ]
+          },
+          "DEX": {
+            "type": "object",
+            "properties": {
+              "proficient": { "type": "boolean" },
+              "override": { "type": "boolean" },
+              "overrideValue": { "type": "integer" }
+            },
+            "required": [ "proficient", "override" ]
+          },
+          "CON": {
+            "type": "object",
+            "properties": {
+              "proficient": { "type": "boolean" },
+              "override": { "type": "boolean" },
+              "overrideValue": { "type": "integer" }
+            },
+            "required": [ "proficient", "override" ]
+          },
+          "INT": {
+            "type": "object",
+            "properties": {
+              "proficient": { "type": "boolean" },
+              "override": { "type": "boolean" },
+              "overrideValue": { "type": "integer" }
+            },
+            "required": [ "proficient", "override" ]
+          },
+          "WIS": {
+            "type": "object",
+            "properties": {
+              "proficient": { "type": "boolean" },
+              "override": { "type": "boolean" },
+              "overrideValue": { "type": "integer" }
+            },
+            "required": [ "proficient", "override" ]
+          },
+          "CHA": {
+            "type": "object",
+            "properties": {
+              "proficient": { "type": "boolean" },
+              "override": { "type": "boolean" },
+              "overrideValue": { "type": "integer" }
+            },
+            "required": [ "proficient", "override" ]
+          }
+        },
+        "required": [ "STR", "DEX", "CON", "INT", "WIS", "CHA" ]
+      },
+  
+      "skills": {
+        "type": "array",
+        "description": "Skill proficiencies and overrides.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "skill": {
+              "type": "object",
+              "properties": {
+                "stat": { "type": "string" },
+                "label": { "type": "string" }
+              },
+              "required": [ "stat", "label" ]
+            },
+            "key": { "type": "string" },
+            "proficient": { "type": "boolean" },
+            "expertise": { "type": "boolean" },
+            "override": { "type": "boolean" },
+            "overrideValue": { "type": "integer" }
+          },
+          "required": [ "skill", "key", "proficient", "expertise", "override" ]
+        }
+      },
+  
+      "CR": {
+        "type": "integer",
+        "description": "Challenge Rating (as a numeric index, not fraction)."
+      },
+      "useCrDisplayOverride": {
+        "type": "boolean",
+        "description": "Whether the displayed CR is manually set."
+      },
+      "crOverride": {
+        "type": "string",
+        "description": "Manually set CR string (e.g., '1/2', '5')."
+      },
+      "lairCR": {
+        "type": "integer",
+        "description": "Challenge Rating including lair actions (as a numeric index)."
+      },
+      "lairCRNote": {
+        "type": "string",
+        "description": "Note about the lair CR."
+      },
+       "autoEstimateDefenseCr": {
+        "type": "boolean",
+        "description": "Whether to automatically estimate defense CR."
+      },
+  
+  
+      "traits": {
+        "type": "array",
+        "description": "Special traits and passive abilities.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "id": { "type": "string" },
+            "description": { "type": "string" },
+            "limitedUse": {
+              "type": "object",
+              "properties": {
+                "count": { "type": "integer" },
+                "rate": { "type": "string" }
+              },
+              "required": [ "count", "rate" ]
+            },
+            "customPreamble": { "type": "boolean" },
+            "crAnnotation": {
+              "type": "object",
+              "description": "Annotations for CR calculation related to this trait.",
+              "properties": {
+                "maxDamage": { "type": "integer" },
+                "maxSave": { "type": "integer" },
+                "maxModifier": { "type": "integer" },
+                "multitarget": { "type": "boolean" },
+                "ehpMultiplier": { "type": "number" },
+                "ehpModifier": { "type": "integer" },
+                "acModifier": { "type": "integer" },
+                "include": { "type": "boolean" },
+                "automatic": { "type": "boolean" }
+              }
+            }
+          },
+          "required": [ "name", "id", "description", "limitedUse", "customPreamble" ]
+        }
+      },
+  
+      "spellcasting": {
+        "type": "object",
+        "description": "Spellcasting information.",
+        "properties": {
+          "stat": {
+            "type": "string",
+            "description": "Ability score used for spellcasting (e.g., 'INT', 'WIS', 'CHA')."
+          },
+          "save": {
+            "type": "object",
+            "description": "Override for spell save DC.",
+            "properties": {
+              "override": { "type": "boolean" },
+              "overrideValue": { "type": "integer" }
+            },
+            "required": [ "override" ]
+          },
+          "modifier": {
+            "type": "object",
+            "description": "Override for spell attack modifier.",
+            "properties": {
+              "override": { "type": "boolean" },
+              "overrideValue": { "type": "integer" }
+            },
+            "required": [ "override" ]
+          },
+          "attack": {
+            "type": "object",
+            "description": "Override for general spell attack modifier (might be redundant with 'modifier').",
+            "properties": {
+              "override": { "type": "boolean" },
+              "overrideValue": { "type": "integer" }
+            },
+            "required": [ "override" ]
+          },
+          "class": {
+            "type": ["string", "null"],
+            "description": "Spellcasting class (e.g., 'Wizard'). Null if innate."
+          },
+          "level": {
+            "type": "integer",
+            "description": "Spellcasting level (for class spellcasters)."
+          },
+          "slots": {
+            "type": "array",
+            "description": "Array of spell slots per level (index 0 unused, index 1 is 1st level, etc.).",
+            "items": { "type": "integer" },
+            "minItems": 9,
+            "maxItems": 9
+          },
+          "atWill": {
+            "type": "array",
+            "description": "Innate spells castable at will or limited uses.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "count": { "type": "integer" },
+                "rate": { "type": "string" },
+                "spells": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              },
+              "required": [ "id", "count", "rate", "spells" ]
+            }
+          },
+          "standard": {
+            "type": "array",
+            "description": "Spells that use spell slots or are castable a fixed number of times per day.",
+            "items": { "type": "string" }
+          },
+          "notes": {
+            "type": "string",
+            "description": "General notes about spellcasting."
+          },
+          "atWillNotes": {
+            "type": "string",
+            "description": "Notes specifically about at-will/innate spellcasting."
+          },
+          "useCustomClassPreamble": { "type": "boolean" },
+          "customClassPreamble": { "type": "string" },
+          "useCustomInnatePreamble": { "type": "boolean" },
+          "customInnatePreamble": { "type": "string" }
+        },
+        "required": [
+          "stat", "save", "modifier", "attack", "class", "level", "slots",
+          "atWill", "standard", "notes", "atWillNotes",
+          "useCustomClassPreamble", "customClassPreamble",
+          "useCustomInnatePreamble", "customInnatePreamble"
+        ]
+      },
+  
+      "attacks": {
+        "type": "array",
+        "description": "Melee and Ranged Attacks.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "name": { "type": "string" },
+            "distance": {
+              "type": "string",
+              "description": "'Melee' or 'Ranged'."
+            },
+            "kind": {
+              "type": "string",
+               "description": "Type of attack (e.g., 'weapon', 'spell')."
+            },
+            "modifier": {
+              "type": "object",
+              "description": "Attack roll modifier.",
+              "properties": {
+                "override": { "type": "boolean" },
+                "overrideValue": { "type": "integer" },
+                "stat": { "type": "string" },
+                "proficient": { "type": "boolean" }
+              },
+               "required": [ "override", "stat", "proficient" ]
+            },
+            "range": {
+              "type": "object",
+              "description": "Attack range details.",
+              "properties": {
+                "standard": { "type": "integer" },
+                "long": { "type": "integer" },
+                "reach": { "type": "integer" }
+              }
+            },
+            "targets": {
+              "type": "integer",
+              "description": "Number of targets."
+            },
+            "damage": {
+              "type": "object",
+              "description": "Standard damage roll.",
+              "properties": {
+                "dice": { "type": "integer" },
+                "count": { "type": "integer" },
+                "modifier": {
+                  "type": "object",
+                  "description": "Damage modifier.",
+                  "properties": {
+                    "override": { "type": "boolean" },
+                    "overrideValue": { "type": "integer" },
+                    "stat": { "type": "string" }
+                  },
+                  "required": [ "override", "stat" ]
+                },
+                "type": {
+                  "type": "string",
+                  "description": "Damage type (e.g., 'piercing', 'fire')."
+                }
+              },
+              "required": [ "dice", "count", "modifier", "type" ]
+            },
+            "alternateDamage": {
+              "type": "object",
+              "description": "Optional alternate damage roll (e.g., for specific conditions).",
+              "properties": {
+                "dice": { "type": "integer" },
+                "count": { "type": "integer" },
+                "modifier": {
+                  "type": "object",
+                   "properties": {
+                    "override": { "type": "boolean" },
+                    "overrideValue": { "type": "integer" },
+                    "stat": { "type": "string" }
+                  },
+                  "required": [ "override", "stat" ]
+                },
+                "type": { "type": "string" },
+                "condition": {
+                   "type": "string",
+                   "description": "Condition for this damage to apply."
+                },
+                "active": {
+                  "type": "boolean",
+                  "description": "Whether this alternate damage is currently active."
+                }
+              },
+              "required": [ "dice", "count", "modifier", "type", "condition", "active" ]
+            },
+            "additionalDamage": {
+              "type": "array",
+              "description": "Additional damage components.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": { "type": "string" },
+                  "dice": { "type": "integer" },
+                  "count": { "type": "integer" },
+                  "type": { "type": "string" },
+                  "note": { "type": "string" }
+                },
+                "required": [ "id", "dice", "count", "type", "note" ]
+              }
+            },
+            "save": {
+              "type": ["integer", "null"],
+              "description": "Optional save DC related to the attack."
+            },
+            "description": {
+              "type": "string",
+              "description": "Additional description for the attack."
+            },
+            "legendaryOnly": {
+              "type": "boolean",
+              "description": "True if this attack is only usable as a Legendary Action."
+            },
+            "useCustomRenderer": { "type": "boolean" },
+            "customRenderer": { "type": "string" }
+          },
+          "required": [
+              "id", "name", "distance", "kind", "modifier", "range", "targets", "damage",
+              "alternateDamage", "additionalDamage", "description", "legendaryOnly",
+              "useCustomRenderer", "customRenderer"
+          ]
+        }
+      },
+  
+      "actions": {
+        "type": "array",
+        "description": "Standard Actions.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "id": { "type": "string" },
+            "description": { "type": "string" },
+            "recharge": {
+              "type": "string",
+              "description": "Recharge information (e.g., '5-6', 'Recharge after rest')."
+            },
+            "legendaryOnly": {
+               "type": "boolean",
+              "description": "True if this action is only usable as a Legendary Action."
+            },
+            "limitedUse": {
+              "type": "object",
+              "properties": {
+                "count": { "type": "integer" },
+                "rate": { "type": "string" }
+              },
+              "required": [ "count", "rate" ]
+            },
+            "customPreamble": { "type": "boolean" },
+            "bonusAction": {
+              "type": "boolean",
+              "description": "True if this is a bonus action."
+            },
+            "stat": {
+              "type": "string",
+              "description": "Ability score associated with the action (e.g., for a save)."
+            },
+            "save": {
+              "type": "object",
+              "description": "Save DC override for the action.",
+              "properties": {
+                "override": { "type": "boolean" },
+                "overrideValue": { "type": "integer" }
+              },
+              "required": [ "override" ]
+            },
+            "effects": {
+              "type": "array",
+               "description": "List of effects (structure corrected from original).",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "case": { "type": "string" },
+                  "effect": { "type": "string" }
+                }
+              }
+            },
+            "crAnnotation": {
+              "type": "object",
+              "description": "Annotations for CR calculation related to this action.",
+              "properties": {
+                "maxDamage": { "type": "integer" },
+                "maxSave": { "type": "integer" },
+                "maxModifier": { "type": "integer" },
+                "multitarget": { "type": "boolean" },
+                "ehpMultiplier": { "type": "number" },
+                "ehpModifier": { "type": "integer" },
+                "acModifier": { "type": "integer" },
+                "include": { "type": "boolean" },
+                "automatic": { "type": "boolean" }
+              }
+            }
+          },
+          "required": [
+              "name", "id", "description", "recharge", "legendaryOnly", "limitedUse",
+              "customPreamble", "bonusAction", "save"
+          ]
+        }
+      },
+  
+      "multiattacks": {
+        "type": "array",
+        "description": "Definitions of Multiattacks.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "attacks": {
+              "type": "array",
+              "description": "IDs of attacks included in the multiattack.",
+              "items": { "type": "string" }
+            },
+            "actions": {
+              "type": "array",
+               "description": "IDs of actions included in the multiattack.",
+               "items": { "type": "string" }
+             }
+          },
+          "required": [ "id", "attacks", "actions" ]
+        }
+      },
+       "multiattackOptions": {
+        "type": "object",
+        "description": "Options for rendering Multiattacks.",
+        "properties": {
+          "useCustomRenderer": { "type": "boolean" },
+          "customMultiattackRenderer": { "type": "string" },
+          "postscript": { "type": "string" }
+        },
+        "required": [ "useCustomRenderer", "customMultiattackRenderer", "postscript" ]
+      },
+  
+  
+      "legendaryActions": {
+        "type": "object",
+        "description": "Legendary Actions.",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "description": "Number of legendary actions per round."
+          },
+          "actions": {
+            "type": "array",
+            "description": "References to actions usable as legendary actions.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "actionId": {
+                  "type": "string",
+                  "description": "ID of the action or attack used."
+                },
+                "cost": {
+                  "type": "integer",
+                  "description": "Cost in legendary actions."
+                }
+              },
+              "required": [ "actionId", "cost" ]
+            }
+          },
+          "useCustomPreamble": { "type": "boolean" },
+          "customPreamble": { "type": "string" }
+        },
+        "required": [ "count", "actions", "useCustomPreamble", "customPreamble" ]
+      },
+  
+      "mythicActions": {
+        "type": "object",
+        "description": "Mythic Actions.",
+        "properties": {
+          "triggerName": { "type": "string" },
+          "triggerRecharge": { "type": "string" },
+          "triggerDescription": { "type": "string" },
+          "preamble": { "type": "string" },
+          "actions": {
+            "type": "array",
+             "description": "References to actions usable as mythic actions.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "actionId": { "type": "string" },
+                "cost": { "type": "integer" }
+              },
+               "required": [ "actionId", "cost" ]
+            }
+          }
+        },
+        "required": [ "triggerName", "triggerRecharge", "triggerDescription", "preamble", "actions" ]
+      },
+  
+      "reactions": {
+        "type": "array",
+        "description": "Reactions.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+             "limitedUse": {
+              "type": "object",
+              "properties": {
+                "count": { "type": "integer" },
+                "rate": { "type": "string" }
+              },
+              "required": [ "count", "rate" ]
+            },
+            "id": { "type": "string" },
+            "description": { "type": "string" },
+            "trigger": {
+              "type": "string",
+              "description": "The condition that triggers the reaction."
+            },
+            "response": {
+               "type": "string",
+               "description": "The effect of the reaction."
+            }
+          },
+          "required": [ "name", "limitedUse", "id", "description", "trigger", "response" ]
+        }
+      },
+  
+      "useCustomLairActionPreamble": { "type": "boolean" },
+      "lairActionPreamble": { "type": "string" },
+      "lairActions": {
+        "type": "array",
+        "description": "Lair Actions.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "id": { "type": "string" },
+            "description": { "type": "string" },
+            "crAnnotation": {
+              "type": "object",
+               "description": "Annotations for CR calculation related to this lair action.",
+              "properties": {
+                "maxDamage": { "type": "integer" },
+                "maxSave": { "type": "integer" },
+                "maxModifier": { "type": "integer" },
+                "multitarget": { "type": "boolean" },
+                "ehpMultiplier": { "type": "number" },
+                "ehpModifier": { "type": "integer" },
+                "acModifier": { "type": "integer" },
+                "include": { "type": "boolean" },
+                "automatic": { "type": "boolean" }
+              }
+            }
+          },
+           "required": [ "name", "id", "description" ]
+        }
+      },
+  
+      "regionalEffects": {
+        "type": "array",
+        "description": "Regional Effects.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "description": { "type": "string" }
+          },
+          "required": [ "id", "description" ]
+        }
+      },
+      "regionalEffectDescription": {
+        "type": "string",
+        "description": "General description of regional effects."
+      },
+  
+      "inventory": {
+        "type": "string",
+        "description": "Creature's inventory or notable possessions."
+      }
+    },
+    "required": [
+      "name",
+      "saveVersion",
+      "size",
+      "type",
+      "alignment",
+      "stats",
+      "proficiency",
+      "proficiencyOverride",
+      "AC",
+      "ACType",
+      "HP",
+      "hpModifierOverride",
+      "hpDieTypeOverride",
+      "resistances",
+      "immunities",
+      "vulnerabilities",
+      "conditions",
+      "speeds",
+      "senses",
+      "sensesNotes",
+      "passivePerception",
+      "saves",
+      "skills",
+      "CR",
+      "useCrDisplayOverride",
+      "crOverride",
+      "lairCR",
+      "lairCRNote",
+      "autoEstimateDefenseCr",
+      "traits",
+      "spellcasting",
+      "attacks",
+      "actions",
+      "multiattacks",
+      "multiattackOptions",
+      "legendaryActions",
+      "mythicActions",
+      "reactions",
+      "useCustomLairActionPreamble",
+      "lairActionPreamble",
+      "lairActions",
+      "regionalEffects",
+      "regionalEffectDescription",
+      "inventory",
+      "languages"
+    ]
+  }
