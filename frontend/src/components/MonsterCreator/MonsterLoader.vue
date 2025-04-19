@@ -2,6 +2,11 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue';
 
+const props = defineProps({
+    style: { type: String, default: '2024' },
+    columns: { type: Number, default: 1 }
+});
+
 // Event zum Melden, welches Monster geladen werden soll
 const emit = defineEmits([
     'load-monster',
@@ -15,9 +20,9 @@ const selectedMonsterToLoad = ref(null);
 const isLoadingMonsters = ref(false);
 const loadError = ref(null);
 
-// === NEU: Lokale Refs für die Toggles (verbunden mit Props über Watcher) ===
-const selectedStyle = ref(props.style);
-const selectedColumns = ref(props.columns);
+// === KORREKTUR: Lokale Refs mit Prop-Werten initialisieren (NACH defineProps) ===
+const selectedStyle = ref(props.style);   // Jetzt sollte props hier verfügbar sein
+const selectedColumns = ref(props.columns); // Jetzt sollte props hier verfügbar sein
 
 // Daten für das Stat-Referenz-Dropdown (Platzhalter)
 const statReferenceItems = ref([

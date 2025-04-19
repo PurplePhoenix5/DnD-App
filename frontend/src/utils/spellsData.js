@@ -7,38 +7,42 @@ let spellsLoadingPromise = null;
 
 // Funktion zum Laden der Spells vom Backend
 async function loadAllSpells() {
-    // Wenn Daten schon geladen sind, gib sie zurück
-    if (allSpellsData !== null) {
-        return allSpellsData;
-    }
-    // Wenn schon ein Ladevorgang läuft, warte darauf
-    if (spellsLoadingPromise !== null) {
-        return spellsLoadingPromise;
-    }
+    if (allSpellsData !== null) return allSpellsData;
+    if (spellsLoadingPromise !== null) return spellsLoadingPromise;
 
-    console.log("Fetching spell data from API..."); // Log zum Debuggen
+    console.log("Fetching spell data from API...");
 
-    // Starte den Ladevorgang
-    spellsLoadingPromise = fetch('/api/spells') // Verwende den neuen API-Endpunkt
+    // === KORREKTUR: Vollständige Backend-URL verwenden ===
+    const backendUrl = 'http://localhost:8080/api/spells'; // Dein Backend-Server!
+    // ===================================================
+
+    spellsLoadingPromise = fetch(backendUrl) // Verwende die vollständige URL
         .then(response => {
             if (!response.ok) {
-                throw new Error(`HTTP error fetching spells! status: ${response.status}`);
+                // Versuche bei Fehlern, mehr Details zu loggen
+                return response.text().then(text => {
+                     console.error("Backend Error Response Text:", text);
+                     throw new Error(`HTTP error fetching spells! status: ${response.status}`);
+                });
             }
-            return response.json(); // Parse die JSON-Antwort
+            // Versuche zuerst, als Text zu lesen, um zu sehen, was ankommt
+            // return response.text().then(text => {
+            //    console.log("Raw spell response text:", text.substring(0, 500) + "..."); // Logge Anfang des Texts
+            //    return JSON.parse(text); // Dann parsen
+            // });
+            return response.json(); // Direktes Parsen
         })
         .then(data => {
             console.log("Spell data fetched successfully.");
-            allSpellsData = data; // Speichere die geparsten Daten
-            spellsLoadingPromise = null; // Setze Promise zurück nach Erfolg
+            allSpellsData = data;
+            spellsLoadingPromise = null;
             return allSpellsData;
         })
         .catch(error => {
             console.error('Failed to load spell data:', error);
-            allSpellsData = null; // Setze Daten zurück bei Fehler
-            spellsLoadingPromise = null; // Setze Promise zurück bei Fehler
-            // Optional: Fehler weiterwerfen oder null zurückgeben
-            // throw error; // Oder return null;
-            return null;
+            allSpellsData = null;
+            spellsLoadingPromise = null;
+            return null; // Gib null zurück bei Fehler
         });
 
     return spellsLoadingPromise;

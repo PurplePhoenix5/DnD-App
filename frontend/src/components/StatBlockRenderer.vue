@@ -1,89 +1,118 @@
 <template>
-  <!-- Zeige Ladezustand für Spells -->
   <div v-if="isLoadingSpells" class="text-center pa-4">
     <v-progress-circular indeterminate color="primary"></v-progress-circular>
     <p class="mt-2 text-caption">Loading spell data...</p>
   </div>
-  <!-- Zeige den Statblock, wenn Spells geladen sind und Monsterdaten existieren -->
-  <div v-else-if="monster" id="render" class="statblock mm2024" :style="columnStyle">
-    <!-- Name -->
+  <!-- Hauptcontainer mit dynamischer Klasse für den Stil -->
+  <div v-else-if="monster" id="render" class="statblock" :class="blockStyle" :style="columnStyle">
+    <!-- Name (Font ändert sich per CSS) -->
     <h2 class="monster-name">{{ monster.name }}</h2>
     <!-- Type, Size, Alignment -->
     <div class="type">
       {{ monster.size }} {{ monster.type || 'unknown type' }}, {{ monster.alignment || 'unaligned' }}
     </div>
     <hr />
-    <!-- AC, Initiative -->
-    <div class="skill ac">
-      <div>
-        <span class="name">Armor Class</span> {{ monster.AC ?? 10 }}{{ monster.ACType ? ` (${monster.ACType})` : '' }}
-      </div>
-      <span v-if="initiative"><b>Initiative</b> {{ initiative }}</span>
+    <!-- AC / Initiative -->
+    <!-- 2024 Style AC/Init -->
+    <div v-if="is2024" class="skill ac">
+       <div>
+         <span class="name">Armor Class</span> {{ monster.AC ?? 10 }}{{ monster.ACType ? ` (${monster.ACType})` : '' }}
+       </div>
+       <span v-if="initiative"><b>Initiative</b> {{ initiative }}</span>
     </div>
+     <!-- 2014 Style AC -->
+     <div v-if="is2014" class="skill">
+       <span class="name">Armor Class</span> {{ monster.AC ?? 10 }}{{ monster.ACType ? ` (${monster.ACType})` : '' }}
+     </div>
     <!-- HP -->
     <div class="skill"><span class="name">Hit Points</span> {{ hp }}</div>
     <!-- Speed -->
     <div class="skill"><span class="name">Speed</span> {{ speeds }}</div>
     <hr />
-    <!-- Stats Table (2024 Style) -->
-    <div class="row no-wrap stats" style="width: 100%">
-      <div class="stat-table">
-        <div class="header-label mod">Mod</div>
-        <div class="header-label save">Save</div>
-        <div class="stat one">STR</div>
-        <div class="score one">{{ statsAndSavesByKey.STR?.score }}</div>
-        <div class="mod one">{{ statsAndSavesByKey.STR?.renderedModifier }}</div>
-        <div class="save one">{{ statsAndSavesByKey.STR?.renderedSave }}</div>
-        <div class="stat two">INT</div>
-        <div class="score two">{{ statsAndSavesByKey.INT?.score }}</div>
-        <div class="mod two">{{ statsAndSavesByKey.INT?.renderedModifier }}</div>
-        <div class="save two">{{ statsAndSavesByKey.INT?.renderedSave }}</div>
-      </div>
-      <div class="stat-table">
-        <div class="header-label mod">Mod</div>
-        <div class="header-label save">Save</div>
-        <div class="stat one">DEX</div>
-        <div class="score one">{{ statsAndSavesByKey.DEX?.score }}</div>
-        <div class="mod one">{{ statsAndSavesByKey.DEX?.renderedModifier }}</div>
-        <div class="save one">{{ statsAndSavesByKey.DEX?.renderedSave }}</div>
-        <div class="stat two">WIS</div>
-        <div class="score two">{{ statsAndSavesByKey.WIS?.score }}</div>
-        <div class="mod two">{{ statsAndSavesByKey.WIS?.renderedModifier }}</div>
-        <div class="save two">{{ statsAndSavesByKey.WIS?.renderedSave }}</div>
-      </div>
-      <div class="stat-table">
-        <div class="header-label mod">Mod</div>
-        <div class="header-label save">Save</div>
-        <div class="stat one">CON</div>
-        <div class="score one">{{ statsAndSavesByKey.CON?.score }}</div>
-        <div class="mod one">{{ statsAndSavesByKey.CON?.renderedModifier }}</div>
-        <div class="save one">{{ statsAndSavesByKey.CON?.renderedSave }}</div>
-        <div class="stat two">CHA</div>
-        <div class="score two">{{ statsAndSavesByKey.CHA?.score }}</div>
-        <div class="mod two">{{ statsAndSavesByKey.CHA?.renderedModifier }}</div>
-        <div class="save two">{{ statsAndSavesByKey.CHA?.renderedSave }}</div>
-      </div>
+
+    <!-- Stats -->
+    <!-- 2014 Style Stats Row -->
+    <div v-if="is2014" class="row no-wrap stats-2014" style="width: 100%">
+       <div v-for="stat in stats2014" :key="stat.stat" class="stat-container">
+         <div class="stat-name">{{ stat.stat }}</div>
+         <div class="stat">
+           <div class="score">{{ stat.score }}</div>
+           <div class="modifier">({{ stat.renderedModifier }})</div>
+         </div>
+       </div>
+     </div>
+    <!-- 2024 Style Stats Table -->
+    <div v-if="is2024" class="row no-wrap stats" style="width: 100%">
+       <!-- Stat Tables wie gehabt -->
+       <div class="stat-table">
+         <div class="header-label mod">Mod</div>
+         <div class="header-label save">Save</div>
+         <div class="stat one">STR</div>
+         <div class="score one">{{ statsAndSavesByKey.STR?.score }}</div>
+         <div class="mod one">{{ statsAndSavesByKey.STR?.renderedModifier }}</div>
+         <div class="save one">{{ statsAndSavesByKey.STR?.renderedSave }}</div>
+         <div class="stat two">INT</div>
+         <div class="score two">{{ statsAndSavesByKey.INT?.score }}</div>
+         <div class="mod two">{{ statsAndSavesByKey.INT?.renderedModifier }}</div>
+         <div class="save two">{{ statsAndSavesByKey.INT?.renderedSave }}</div>
+       </div>
+       <div class="stat-table">
+          <div class="header-label mod">Mod</div>
+          <div class="header-label save">Save</div>
+          <div class="stat one">DEX</div>
+          <div class="score one">{{ statsAndSavesByKey.DEX?.score }}</div>
+          <div class="mod one">{{ statsAndSavesByKey.DEX?.renderedModifier }}</div>
+          <div class="save one">{{ statsAndSavesByKey.DEX?.renderedSave }}</div>
+          <div class="stat two">WIS</div>
+          <div class="score two">{{ statsAndSavesByKey.WIS?.score }}</div>
+          <div class="mod two">{{ statsAndSavesByKey.WIS?.renderedModifier }}</div>
+          <div class="save two">{{ statsAndSavesByKey.WIS?.renderedSave }}</div>
+        </div>
+       <div class="stat-table">
+         <div class="header-label mod">Mod</div>
+         <div class="header-label save">Save</div>
+         <div class="stat one">CON</div>
+         <div class="score one">{{ statsAndSavesByKey.CON?.score }}</div>
+         <div class="mod one">{{ statsAndSavesByKey.CON?.renderedModifier }}</div>
+         <div class="save one">{{ statsAndSavesByKey.CON?.renderedSave }}</div>
+         <div class="stat two">CHA</div>
+         <div class="score two">{{ statsAndSavesByKey.CHA?.score }}</div>
+         <div class="mod two">{{ statsAndSavesByKey.CHA?.renderedModifier }}</div>
+         <div class="save two">{{ statsAndSavesByKey.CHA?.renderedSave }}</div>
+       </div>
     </div>
     <hr />
+
+    <!-- Saves (Explicit 2014) -->
+    <div v-if="is2014 && saves2014" class="skill">
+      <span class="name">Saving Throws</span> {{ saves2014 }}
+    </div>
     <!-- Skills -->
     <div v-show="skills" class="skill">
       <span class="name">Skills</span> {{ skills }}
     </div>
-    <!-- Gear -->
-    <div v-show="inventory" class="skill">
-      <span class="name">Gear</span> <span v-html="inventory"></span>
-    </div>
+    <!-- Gear/Inventory (Position abhängig vom Style) -->
+    <div v-if="is2024 && inventory" class="skill">
+       <span class="name">Gear</span> <span v-html="inventory"></span>
+     </div>
     <!-- Resistances -->
     <div v-show="resistances" class="skill">
-      <span class="name">Damage Resistances</span> {{ resistances }}
-    </div>
-    <!-- Immunities (Damage + Condition) -->
-    <div v-show="immunitiesAndConditions" class="skill">
-      <span class="name">Damage & Condition Immunities</span> {{ immunitiesAndConditions }}
-    </div>
+       <span class="name">{{ resistancesLabel }}</span> {{ resistances }}
+     </div>
+    <!-- Immunities -->
+     <div v-if="is2024 && immunitiesAndConditions" class="skill">
+       <span class="name">Damage & Condition Immunities</span> {{ immunitiesAndConditions }}
+     </div>
+     <div v-if="is2014 && immunities" class="skill">
+       <span class="name">{{ immunitiesLabel }}</span> {{ immunities }}
+     </div>
     <!-- Vulnerabilities -->
     <div v-show="vulnerabilities" class="skill">
-      <span class="name">Damage Vulnerabilities</span> {{ vulnerabilities }}
+       <span class="name">{{ vulnerabilitiesLabel }}</span> {{ vulnerabilities }}
+     </div>
+    <!-- Conditions (Explicit 2014) -->
+    <div v-if="is2014 && conditions" class="skill">
+       <span class="name">Condition Immunities</span> {{ conditions }}
     </div>
     <!-- Senses -->
     <div v-show="senses" class="skill">
@@ -96,12 +125,17 @@
     <!-- Challenge -->
     <div class="skill">
       <span class="name">Challenge</span> {{ cr }}
+      <!-- Proficiency Bonus (Explicit 2014) -->
+      <span v-if="is2014" style="float: right">
+        <b>Proficiency Bonus</b> {{ renderBonus(proficiencyBonus) }}
+      </span>
     </div>
     <hr />
 
     <!-- Traits -->
     <template v-if="traits && traits.length > 0">
-      <h3 class="section first">Traits</h3>
+      <!-- Section Header (Label ändert sich nicht, aber 'first' Klasse ist 2024) -->
+      <h3 class="section" :class="{ first: is2024 }">Traits</h3>
       <div class="traits">
         <div v-for="(trait, idx) in traits" :key="`trait-${idx}`" class="trait" v-html="trait"></div>
         <div v-if="mythicTrait" class="trait" v-html="mythicTrait"></div>
@@ -115,24 +149,21 @@
     <div v-for="(action, idx) in actions" :key="`action-${idx}`" class="action" v-html="action"></div>
 
     <!-- Innate Spellcasting -->
-     <div v-if="resolvedInnateSpellcastingLists && resolvedInnateSpellcastingLists.length > 0" class="innate-spellcasting">
-       <div v-html="sanitizedInnateSpellcastingPreamble"></div>
-       <div class="spell-list">
-         <!-- Verwende resolvedInnateSpellcastingLists -->
-         <div v-for="innate in resolvedInnateSpellcastingLists" :key="innate.id" class="spell-row">
-           <span class="spell-label">{{ innate.renderedLabel }}: </span>
-           <span class="spell-list-entries">{{ innate.renderedSpells }}</span>
-         </div>
-       </div>
-     </div>
+    <div v-if="resolvedInnateSpellcastingLists && resolvedInnateSpellcastingLists.length > 0" class="innate-spellcasting">
+      <div v-html="sanitizedInnateSpellcastingPreamble"></div>
+      <div class="spell-list">
+        <div v-for="innate in resolvedInnateSpellcastingLists" :key="innate.id" class="spell-row">
+          <span class="spell-label">{{ innate.renderedLabel }}: </span>
+          <span class="spell-list-entries">{{ innate.renderedSpells }}</span>
+        </div>
+      </div>
+    </div>
 
     <!-- Class Spellcasting -->
-    <!-- Verwende die neuen resolved* computed properties -->
     <div v-if="(resolvedClassSpellcastingSlots && resolvedClassSpellcastingSlots.length > 0) || (resolvedKnownSpellsByLevel[0] && resolvedKnownSpellsByLevel[0].length > 0)" class="spellcasting">
       <div v-html="sanitizedClassSpellcastingPreamble"></div>
       <div class="spell-list">
         <!-- Cantrips -->
-        <!-- Verwende resolvedKnownSpellsByLevel -->
         <div v-if="resolvedKnownSpellsByLevel[0] && resolvedKnownSpellsByLevel[0].length > 0" class="spell-row">
           <span class="spell-label">Cantrips (at will): </span>
           <span class="spell-list-entries">{{ resolvedKnownSpellsByLevel[0].join(', ') }}</span>
@@ -141,13 +172,11 @@
         <div v-if="monster.spellcasting?.class === 'WARLOCK' && classSpellcastingWarlockLabel">
           <div class="spell-row">
             <span class="spell-label">{{ classSpellcastingWarlockLabel }}: </span>
-             <!-- Warlock verwendet immer noch monster.spellcasting.standard direkt -->
             <span class="spell-list-entries">{{ monster.spellcasting.standard.join(', ') }}</span>
           </div>
         </div>
         <!-- Standard Slots -->
         <template v-else>
-           <!-- Verwende resolvedClassSpellcastingSlots -->
           <div v-for="slot in resolvedClassSpellcastingSlots" :key="`slot-${slot.level}`" class="spell-row">
             <span class="spell-label">{{ slot.renderedLabel }}</span>
             <span class="spell-list-entries">{{ slot.renderedSpells }}</span>
@@ -212,6 +241,12 @@
        </div>
     </template>
 
+    <!-- Inventory (2014 Style at the bottom) -->
+    <div v-if="is2014 && inventory" class="inventory">
+       <h3 class="section">Inventory</h3>
+       <div v-html="inventory"></div>
+     </div>
+
   </div>
    <!-- Fallback, wenn Monsterdaten fehlen -->
   <div v-else>
@@ -232,8 +267,7 @@ import { STATS_FULL, STAT_KEYS } from '../utils/dndData/stats.js';
 import { SRD_CLASSES, ClassCastingStat, ClassSpellSlots } from '../utils/dndData/classes.js';
 import { ATTACK_RANGES, ATTACK_KINDS } from '../utils/dndData/attackData.js';
 import { getRechargeLabel } from '../utils/dndData/rechargeTimes.js';
-// Importiere die ASYNCHRONE getSpellData Funktion
-import { getSpellData } from '../utils/spellsData.js'; // Passe ggf. Pfad an
+import { getSpellData } from '../utils/spellsData.js';
 
 // Import rendering functions
 import {
@@ -245,12 +279,24 @@ import {
 // --- Props ---
 const props = defineProps({
     monsterData: { type: Object, required: true, default: () => ({}) },
-    columns: { type: Number, default: 1, }
+    columns: { type: Number, default: 1 },
+    displayStyle: {
+        type: String,
+        default: '2024', 
+        validator: (value) => ['2014', '2024'].includes(value) // Erlaubte Werte
+    }
 });
 
 const monster = computed(() => props.monsterData);
 
-// === NEU: Zustand für geladene Spelldaten und Ladeanzeige ===
+const is2014 = computed(() => props.displayStyle === '2014');
+const is2024 = computed(() => props.displayStyle === '2024');
+const blockStyle = computed(() => ({
+    'mm2014': is2014.value,
+    'mm2024': is2024.value,
+}));
+
+// === Zustand für geladene Spelldaten und Ladeanzeige ===
 const isLoadingSpells = ref(false);
 // Speichert die Detaildaten der relevanten Spells { spellNameLowercase: spellData }
 const resolvedSpellDetails = ref({});
@@ -539,9 +585,9 @@ watch(() => props.monsterData, (newMonsterData, oldMonsterData) => {
       return input;
   }
   
-  function processContextTokens(input, context, contextType) {
-       if (!input || !monster.value) return input ?? '';
-       if (!context || contextType === 'none') return processMonsterTokens(input); // Only process monster tokens if no context
+  function processContextTokens(input, context, contextType, style = '2024') {
+        if (!input || !monster.value) return input ?? '';
+        if (!context || contextType === 'none') return processMonsterTokens(input);
   
        // Context-specific tokens
        if (contextType === 'trait' && context.limitedUse) {
@@ -641,9 +687,9 @@ watch(() => props.monsterData, (newMonsterData, oldMonsterData) => {
   }
   
   // Main token processing function
-  function processTokens(input, context, contextType = 'none') {
-      return processContextTokens(input, context, contextType);
-  }
+  function processTokens(input, context, contextType = 'none', style = '2024') {
+    return processContextTokens(input, context, contextType, style);
+}
   
   // --- Specific Processors (call processTokens) ---
   function processTrait(context) {
@@ -681,11 +727,12 @@ watch(() => props.monsterData, (newMonsterData, oldMonsterData) => {
   function processAttack(context) {
     if (!context) return '';
     const template = context.useCustomRenderer
-          ? context.customRenderer
-          // English preset using tokens replaced by processContextTokens
-          : `<b><i>{attack.name}.</i></b> <i>{attack.distance} Weapon Attack:</i> {attack.modifier} to hit, {attack.range}, {attack.targets}. <i>Hit:</i> {attack.damage}{attack.conditionalDamage}{attack.additionalDamage}. {attack.description}`;
-    return processTokens(template, context, 'attack');
-  }
+        ? context.customRenderer
+        : is2014.value // Verwende is2014 computed prop
+            ? `<b><i>{attack.name}.</i></b> {attack.distance} {attack.modifier} to hit, {attack.range}, {attack.targets}. <i>Hit:</i> {attack.damage}{attack.conditionalDamage}{attack.additionalDamage}. {attack.description}` // 2014 Template
+            : `<b><i>{attack.name}.</i></b> <i>{attack.distance} Weapon Attack:</i> {attack.modifier} to hit, {attack.range}, {attack.targets}. <i>Hit:</i> {attack.damage}{attack.conditionalDamage}{attack.additionalDamage}. {attack.description}`; // 2024 Template
+    return processTokens(template, context, 'attack', props.displayStyle);
+}
   
   function processMultiattack(context) {
        if (!monster.value?.multiattacks || monster.value.multiattacks.length === 0) return '';
@@ -696,23 +743,25 @@ watch(() => props.monsterData, (newMonsterData, oldMonsterData) => {
        return processTokens(template, context, 'multiattack');
   }
   
-  function processClassSpellcasting(context) {
-      if (!context) return '';
-      const template = context.useCustomClassPreamble
-          ? context.customClassPreamble
-          // English preset using tokens
-          : `<b><i>Spellcasting.</b></i> {NAME} is a {spellcasting.ordinal}-level spellcaster. Its spellcasting ability is {spellcasting.stat} (spell save {spellcasting.save}, {spellcasting.attack} to hit with spell attacks). {spellcasting.notes} {NAME} has the following {spellcasting.class} spells prepared:`;
-      return processTokens(template, context, 'spell');
-  }
+  function processClassSpellcasting(context) { /* ... (angepasstes Template) ... */
+    if (!context) return '';
+    const template = context.useCustomClassPreamble
+        ? context.customClassPreamble
+        // Wähle Standard-Preamble basierend auf Style
+        : `<b><i>Spellcasting.</b></i> {NAME} is a {spellcasting.ordinal}-level spellcaster. Its spellcasting ability is {spellcasting.stat} (spell save {spellcasting.save}, {spellcasting.attack} to hit with spell attacks). {spellcasting.notes} {NAME} has the following {spellcasting.class} spells prepared:`; // Gleiches Preamble für beide? Anpassen falls nötig.
+    return processTokens(template, context, 'spell', props.displayStyle);
+}
   
-  function processInnateSpellcasting(context) {
-      if (!context) return '';
-      const template = context.useCustomInnatePreamble
-          ? context.customInnatePreamble
-          // English preset (2024 style) using tokens
-          : `<b><i>Spellcasting.</b></i> {NAME}'s spellcasting ability is {spellcasting.stat} (spell save {spellcasting.save}). {spellcasting.atWillNotes} It can innately cast the following spells, requiring no material components:`;
-      return processTokens(template, context, 'spell');
-  }
+function processInnateSpellcasting(context) { /* ... (angepasstes Template) ... */
+    if (!context) return '';
+    const template = context.useCustomInnatePreamble
+        ? context.customInnatePreamble
+        // Wähle Standard-Preamble basierend auf Style
+        : is2014.value
+            ? `<b><i>Innate Spellcasting.</b></i> {NAME}'s innate spellcasting ability is {spellcasting.stat} (spell save {spellcasting.save}, {spellcasting.attack} to hit with spell attacks). {spellcasting.atWillNotes} It can innately cast the following spells, requiring no material components:` // 2014 Preamble
+            : `<b><i>Spellcasting.</b></i> {NAME}'s spellcasting ability is {spellcasting.stat} (spell save {spellcasting.save}). {spellcasting.atWillNotes} It can innately cast the following spells, requiring no material components:`; // 2024 Preamble
+    return processTokens(template, context, 'spell', props.displayStyle);
+}
   
   function processLegendaryPreamble(context) {
     if (!context) return '';
@@ -867,6 +916,13 @@ const resolvedClassSpellcastingSlots = computed(() => {
       return `${calculatedAvgHp.value} (${monster.value.HP.HD ?? 1}d${monster.value.HP.type ?? 8}${hpModifier.value})`;
   });
   
+  const stats2014 = computed(() => {
+     return statsWithModifiers.value.map(s => ({
+         ...s,
+         renderedModifier: renderBonus(s.modifier)
+     }));
+  });
+
   const statsAndSavesByKey = computed(() => {
        const data = {};
        statsWithModifiers.value.forEach(s => {
@@ -924,7 +980,12 @@ const resolvedClassSpellcastingSlots = computed(() => {
   const resistances = computed(() => monster.value?.resistances?.join(', ') || '');
   const immunities = computed(() => monster.value?.immunities?.join(', ') || '');
   const vulnerabilities = computed(() => monster.value?.vulnerabilities?.join(', ') || '');
-  const conditions = computed(() => monster.value?.conditions?.join(', ') || '');
+  const conditions = computed(() => monster.value?.conditions?.join(', ') || ''); 
+
+  // --- NEU: Labels abhängig vom Style ---
+  const resistancesLabel = computed(() => is2014.value ? 'Damage Resistances' : 'Resistances');
+  const immunitiesLabel = computed(() => is2014.value ? 'Damage Immunities' : 'Immunities'); // Nur für 2014 explicit
+  const vulnerabilitiesLabel = computed(() => is2014.value ? 'Damage Vulnerabilities' : 'Vulnerabilities');
   
   const immunitiesAndConditions = computed(() => {
       const all = [...(monster.value?.immunities ?? []), ...(monster.value?.conditions ?? [])];
@@ -947,26 +1008,33 @@ const resolvedClassSpellcastingSlots = computed(() => {
   
     return sensesList.join(', ');
   });
-  
-  const cr = computed(() => {
-    if (!monster.value) return '0 (10 XP, PB +2)';
-    if (monster.value.useCrDisplayOverride) return monster.value.crOverride;
-  
-    const crData = getCrByNumber(monster.value.CR);
-    if (!crData) return '0 (10 XP, PB +2)'; // Fallback
-  
-    let xpString = `${crData.xp.toLocaleString('en-US')} XP`;
-     if (monster.value.lairCr > -1) {
-         const lairCrData = getCrByNumber(monster.value.lairCr);
-         if (lairCrData) {
-              xpString += `, or ${lairCrData.xp.toLocaleString('en-US')} XP ${monster.value.lairCrNote ? `(${monster.value.lairCrNote})` : '(in lair)'}`;
+
+  const saves2014 = computed(() => {
+     if (!monster.value?.saves) return '';
+     const proficientSaves = STAT_KEYS.map(statKey => {
+         const saveInfo = monster.value.saves[statKey];
+         if (saveInfo?.override) {
+             return `${statKey.toUpperCase()} ${renderBonus(saveInfo.overrideValue)}`;
+         } else if (saveInfo?.proficient) {
+             const bonus = saveModifierForStat(monster.value, statKey);
+             return `${statKey.toUpperCase()} ${renderBonus(bonus)}`;
          }
-     }
-  
-    return `${crData.cr} (${xpString}, PB ${renderBonus(crData.proficiency)})`;
+         return null; // Nicht-profiziente oder nicht-override Saves nicht anzeigen
+     }).filter(s => s !== null); // Filtere null Werte raus
+     return proficientSaves.join(', ');
   });
   
-   const initiative = computed(() => {
+  const cr = computed(() => { /* ... (angepasst für PB) ... */
+    if (!monster.value) return '0 (10 XP, PB +2)'; if (monster.value.useCrDisplayOverride) return monster.value.crOverride;
+    const crData = getCrByNumber(monster.value.CR); if (!crData) return '0 (10 XP, PB +2)';
+    let xpString = `${crData.xp.toLocaleString('en-US')} XP`;
+    if (monster.value.lairCr > -1) { const lairCrData = getCrByNumber(monster.value.lairCr); if (lairCrData) { xpString += `, or ${lairCrData.xp.toLocaleString('en-US')} XP ${monster.value.lairCrNote ? `(${monster.value.lairCrNote})` : '(in lair)'}`; } }
+    // Füge PB nur für 2024 hinzu
+    const pbString = is2024.value ? `, PB ${renderBonus(crData.proficiency)}` : '';
+    return `${crData.cr} (${xpString}${pbString})`;
+  });
+  
+  const initiative = computed(() => {
      if (!monster.value) return '+0 (10)';
       // Find initiative skill instance on monster
      const initiativeSkill = monster.value.skills?.find(s => s.key === 'INITIATIVE');
@@ -1138,286 +1206,125 @@ const resolvedClassSpellcastingSlots = computed(() => {
         return resultSlots;
     });
   
-    const innateSpellcastingLists = computed(() => {
-        if (!monster.value?.spellcasting?.atWill) return [];
-        return monster.value.spellcasting.atWill.map(s => ({
-            ...s,
-            renderedLabel: s.rate === 'AT_WILL'
-                            ? 'At will' // English Label
-                            : `${s.count}/${getRechargeLabel(s.rate)}`,
-            renderedSpells: s.spells.join(', ')
-        }));
-    });
+    const resolvedInnateSpellcastingLists = computed(() => { // Umbenannt für Klarheit
+    if (!monster.value?.spellcasting?.atWill) return [];
+    return monster.value.spellcasting.atWill.map(s => ({
+        ...s,
+        renderedLabel: s.rate === 'AT_WILL' ? 'At will' : `${s.count}/${getRechargeLabel(s.rate)}`,
+        renderedSpells: s.spells.join(', ')
+    }));
+});
   
   </script>
   
   <style scoped>
-      /* Kopiere die Styles aus meiner vorherigen Antwort hierher */
-      /* Basis-Styles */
-      .statblock {
-        color: #000;
-        font-family: ff-scala-sans-pro, sans-serif; /* Fallback font */
-        font-size: 1rem; /* Adjust base font size if needed */
-        letter-spacing: 0.01em;
-        padding: 8px;
-        width: 100%;
-        column-gap: 10px; /* Gap between columns */
-        break-inside: avoid; /* Prevent breaking inside the block */
-      }
-  
-      .statblock b {
-        font-family: ff-scala-sans-pro, sans-serif;
-        font-style: normal;
-        font-weight: 700;
-      }
-  
-      .statblock i {
-        font-family: ff-scala-sans-pro, sans-serif;
-        font-style: italic;
-      }
-  
-      .statblock b > i,
-      .statblock i > b {
-        font-family: ff-scala-sans-pro, sans-serif;
-        font-style: italic;
-        font-weight: 700;
-      }
-  
-      /* 2024 Specific Styles (Adapted as Default) */
-      .statblock {
-        background-color: #e4e2d9;
-        border-radius: 12px;
-        border: 2px solid #69665f;
-        outline: 2px solid #69665f;
-        outline-offset: -6px;
-        padding: 10px;
-      }
-  
-      .statblock .monster-name {
-        font-family: ScalaSansCaps, sans-serif; /* Fallback */
-        letter-spacing: -1px;
-        font-size: 1.8em;
-        border-bottom: 1px solid #58180d;
-        line-height: 2rem;
-        color: #58180d;
-        margin: 0;
-        font-weight: 800;
-        break-after: avoid;
-      }
-  
-      .statblock .type {
-        color: #69665f;
-        margin-top: 2px;
-         font-family: ff-scala-sans-pro, ScalySansItalic, sans-serif;
-         font-style: italic;
-         break-after: avoid;
-      }
-  
-      .statblock hr {
-        margin: 0.5rem 0;
-        border: 1px solid #9c2b1b;
-      }
-  
-       .statblock .skill {
-          line-height: 1.2rem;
-          color: #58180d;
-          padding-left: 18px; /* Indentation for 2024 */
-          text-indent: -18px; /* Indentation for 2024 */
-          break-inside: avoid;
-       }
-  
-      .statblock .skill .name {
-        font-family: ff-scala-sans-pro, ScalySansBold, sans-serif;
-        font-weight: 700;
-      }
-  
-      /* AC / Initiative Line */
-      .statblock .ac {
-          display: grid;
-          grid-template-columns: 1fr auto; /* Auto for Initiative */
-          grid-template-rows: auto;
-          align-items: baseline;
-          gap: 10px;
-          padding-left: 0; /* No indent for this line */
-          text-indent: 0;
-      }
-      .statblock .ac span b { /* Initiative Label Bold */
-           font-weight: bold;
-      }
-  
-      /* Stats Table */
-      .statblock .stats {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          grid-template-rows: auto;
-          gap: 10px;
-          margin-bottom: 1em;
-          break-inside: avoid;
-      }
-  
-      .statblock .stats .stat-table {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          grid-template-rows: repeat(3, auto);
-          grid-template-areas:
-              'blank blank mod save'
-              'stat-1 score-1 mod-1 save-1'
-              'stat-2 score-2 mod-2 save-2';
-      }
-  
-      .statblock .stats .stat-table div {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #58180d;
-          font-size: 0.9rem;
-          padding: 2px 0;
-          min-height: 1.5em;
-      }
-  
-       .statblock .stats .header-label {
-          font-family: ScalaSansCaps, sans-serif;
-          font-size: 11px;
-          color: #69665f;
-          text-transform: uppercase;
-          font-weight: bold;
-       }
-  
-        .statblock .stats .header-label.mod { grid-area: mod; }
-        .statblock .stats .header-label.save { grid-area: save; }
-  
-        .statblock .stats .stat {
-          font-weight: bold;
-          font-family: ScalaSansCaps, sans-serif;
-          text-transform: uppercase; /* Match 2024 block */
-          font-size: 0.85rem;
-          text-align: left;
-          padding-left: 5px;
-          justify-content: flex-start;
-        }
-  
-        /* Stat Table Colors */
-        .statblock .stats .stat.one, .statblock .stats .score.one { background-color: #dcd2ba; }
-        .statblock .stats .stat.two, .statblock .stats .score.two { background-color: #d0d5b5; }
-        .statblock .stats .mod.one, .statblock .stats .save.one { background-color: #d7c9c2; }
-        .statblock .stats .mod.two, .statblock .stats .save.two { background-color: #d4c8db; }
-  
-        /* Stat Table Grid Areas */
-        .statblock .stats .stat.one { grid-area: stat-1; }
-        .statblock .stats .score.one { grid-area: score-1; }
-        .statblock .stats .mod.one { grid-area: mod-1; }
-        .statblock .stats .save.one { grid-area: save-1; }
-        .statblock .stats .stat.two { grid-area: stat-2; }
-        .statblock .stats .score.two { grid-area: score-2; }
-        .statblock .stats .mod.two { grid-area: mod-2; }
-        .statblock .stats .save.two { grid-area: save-2; }
-  
-      /* Section Headers */
-      .statblock h3.section {
-          font-size: 1.3rem;
-          font-family: ScalaSansCaps, sans-serif; /* Fallback */
-          font-weight: 400;
-          letter-spacing: normal;
-          color: #58180d;
-          border-bottom: 1px solid #58180d;
-          margin-bottom: 4px;
-          margin-top: 0.8rem;
-          line-height: 1.5rem;
-          break-after: avoid;
-       }
-       .statblock h3.first.section {
-          margin-top: 0.5em; /* Less top margin for the first section */
-       }
-  
-       /* Section Content Blocks */
-       .statblock .traits,
-       .statblock .attacks,
-       .statblock .actions,
-       .statblock .bonus-actions,
-       .statblock .reactions,
-       .statblock .legendary-actions,
-       .statblock .mythic-actions,
-       .statblock .lair-actions,
-       .statblock .regional-effects,
-       .statblock .innate-spellcasting,
-       .statblock .spellcasting,
-       .statblock .multiattack {
-           break-inside: avoid; /* Prevent breaking inside these blocks */
-           margin-bottom: 0.8rem;
-       }
-  
-      /* Individual Items within Sections */
-       .statblock .trait,
-       .statblock .attack,
-       .statblock .action,
-       .statblock .legendary-actions .preamble,
-       .statblock .mythic-actions .preamble,
-       .statblock .lair-actions .preamble,
-       .statblock .regional-effects .preamble,
-       .statblock .multiattack {
-           line-height: 1.15rem;
-           margin-bottom: 0.8rem;
-       }
-  
-       /* Bold/Italic Names within items */
-       .statblock .trait b i,
-       .statblock .attack b i, /* Attack name is usually within b/i tags from template */
-       .statblock .action b i,
-       .statblock .reaction b i,
-       .statblock .legendary b i,
-       .statblock .mythic b i {
-           font-family: ff-scala-sans-pro, ScalySansBoldItalic, sans-serif;
-           font-weight: 700;
-           font-style: italic;
-       }
-  
-       /* Italicized parts of attacks */
-       .statblock .attack i {
-          font-family: ff-scala-sans-pro, ScalySansItalic, sans-serif;
-          font-style: italic;
-       }
-  
-       /* Spellcasting Lists */
-       .statblock .spell-list {
-          margin-top: 0.4rem;
-          margin-left: 10px;
-       }
-  
-      .statblock .spell-list .spell-row {
-          margin-left: 20px;
-          text-indent: -20px;
-          margin-bottom: 0.2rem;
-      }
-  
-      .statblock .spell-list .spell-label {
-          font-weight: bold;
-      }
-  
-      .statblock .spell-list .spell-list-entries {
-          font-family: ff-scala-sans-pro, ScalySansItalic, sans-serif;
-          font-style: italic;
-      }
-  
-      /* Legendary/Mythic Actions */
-       .statblock .legendary.action, /* Legacy class */
-       .statblock .action.legendary { /* More specific class */
-          margin-bottom: 0.4rem;
-          margin-left: 20px;
-          text-indent: -20px;
-          line-height: 1.15rem;
-       }
-  
-       /* Lair/Regional Effect Lists */
-       .statblock .lair-actions ul,
-       .statblock .regional-effects ul {
-          list-style: disc;
-          margin-left: 30px; /* Indent list */
-          padding-left: 0;
-       }
-       .statblock .lair-actions li,
-       .statblock .regional-effects li {
-           margin-bottom: 0.5rem;
-           line-height: 1.15rem;
-       }
-  
-  </style>
+/* Basis-Styles (gemeinsam) */
+.statblock {
+  color: #000;
+  font-family: ff-scala-sans-pro, sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+  padding: 8px;
+  width: 100%;
+  column-gap: 10px;
+  break-inside: avoid;
+}
+.statblock b { font-family: ff-scala-sans-pro, sans-serif; font-style: normal; font-weight: 700; }
+.statblock i { font-family: ff-scala-sans-pro, sans-serif; font-style: italic; }
+.statblock b > i, .statblock i > b { font-family: ff-scala-sans-pro, sans-serif; font-style: italic; font-weight: 700; }
+.statblock hr { border: 1px solid #9c2b1b; margin: 4px 0; }
+.statblock .skill { line-height: 1.2rem; color: #58180d; break-inside: avoid; }
+.statblock .skill .name { font-family: ff-scala-sans-pro, ScalySansBold, sans-serif; font-weight: 700; }
+.statblock h3.section { font-size: 1.3rem; font-family: ScalaSansCaps, sans-serif; font-weight: 400; letter-spacing: normal; color: #58180d; border-bottom: 1px solid #58180d; margin-bottom: 4px; margin-top: 0.8rem; line-height: 1.5rem; break-after: avoid; }
+.statblock .traits, .statblock .attacks, .statblock .actions, .statblock .bonus-actions, .statblock .reactions, .statblock .legendary-actions, .statblock .mythic-actions, .statblock .lair-actions, .statblock .regional-effects, .statblock .innate-spellcasting, .statblock .spellcasting, .statblock .multiattack { break-inside: avoid; margin-bottom: 0.8rem; }
+.statblock .trait, .statblock .attack, .statblock .action, .statblock .legendary-actions .preamble, .statblock .mythic-actions .preamble, .statblock .lair-actions .preamble, .statblock .regional-effects .preamble, .statblock .multiattack { line-height: 1.15rem; margin-bottom: 0.8rem; }
+.statblock .trait b i, .statblock .attack b i, .statblock .action b i, .statblock .reaction b i, .statblock .legendary b i, .statblock .mythic b i { font-family: ff-scala-sans-pro, ScalySansBoldItalic, sans-serif; font-weight: 700; font-style: italic; }
+.statblock .attack i { font-family: ff-scala-sans-pro, ScalySansItalic, sans-serif; font-style: italic; }
+.statblock .spell-list { margin-top: 0.4rem; margin-left: 10px; }
+.statblock .spell-list .spell-row { margin-left: 20px; text-indent: -20px; margin-bottom: 0.2rem; }
+.statblock .spell-list .spell-label { font-weight: bold; }
+.statblock .spell-list .spell-list-entries { font-family: ff-scala-sans-pro, ScalySansItalic, sans-serif; font-style: italic; }
+.statblock .legendary.action, .statblock .action.legendary { margin-bottom: 0.4rem; margin-left: 20px; text-indent: -20px; line-height: 1.15rem; }
+.statblock .lair-actions ul, .statblock .regional-effects ul { list-style: disc; margin-left: 30px; padding-left: 0; }
+.statblock .lair-actions li, .statblock .regional-effects li { margin-bottom: 0.5rem; line-height: 1.15rem; }
+
+/* --- 2014 Specific Styles --- */
+.statblock.mm2014 {
+  background-color: #fdf1dc; /* Heller Hintergrund */
+  border: none; /* Kein expliziter Border wie 2024 */
+  outline: none;
+  padding: 8px; /* Original Padding */
+}
+.statblock.mm2014 .monster-name {
+   font-family: mrs-eaves-roman-small-caps, MrEaves, serif; /* Spezielle Schrift */
+   color: #58180d;
+   font-weight: 800;
+   font-size: 2.2em; /* Größer als 2024 */
+   margin: 0;
+   line-height: 2.5rem;
+   border-bottom: none; /* Kein Border unter dem Namen */
+}
+.statblock.mm2014 .type {
+   font-family: ff-scala-sans-pro, ScalySansItalic, sans-serif; /* Kursiv */
+   font-style: italic;
+   color: #000; /* Schwarz statt grau */
+}
+/* Keine Einrückung für normale Skills in 2014 */
+.statblock.mm2014 .skill { padding-left: 0; text-indent: 0; }
+.statblock.mm2014 .row.stats-2014 { display: flex; /* Flexbox für einfache Reihe */ flex-wrap: nowrap; }
+.statblock.mm2014 .stat-container { display: flex; flex-grow: 1; flex-direction: column; justify-content: center; align-items: center; color: #58180d; }
+.statblock.mm2014 .stat-container .stat-name { font-family: ff-scala-sans-pro, ScalySansBold, sans-serif; font-weight: 700; }
+.statblock.mm2014 .stat-container .stat { display: flex; font-size: 0.95rem; }
+.statblock.mm2014 .stat-container .stat .score { margin-right: 4px; }
+.statblock.mm2014 .inventory { /* Styling für das untere Inventar */
+    break-inside: avoid; margin-bottom: 0.8rem;
+}
+.statblock.mm2014 .attack i:first-of-type { /* Kursiv für Melee/Ranged Attack */
+    font-family: ff-scala-sans-pro, ScalySansItalic, sans-serif;
+    font-style: italic;
+}
+
+
+/* --- 2024 Specific Styles --- */
+.statblock.mm2024 {
+  background-color: #e4e2d9;
+  border-radius: 12px;
+  border: 2px solid #69665f;
+  outline: 2px solid #69665f;
+  outline-offset: -6px;
+  padding: 10px;
+}
+.statblock.mm2024 .monster-name {
+  font-family: ScalaSansCaps, sans-serif;
+  letter-spacing: -1px;
+  font-size: 1.8em;
+  border-bottom: 1px solid #58180d;
+  line-height: 2rem;
+}
+.statblock.mm2024 .type { color: #69665f; }
+.statblock.mm2024 hr { margin: 0.5rem 0; border: none; border-top: 1px solid #9c2b1b; /* Linie für 2024 anpassen */}
+.statblock.mm2024 .skill { padding-left: 18px; text-indent: -18px; } /* Einrückung */
+.statblock.mm2024 .ac { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto; align-items: baseline; gap: 10px; padding-left: 0; text-indent: 0; }
+.statblock.mm2024 .ac span b { font-weight: bold; }
+.statblock.mm2024 .stats { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: auto; gap: 10px; margin-bottom: 1em; }
+.statblock.mm2024 .stats .stat-table { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(3, auto); grid-template-areas: 'blank blank mod save' 'stat-1 score-1 mod-1 save-1' 'stat-2 score-2 mod-2 save-2'; }
+.statblock.mm2024 .stats .stat-table div { display: flex; align-items: center; justify-content: center; color: #58180d; font-size: 0.9rem; padding: 2px 0; min-height: 1.5em; }
+.statblock.mm2024 .stats .header-label { font-family: ScalaSansCaps, sans-serif; font-size: 11px; color: #69665f; text-transform: uppercase; font-weight: bold; }
+.statblock.mm2024 .stats .header-label.mod { grid-area: mod; }
+.statblock.mm2024 .stats .header-label.save { grid-area: save; }
+.statblock.mm2024 .stats .stat { font-weight: bold; font-family: ScalaSansCaps, sans-serif; text-transform: uppercase; font-size: 0.85rem; text-align: left; padding-left: 5px; justify-content: flex-start; }
+.statblock.mm2024 .stats .stat.one, .statblock.mm2024 .stats .score.one { background-color: #dcd2ba; }
+.statblock.mm2024 .stats .stat.two, .statblock.mm2024 .stats .score.two { background-color: #d0d5b5; }
+.statblock.mm2024 .stats .mod.one, .statblock.mm2024 .stats .save.one { background-color: #d7c9c2; }
+.statblock.mm2024 .stats .mod.two, .statblock.mm2024 .stats .save.two { background-color: #d4c8db; }
+.statblock.mm2024 .stats .stat.one { grid-area: stat-1; }
+.statblock.mm2024 .stats .score.one { grid-area: score-1; }
+.statblock.mm2024 .stats .mod.one { grid-area: mod-1; }
+.statblock.mm2024 .stats .save.one { grid-area: save-1; }
+.statblock.mm2024 .stats .stat.two { grid-area: stat-2; }
+.statblock.mm2024 .stats .score.two { grid-area: score-2; }
+.statblock.mm2024 .stats .mod.two { grid-area: mod-2; }
+.statblock.mm2024 .stats .save.two { grid-area: save-2; }
+.statblock.mm2024 h3.first.section { margin-top: 0.5em; }
+
+</style>
