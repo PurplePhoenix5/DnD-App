@@ -1,0 +1,21 @@
+{
+    "calculatedDifficulty": "Hard",
+    "description": "Test",
+    "id": "goblin_test",
+    "monsters": [
+        {
+            "AC": 15,
+            "CR": 2.0,
+            "averageHp": 7,
+            "count": 4,
+            "initiativeBonus": 2,
+            "monsterId": "Goblin",
+            "name": "Goblin"
+        }
+    ],
+    "name": "Goblin Test",
+    "party": {
+        "averageLevel": 5,
+        "playerCount": 4
+    }
+}

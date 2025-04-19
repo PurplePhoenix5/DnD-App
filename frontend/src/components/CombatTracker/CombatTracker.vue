@@ -13,8 +13,8 @@ const selectedEncounterId = ref(null);
 const loadedEncounterData = ref(null); // Das volle Objekt vom Backend für den ausgewählten Encounter
 const combatants = ref([]); // Aktive Kreaturen im Kampf: [{ id: 'goblin_1', baseMonsterId: 'goblin', name: 'Goblin 1', initiative: 15, currentHp: 7, maxHp: 7, ac: 15, cr: 0.25, statusEffects: [] }, ...]
 const selectedCombatantId = ref(null);
-const loadedDifficulty = ref('N/A');
-const damageHealAmount = ref(0); // Gebunden an das Inputfeld in InteractionPanel
+const loadedDifficulty = ref('N/A'); // Wird aus der Encounter-Datei gelesen
+// const damageHealAmount = ref(0); // Nicht mehr direkt hier benötigt, da InteractionPanel es selbst verwaltet
 const isLoading = ref(false);
 const error = ref(null);
 
@@ -28,21 +28,30 @@ const selectedConditions = computed(() => {
 });
 
 const uniqueMonsterStatBlocks = computed(() => {
+  // Diese Funktion muss jetzt anders arbeiten, da `loadedEncounterData` keinen `statBlock` mehr direkt enthält.
+  // Wir brauchen einen Weg, die vollen Statblocks bei Bedarf nachzuladen oder aus einem Cache zu holen.
+  // Vorerst geben wir ein leeres Array zurück, da die Anzeige der Statblocks (Spalte 3)
+  // mit der aktuellen Datenstruktur nicht mehr direkt funktioniert.
+  // TODO: Statblock-Anzeige überarbeiten (z.B. Nachladen bei Klick oder separaten API-Call)
+
+  // ---- Alte Logik (funktioniert nicht mehr) ----
+  /*
   if (!loadedEncounterData.value || !loadedEncounterData.value.monsters) return [];
-  
   const uniqueBlocks = [];
   const seenMonsterIds = new Set();
-
   loadedEncounterData.value.monsters.forEach(monsterDef => {
-    if (!seenMonsterIds.has(monsterDef.id)) {
-      uniqueBlocks.push(monsterDef.statBlock);
-      seenMonsterIds.add(monsterDef.id);
-    }
-  });
-  
-  // Optional: Nach CR sortieren
-  uniqueBlocks.sort((a, b) => b.CR - a.CR); 
-  return uniqueBlocks;
+    // PROBLEM: monsterDef enthält keinen statBlock mehr direkt!
+    if (monsterDef.statBlock && !seenMonsterIds.has(monsterDef.monsterId)) {
+       uniqueBlocks.push(monsterDef.statBlock);
+       seenMonsterIds.add(monsterDef.monsterId);
+     }
+   });
+   uniqueBlocks.sort((a, b) => (b.CR ?? 0) - (a.CR ?? 0));
+   return uniqueBlocks;
+   */
+   // ---- Temporäre Lösung: Leeres Array ----
+   console.warn("uniqueMonsterStatBlocks computed property needs rework. StatBlocks are not directly in loadedEncounterData anymore.");
+   return []; // Gib vorerst leer zurück
 });
 
 // --- Methoden ---
@@ -53,45 +62,76 @@ async function fetchAndLoadEncounter(encounterId) {
   selectedEncounterId.value = encounterId;
   selectedCombatantId.value = null; // Auswahl zurücksetzen
   combatants.value = []; // Alte Liste leeren
-  loadedEncounterData.value = null; 
-  loadedDifficulty.value = 'N/A'; 
-  
+  loadedEncounterData.value = null;
+  loadedDifficulty.value = 'N/A';
+
   try {
     // --- API CALL ---
-    const response = await fetch(`http://localhost:8080/api/encounters/${encounterId}`); // Passe Port/URL an
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const response = await fetch(`http://localhost:8080/api/encounters/${encounterId}`);
+    console.log('Fetch response status:', response.status); // Log Status
+    if (!response.ok) {
+       const errorText = await response.text(); // Versuche Text statt JSON bei Fehler
+       console.error('Fetch error response text:', errorText);
+       throw new Error(`HTTP error! status: ${response.status}`);
+    }
     const data = await response.json();
-    loadedEncounterData.value = data; // Speichere die Rohdaten
+    console.log('Received encounter data:', JSON.parse(JSON.stringify(data))); // Log die empfangenen Daten
+
+    loadedEncounterData.value = data; // Speichere die Rohdaten (jetzt mit angereicherten Monstern)
     loadedDifficulty.value = data.calculatedDifficulty || 'Unknown';
 
     // Erzeuge die Combatant-Liste aus den Encounter-Daten
     const newCombatants = [];
-    let combatantCounter = 1;
-    data.monsters.forEach(monsterDef => {
-      for (let i = 0; i < monsterDef.count; i++) {
-        const uniqueId = `${monsterDef.id}_${combatantCounter++}`;
-        newCombatants.push({
-          id: uniqueId,
-          baseMonsterId: monsterDef.id,
-          name: `${monsterDef.statBlock.name} ${i + 1}`, // Eindeutiger Name
-          initiative: Math.floor(Math.random() * 20) + 1 + (monsterDef.statBlock.stats.DEX ? Math.floor((monsterDef.statBlock.stats.DEX - 10) / 2) : 0), // Beispiel: Random Init + Dex Mod
-          currentHp: monsterDef.statBlock.HP.HD * monsterDef.statBlock.HP.type / 2 + monsterDef.statBlock.HP.modifier, // Vereinfacht: Durchschnittliche HP
-          maxHp: monsterDef.statBlock.HP.HD * monsterDef.statBlock.HP.type / 2 + monsterDef.statBlock.HP.modifier, // Vereinfacht: Durchschnittliche HP
-          ac: monsterDef.statBlock.AC,
-          cr: monsterDef.statBlock.CR, // Stelle sicher, dass CR im statBlock ist
-          statusEffects: [], // Startet ohne Effekte
-        });
-      }
-    });
+    let combatantCounter = 1; // Zur Generierung eindeutiger IDs pro Instanz
+
+     // Sicherer Zugriff auf das Monster-Array
+    if (data.monsters && Array.isArray(data.monsters)) {
+      data.monsters.forEach(monsterInEncounter => { // Variable umbenannt zur Klarheit
+        console.log('Processing monster from encounter:', monsterInEncounter); // Log zum Debuggen
+
+        // Prüfe auf notwendige Felder direkt im monsterInEncounter Objekt
+        if (!monsterInEncounter.monsterId || !monsterInEncounter.count || !monsterInEncounter.name) {
+           console.warn("Skipping invalid monster entry in encounter:", monsterInEncounter);
+           return; // Überspringe diesen Eintrag
+        }
+
+        for (let i = 0; i < monsterInEncounter.count; i++) {
+          const uniqueId = `${monsterInEncounter.monsterId}_${combatantCounter++}`;
+
+          // === KORREKTUR: Werte direkt aus monsterInEncounter lesen ===
+          newCombatants.push({
+            id: uniqueId, // Eindeutige ID für *diese Instanz* im Kampf
+            baseMonsterId: monsterInEncounter.monsterId, // ID des Monstertyps
+            name: `${monsterInEncounter.name} ${i + 1}`, // Angepasster Name für Instanz
+            // Initiative: Verwende den gespeicherten Bonus und würfle d20
+            initiative: Math.floor(Math.random() * 20) + 1 + (monsterInEncounter.initiativeBonus ?? 0),
+            // Verwende die gespeicherte averageHp
+            currentHp: monsterInEncounter.averageHp ?? 10, // Fallback, falls fehlt
+            maxHp: monsterInEncounter.averageHp ?? 10,     // Fallback, falls fehlt
+            // Verwende die gespeicherte AC
+            ac: monsterInEncounter.AC ?? 10,              // Fallback, falls fehlt
+            // Verwende den gespeicherten CR
+            cr: monsterInEncounter.CR ?? 0,                // Fallback, falls fehlt
+            statusEffects: [], // Startet ohne Effekte
+          });
+          // ===========================================================
+        }
+      });
+    } else {
+       console.warn(`Kein gültiges 'monsters'-Array im Encounter ${encounterId} gefunden.`);
+    }
+
+
     combatants.value = newCombatants;
     sortCombatants(); // Initial sortieren
 
   } catch (err) {
-    console.error('Error loading encounter:', err);
-    error.value = 'Failed to load encounter data.';
+    // Logge den spezifischen Fehler, der aufgetreten ist
+    console.error('Error in fetchAndLoadEncounter:', err);
+    error.value = 'Failed to load or process encounter data.'; // Spezifischere UI-Meldung evtl.
     loadedEncounterData.value = null;
     combatants.value = [];
-    loadedDifficulty.value = 'Error'; 
+    loadedDifficulty.value = 'Error';
   } finally {
     isLoading.value = false;
   }
@@ -108,93 +148,89 @@ function handleSelectCombatant(combatantId) {
 function handleUpdateInitiative({ combatantId, newInitiative }) {
   const combatant = combatants.value.find(c => c.id === combatantId);
   if (combatant) {
-    combatant.initiative = parseInt(newInitiative, 10) || 0; // Stelle sicher, dass es eine Zahl ist
-    sortCombatants();
+    // Stelle sicher, dass newInitiative eine Zahl ist und im gültigen Bereich liegt
+    const parsedInitiative = parseInt(newInitiative, 10);
+    if (!isNaN(parsedInitiative)) {
+        // Annahme: MIN/MAX sind hier nicht global bekannt, einfache Prüfung
+        combatant.initiative = Math.max(0, parsedInitiative);
+        sortCombatants();
+    }
   }
 }
 
 function handleApplyDamage(amount) {
   const combatant = selectedCombatant.value;
   if (combatant && amount > 0) {
-    combatant.currentHp = Math.max(0, combatant.currentHp - amount); // HP nicht unter 0
+    combatant.currentHp = Math.max(0, combatant.currentHp - amount);
   }
 }
 
 function handleApplyHealing(amount) {
   const combatant = selectedCombatant.value;
   if (combatant && amount > 0) {
-    combatant.currentHp = Math.min(combatant.maxHp, combatant.currentHp + amount); // HP nicht über maxHp
+    combatant.currentHp = Math.min(combatant.maxHp, combatant.currentHp + amount);
   }
 }
 
 function handleAddCondition(conditionId) {
-  const combatant = selectedCombatant.value; // Finde den aktuell ausgewählten
-  if (combatant) {
-    // Prüfe, ob die Bedingung nicht schon vorhanden ist
-    if (!combatant.statusEffects.includes(conditionId)) {
-      combatant.statusEffects.push(conditionId); // Füge die ID zum Array hinzu
-      // Vue's Reaktivität sorgt dafür, dass CombatantItem aktualisiert wird
-    }
-    // Optional: Füge Logik hinzu, um eine Bedingung wieder zu entfernen
+  const combatant = selectedCombatant.value;
+  if (combatant && !combatant.statusEffects.includes(conditionId)) {
+      combatant.statusEffects.push(conditionId);
   }
 }
 
 function handleRemoveCondition(conditionId) {
   const combatant = selectedCombatant.value;
   if (combatant) {
-    // Finde den Index der Bedingung im Array
     const index = combatant.statusEffects.indexOf(conditionId);
     if (index > -1) {
-      // Entferne die Bedingung aus dem Array
       combatant.statusEffects.splice(index, 1);
     }
   }
 }
 
 function sortCombatants() {
-  combatants.value.sort((a, b) => b.initiative - a.initiative); // Absteigend sortieren
+  combatants.value.sort((a, b) => b.initiative - a.initiative);
 }
 
 // --- Watcher (Optional) ---
-// Wenn sich die Combatant-Liste ändert (z.B. HP), wollen wir vielleicht die Auswahl beibehalten
 watch(combatants, (newVal, oldVal) => {
-  // Logik, falls nötig, z.B. wenn eine Kreatur auf 0 HP fällt etc.
-}, { deep: true }); // 'deep' ist nötig, um Änderungen *innerhalb* der Objekte im Array zu erkennen
+  // Hier könnte Logik stehen, z.B. um automatisch den nächsten in der Initiative zu wählen,
+  // wenn der aktuelle auf 0 HP fällt o.ä.
+}, { deep: true });
 
 </script>
 
-      
+
 <template>
-  <!-- v-container fluid sorgt weiterhin für den äußeren Abstand und volle Breite -->
   <v-container fluid>
     <v-row>
       <!-- Spalte 1: Encounter Auswahl & Initiative Liste -->
-      <!-- md="5" nimmt 5/12 (ca. 41.7%, nahe 40%) der Breite auf md+ Screens -->
-      <!-- cols="12" sorgt für volle Breite auf xs/sm Screens (Stacking) -->
       <v-col cols="12" md="5">
         <EncounterSelector @encounter-selected="handleEncounterSelected" />
         <v-divider class="my-4"></v-divider>
 
-        <div v-if="isLoading">Loading Encounter... <v-progress-circular indeterminate></v-progress-circular></div>
-        <v-alert v-if="error" type="error">{{ error }}</v-alert>
+        <div v-if="isLoading" class="text-center pa-4">
+            Loading Encounter... <v-progress-circular indeterminate></v-progress-circular>
+        </div>
+        <v-alert v-if="error" type="error" density="compact">{{ error }}</v-alert>
 
         <InitiativeList
-          v-if="combatants.length > 0"
+          v-if="!isLoading && combatants.length > 0"
           :combatants="combatants"
           :selected-combatant-id="selectedCombatantId"
           @select-combatant="handleSelectCombatant"
           @update-initiative="handleUpdateInitiative"
         />
-        <div v-else-if="!isLoading && !error && selectedEncounterId">
-          No combatants in this encounter or encounter loaded incorrectly.
+        <div v-else-if="!isLoading && !error && selectedEncounterId" class="text-disabled pa-4 text-center">
+          No combatants loaded for this encounter.
         </div>
-         <div v-else-if="!isLoading && !error && !selectedEncounterId">
+         <div v-else-if="!isLoading && !error && !selectedEncounterId" class="text-disabled pa-4 text-center">
           Select an encounter to begin.
         </div>
       </v-col>
 
       <!-- Spalte 2: Interaktion -->
-      <!-- md="3" nimmt 3/12 (exakt 25%) der Breite auf md+ Screens -->
       <v-col cols="12" md="3">
         <InteractionPanel
           :encounter-difficulty-prop="loadedDifficulty"
@@ -204,19 +240,20 @@ watch(combatants, (newVal, oldVal) => {
           @apply-healing="handleApplyHealing"
           @add-condition="handleAddCondition"
           @remove-condition="handleRemoveCondition"
-          
         />
       </v-col>
 
       <!-- Spalte 3: Stat Blocks -->
-      <!-- md="4" nimmt 4/12 (ca. 33.3%, nahe 35%) der Breite auf md+ Screens -->
       <v-col cols="12" md="4">
+         <!-- TODO: StatBlockDisplay muss überarbeitet werden, da uniqueMonsterStatBlocks jetzt leer ist -->
+         <!-- Momentan wird hier nichts angezeigt, außer der Fallback-Text -->
          <StatBlockDisplay
            v-if="uniqueMonsterStatBlocks.length > 0"
            :unique-monster-stat-blocks="uniqueMonsterStatBlocks"
          />
-         <div v-else-if="selectedEncounterId && !isLoading">
-            No monster stats to display for this encounter.
+         <div v-else-if="selectedEncounterId && !isLoading" class="text-disabled pa-4 text-center">
+            <!-- Stat block display needs rework. -->
+            (Stat Blocks temporarily unavailable)
          </div>
       </v-col>
     </v-row>

@@ -1,5 +1,6 @@
 <script setup>
-defineProps({
+// Weise das Ergebnis von defineProps der Konstante 'props' zu
+const props = defineProps({
   monster: {
     type: Object,
     required: true
@@ -9,12 +10,16 @@ defineProps({
 const emit = defineEmits(['add-monster']);
 
 function addMonster() {
-  emit('add-monster', props.monster); // Sende das *ganze* Monster-Objekt (oder nur die ID)
+  // Greife jetzt über die definierte 'props'-Konstante zu
+  console.log('MonsterListItem: addMonster called, emitting event with:', JSON.parse(JSON.stringify(props.monster)));
+  emit('add-monster', props.monster);
 }
 </script>
 
 <template>
   <v-list-item>
+    <!-- Das Template kann weiterhin direkt 'monster' verwenden, da defineProps -->
+    <!-- die Props auch direkt für das Template verfügbar macht -->
     <v-list-item-title>{{ monster.name }}</v-list-item-title>
     <v-list-item-subtitle>
        CR: {{ monster.cr ?? 'N/A' }} | Size: {{ monster.size ?? 'N/A' }} | Type: {{ monster.type ?? 'N/A' }}
@@ -26,7 +31,7 @@ function addMonster() {
           variant="text"
           color="primary"
           size="small"
-          @click.stop="addMonster" 
+          @click.stop="addMonster"
           aria-label="Add monster"
       ></v-btn>
     </template>

@@ -1,0 +1,39 @@
+{
+    "calculatedDifficulty": "Trivial",
+    "description": "lol",
+    "id": "impossible",
+    "monsters": [
+        {
+            "AC": 15,
+            "CR": 2.0,
+            "averageHp": 7,
+            "count": 1,
+            "initiativeBonus": 2,
+            "monsterId": "Goblin",
+            "name": "Goblin"
+        },
+        {
+            "AC": 12,
+            "CR": 15.0,
+            "averageHp": 99,
+            "count": 1,
+            "initiativeBonus": 2,
+            "monsterId": "Archmage",
+            "name": "Archmage"
+        },
+        {
+            "AC": 25,
+            "CR": 33.0,
+            "averageHp": 676,
+            "count": 1,
+            "initiativeBonus": 0,
+            "monsterId": "Tarrasque",
+            "name": "Tarrasque"
+        }
+    ],
+    "name": "Impossible",
+    "party": {
+        "averageLevel": 5,
+        "playerCount": 4
+    }
+}
