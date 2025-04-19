@@ -1,6 +1,8 @@
 <!-- frontend/src/components/MonsterCreator/MonsterCreator.vue -->
 <script setup>
 import { ref, reactive, watch } from 'vue'; // watch hinzugefügt
+import { Splitpanes, Pane } from 'splitpanes';
+import 'splitpanes/dist/splitpanes.css'; // Importiere das CSS für Splitpanes
 import MonsterLoader from './MonsterLoader.vue'; // NEU
 import MonsterConfigurator from './MonsterConfigurator.vue';
 import StatBlockRenderer from '../StatBlockRenderer.vue';
@@ -184,51 +186,101 @@ async function saveMonster() {
     <!-- ===================================== -->
 
     <!-- Bestehende Reihe für Konfiguration und Vorschau -->
-    <v-row>
-      <!-- Spalte 1: Konfiguration -->
-      <v-col cols="12" md="6">
-        <MonsterConfigurator
-           
-        />
-        <!-- Speicher-Button -->
-         <v-btn
-            color="primary"
-            @click="saveMonster"
-            :loading="isSaving"
-            :disabled="isSaving"
-            class="mt-4"
-         >
-            Save Monster
-         </v-btn>
-          <!-- Zeige Speicherfehler -->
-          <v-alert v-if="saveError" type="error" density="compact" class="mt-2">
-             {{ saveError }}
-          </v-alert>
-      </v-col>
-
-      <!-- Spalte 2: Statblock Vorschau -->
-      <v-col cols="12" md="6">
-        <v-card variant="outlined">
-            <v-card-title>Stat Block Preview</v-card-title>
-             <!-- Zeige Ladeindikator für Monsterdetails -->
-             <div v-if="isLoadingMonsterDetails" class="text-center pa-5">
-                 <v-progress-circular indeterminate color="primary"></v-progress-circular>
-                 <p>Loading monster details...</p>
-             </div>
-             <!-- Zeige Renderer, wenn nicht geladen wird -->
-            <v-card-text v-else>
-                <StatBlockRenderer
-                    :monster-data="monsterBeingCreated"
-                    :display-style="displayStyle" 
-                    :columns="displayColumns"
+    <splitpanes class="default-theme" style="height: calc(100vh - 200px);">
+        <!-- Pane 1: Konfiguration -->
+        <pane size="50"> <!-- Startet mit 50% Breite -->
+            <!-- Hier kommt der Inhalt der alten Spalte 1 rein -->
+            <div class="pa-2 bg-surface" style="height: 100%; overflow-y: auto;">
+                <MonsterConfigurator
+                
                 />
-            </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
+                <!-- Speicher-Button -->
+                <v-btn
+                    color="primary"
+                    @click="saveMonster"
+                    :loading="isSaving"
+                    :disabled="isSaving"
+                    class="mt-4"
+                >
+                    Save Monster
+                </v-btn>
+                <!-- Zeige Speicherfehler -->
+                <v-alert v-if="saveError" type="error" density="compact" class="mt-2">
+                    {{ saveError }}
+                </v-alert>
+            </div>
+        </pane>
+        <!-- Pane 2: Statblock Vorschau -->
+        <pane size="50"> <!-- Startet mit 50% Breite -->
+                <!-- Hier kommt der Inhalt der alten Spalte 2 rein -->
+                <div class="pa-2 bg-surface" style="height: 100%; overflow-y: auto;"> <!-- Padding & Scroll -->
+                    <v-card variant="outlined">
+                        <v-card-title>Stat Block Preview</v-card-title>
+                        <!-- Zeige Ladeindikator für Monsterdetails -->
+                        <div v-if="isLoadingMonsterDetails" class="text-center pa-5">
+                            <v-progress-circular indeterminate color="primary"></v-progress-circular>
+                            <p>Loading monster details...</p>
+                        </div>
+                        <!-- Zeige Renderer, wenn nicht geladen wird -->
+                        <v-card-text v-else>
+                            <StatBlockRenderer
+                                :monster-data="monsterBeingCreated"
+                                :display-style="displayStyle" 
+                                :columns="displayColumns"
+                            />
+                        </v-card-text>
+                 </v-card>
+             </div>
+        </pane>
+    </splitpanes>
   </v-container>
 </template>
 
 <style scoped>
-/* Optional: Stile für den Creator-Bereich */
+/* Splitpanes benötigt oft eine explizite Höhe */
+/* Passe die Höhe an, ziehe z.B. die Höhe der App-Bar und des Loaders ab */
+/* Der Wert '200px' ist eine Schätzung, passe ihn ggf. an! */
+.splitpanes.default-theme {
+  /* height: calc(100vh - 200px);  */ /* Höhe im style-Attribut gesetzt */
+}
+
+/* Styling für den Splitter (optional, default-theme bringt schon was mit) */
+.splitpanes.default-theme .splitpanes__splitter {
+  background-color: #ccc;
+  position: relative;
+}
+.splitpanes.default-theme .splitpanes__splitter:before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  transition: opacity 0.4s;
+  background-color: rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  z-index: 1;
+}
+.splitpanes.default-theme .splitpanes__splitter:hover:before {
+  opacity: 1;
+}
+.splitpanes--vertical > .splitpanes__splitter:before {
+  left: -1px;
+  right: -1px;
+  height: 100%;
+}
+.splitpanes--horizontal > .splitpanes__splitter:before {
+  top: -1px;
+  bottom: -1px;
+  width: 100%;
+}
+
+/* Stelle sicher, dass der Inhalt scrollbar ist, falls er überläuft */
+.pane-content {
+    height: 100%;
+    overflow-y: auto;
+    padding: 8px; /* Füge Padding zum Inhalt hinzu */
+}
+.statblock-container {
+    height: calc(100% - 40px); /* Höhe abzüglich Card-Title */
+    overflow-y: auto;
+}
 </style>
