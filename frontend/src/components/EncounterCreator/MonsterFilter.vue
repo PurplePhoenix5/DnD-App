@@ -5,7 +5,7 @@ const emit = defineEmits(['filter-changed']);
 
 // Lokale Refs für die Filterwerte
 const nameSearch = ref('');
-const crRange = ref([0, 30]); // Initialer CR Bereich
+const crRange = ref([0, 35]); // Initialer CR Bereich
 
 // Beobachte Änderungen und sende Event (mit Debounce, um nicht bei jedem Tastendruck zu senden)
 let debounceTimer = null;

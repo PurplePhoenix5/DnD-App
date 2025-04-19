@@ -182,6 +182,41 @@ int main() {
         return res;
     });
 
+    // --- GET /api/spells ---
+    CROW_ROUTE(app, "/api/spells")([&]() { // Capture base_dirs if needed, though not directly used here
+        const std::string spells_file_path_str = "../data/spells/spells.json"; // Pfad zur Datei
+        std::filesystem::path spells_file_path;
+
+        try {
+            spells_file_path = std::filesystem::absolute(spells_file_path_str).lexically_normal();
+
+            if (!std::filesystem::exists(spells_file_path) || !std::filesystem::is_regular_file(spells_file_path)) {
+                std::cerr << "Fehler: Spells-Datei nicht gefunden: " << spells_file_path << std::endl;
+                return crow::response(404, "{\"error\": \"Spell data file not found.\"}");
+            }
+
+            std::ifstream spells_file(spells_file_path);
+            if (!spells_file.is_open()) {
+                    std::cerr << "Fehler: Spells-Datei konnte nicht geöffnet werden: " << spells_file_path << std::endl;
+                    return crow::response(500, "{\"error\": \"Could not open spell data file.\"}");
+            }
+
+            // Lese den gesamten Dateiinhalt in einen String
+            std::stringstream buffer;
+            buffer << spells_file.rdbuf();
+            std::string spells_content = buffer.str();
+
+            // Sende den rohen JSON-String zurück
+            crow::response res(200, spells_content);
+            res.set_header("Content-Type", "application/json");
+            return res;
+
+        } catch (const std::exception& e) {
+            std::cerr << "Fehler beim Laden der Spells-Datei (" << spells_file_path << "): " << e.what() << std::endl;
+            return crow::response(500, "{\"error\": \"Internal server error loading spell data.\"}");
+        }
+    });
+
 
     // --- POST /api/encounters (Erstellen/Aktualisieren) ---
     CROW_ROUTE(app, "/api/encounters").methods("POST"_method)
@@ -315,6 +350,75 @@ int main() {
         // 5. Erfolgsantwort senden
         int status_code = file_existed ? 200 : 201; // OK oder Created
         crow::response res(status_code, final_encounter_data.dump()); // Gib die gespeicherten Daten zurück
+        res.set_header("Content-Type", "application/json");
+        return res;
+    });
+
+    CROW_ROUTE(app, "/api/monsters/<string>").methods("PUT"_method)
+        ([&](const crow::request& req, const std::string& monster_id_from_url){ // Capture base_dirs
+        json incoming_data;
+        try {
+            incoming_data = json::parse(req.body);
+        } catch (const json::parse_error& e) {
+            std::cerr << "Fehler beim Parsen des Request Body (PUT Monster): " << e.what() << std::endl;
+            return crow::response(400, "{\"error\": \"Ungültiges JSON im Request Body.\"}");
+        }
+
+        // 1. Zieldateipfad erstellen
+        std::filesystem::path target_file_path;
+         try {
+             target_file_path = std::filesystem::path(monsters_base_dir) / (monster_id_from_url + ".json");
+             target_file_path = std::filesystem::absolute(target_file_path).lexically_normal();
+         } catch (const std::exception& e) {
+             std::cerr << "Fehler beim Erstellen des Zielpfads für Monster '" << monster_id_from_url << "': " << e.what() << std::endl;
+             return crow::response(500, "{\"error\": \"Interner Fehler beim Erstellen des Dateipfads.\"}");
+         }
+
+        // === NEU: Prüfen, ob Datei *vor* dem Schreiben existiert ===
+        bool file_existed = false;
+        try {
+             file_existed = std::filesystem::exists(target_file_path) && std::filesystem::is_regular_file(target_file_path);
+        } catch(const std::exception& e) {
+             // Fehler bei exists kann passieren (z.B. Berechtigungen)
+             std::cerr << "Fehler beim Prüfen der Existenz von " << target_file_path << ": " << e.what() << std::endl;
+             // Man könnte hier abbrechen oder vorsichtig weitermachen
+        }
+        // ========================================================
+
+
+        // 3. (Optional) Validierung der eingehenden Daten
+        if (!incoming_data.contains("name")) {
+            return crow::response(400, "{\"error\": \"Fehlendes 'name'-Feld in den Monsterdaten.\"}");
+        }
+        // Füge hier ggf. weitere Validierungen hinzu
+
+        // 4. Datei zum Schreiben öffnen (überschreibt/erstellt)
+        try {
+            std::ofstream output_file(target_file_path); // Öffnet zum Schreiben
+            if (!output_file.is_open()) {
+                 std::cerr << "Fehler: Zieldatei konnte nicht zum Schreiben geöffnet werden (PUT): " << target_file_path << std::endl;
+                 return crow::response(500, "{\"error\": \"Monster konnte nicht gespeichert werden (Dateizugriff).\"}");
+            }
+            // Schreibe die *eingehenden* Daten pretty-printed
+            output_file << incoming_data.dump(4);
+            output_file.close();
+             if (file_existed) {
+                std::cout << "Monster erfolgreich aktualisiert: " << target_file_path << std::endl;
+             } else {
+                std::cout << "Monster erfolgreich erstellt: " << target_file_path << std::endl;
+             }
+
+        } catch (const std::exception& e) {
+             std::cerr << "Fehler beim Schreiben der Monster-Datei (PUT) " << target_file_path << ": " << e.what() << std::endl;
+             return crow::response(500, "{\"error\": \"Interner Fehler beim Speichern des Monsters.\"}");
+        }
+
+        // === NEU: Statuscode basierend auf Existenz vor dem Schreiben setzen ===
+        int status_code = file_existed ? 200 : 201; // 200 OK für Update, 201 Created für Neu
+        // ====================================================================
+
+        // 5. Erfolgsantwort senden
+        crow::response res(status_code, incoming_data.dump());
         res.set_header("Content-Type", "application/json");
         return res;
     });
