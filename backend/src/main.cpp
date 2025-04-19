@@ -423,6 +423,40 @@ int main() {
         return res;
     });
 
+    CROW_ROUTE(app, "/api/monsters/<string>").methods("GET"_method)
+        ([&](const crow::request& /*req*/, const std::string& monster_id){ // Capture base_dir
+        std::filesystem::path monster_file_path;
+        try {
+            monster_file_path = std::filesystem::path(monsters_base_dir) / (monster_id + ".json");
+            monster_file_path = std::filesystem::absolute(monster_file_path).lexically_normal();
+
+            if (!std::filesystem::exists(monster_file_path) || !std::filesystem::is_regular_file(monster_file_path)) {
+                std::cerr << "GET /api/monsters: Monster nicht gefunden: " << monster_file_path << std::endl;
+                return crow::response(404, "{\"error\": \"Monster not found.\"}");
+            }
+
+            std::ifstream monster_file(monster_file_path);
+            if (!monster_file.is_open()) {
+                 std::cerr << "GET /api/monsters: Datei nicht lesbar: " << monster_file_path << std::endl;
+                 return crow::response(500, "{\"error\": \"Could not read monster file.\"}");
+            }
+
+            // Lese den gesamten Dateiinhalt
+            std::stringstream buffer;
+            buffer << monster_file.rdbuf();
+            std::string monster_content = buffer.str();
+
+            // Sende den rohen JSON-Inhalt zurück
+            crow::response res(200, monster_content);
+            res.set_header("Content-Type", "application/json");
+            return res;
+
+        } catch (const std::exception& e) {
+            std::cerr << "Fehler beim Laden von Monster " << monster_id << " (" << monster_file_path << "): " << e.what() << std::endl;
+            return crow::response(500, "{\"error\": \"Internal server error loading monster details.\"}");
+        }
+    });
+
 
     // --- DELETE /api/encounters/{encounterId} (NEU) ---
      CROW_ROUTE(app, "/api/encounters/<string>").methods("DELETE"_method)
