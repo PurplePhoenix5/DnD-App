@@ -219,7 +219,7 @@ async function saveMonster() {
             <v-card-text v-else>
                 <StatBlockRenderer
                     :monster-data="monsterBeingCreated"
-                    :render-style="displayStyle"
+                    :display-style="displayStyle" 
                     :columns="displayColumns"
                 />
             </v-card-text>
