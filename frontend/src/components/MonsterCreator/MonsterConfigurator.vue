@@ -12,8 +12,9 @@ const panels = ref([
   { id: 'resistances', title: 'Resistances & Immunities', icon: 'mdi-shield-check-outline' },
   { id: 'inventory', title: 'Inventory', icon: 'mdi-treasure-chest-outline' }, // Icon geändert
   { id: 'traits', title: 'Traits', icon: 'mdi-puzzle-outline' },
-  { id: 'actions', title: 'Actions', icon: 'mdi-sword' },
-  { id: 'bonusActions', title: 'Bonus Actions', icon: 'mdi-plus-circle-multiple-outline' }, // Icon geändert
+  { id: 'spellcaszing', title: 'Spellcasting', icon: 'mdi-magic-staff' },
+  { id: 'actions+bonusactions', title: 'Actions & Bonus Actions', icon: 'mdi-sword' },
+  { id: 'multiattack', title: 'Multi Attack', icon: 'mdi-plus-circle-multiple-outline' }, // Icon geändert
   { id: 'reactions', title: 'Reactions', icon: 'mdi-reply' },
   { id: 'legendary', title: 'Legendary Actions', icon: 'mdi-crown-outline' },
   { id: 'lair', title: 'Lair Actions', icon: 'mdi-castle' },
@@ -28,8 +29,7 @@ const panels = ref([
   <!-- 'variant="inset"' oder "accordion" oder "popout" für verschiedene Looks -->
   <!-- 'multiple' erlaubt mehrere geöffnete Panels gleichzeitig -->
   <v-expansion-panels
-    variant="inset"
-    multiple
+    variant="popout"
     #default
     #v-model="openPanels" 
   >

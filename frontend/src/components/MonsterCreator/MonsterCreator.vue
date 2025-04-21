@@ -212,10 +212,8 @@ async function saveMonster() {
         </pane>
         <!-- Pane 2: Statblock Vorschau -->
         <pane size="50"> <!-- Startet mit 50% Breite -->
-                <!-- Hier kommt der Inhalt der alten Spalte 2 rein -->
                 <div class="pa-2 bg-surface" style="height: 100%; overflow-y: auto;"> <!-- Padding & Scroll -->
                     <v-card variant="outlined">
-                        <v-card-title>Stat Block Preview</v-card-title>
                         <!-- Zeige Ladeindikator für Monsterdetails -->
                         <div v-if="isLoadingMonsterDetails" class="text-center pa-5">
                             <v-progress-circular indeterminate color="primary"></v-progress-circular>
