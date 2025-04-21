@@ -10,11 +10,12 @@ const panels = ref([
   { id: 'skills', title: 'Skills', icon: 'mdi-star-check-outline' },
   { id: 'senses', title: 'Senses', icon: 'mdi-eye-outline' },
   { id: 'resistances', title: 'Resistances & Immunities', icon: 'mdi-shield-check-outline' },
-  { id: 'inventory', title: 'Inventory', icon: 'mdi-treasure-chest-outline' }, // Icon geändert
+  { id: 'inventory', title: 'Inventory', icon: 'mdi-treasure-chest-outline' }, 
   { id: 'traits', title: 'Traits', icon: 'mdi-puzzle-outline' },
   { id: 'spellcaszing', title: 'Spellcasting', icon: 'mdi-magic-staff' },
-  { id: 'actions+bonusactions', title: 'Actions & Bonus Actions', icon: 'mdi-sword' },
-  { id: 'multiattack', title: 'Multi Attack', icon: 'mdi-plus-circle-multiple-outline' }, // Icon geändert
+  { id: 'actions', title: 'Actions', icon: 'mdi-sword' },
+  { id: 'multiattack', title: 'Multi Attack', icon: 'mdi-plus-circle-multiple-outline' }, 
+  { id: 'bonusactions', title: 'Bonus Actions', icon: 'mdi-sword-cross' },
   { id: 'reactions', title: 'Reactions', icon: 'mdi-reply' },
   { id: 'legendary', title: 'Legendary Actions', icon: 'mdi-crown-outline' },
   { id: 'lair', title: 'Lair Actions', icon: 'mdi-castle' },

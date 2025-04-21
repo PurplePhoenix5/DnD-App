@@ -1,41 +1,51 @@
 {
     "type": "object",
     "properties": {
-      "name": { "type": "string" },
-      "monsterId": { "type": "string" },
-      "CR": { "type": "integer" },
-      "PB": { "type": "integer" },
-      "size": { "type": "string" },
-      "HP": {
-        "type": "object",
-        "properties": {
-          "HDSizeOverride": { "type": "integer" },
-          "HDAmount": { "type": "integer" },
-          "HPmodifier": { "type": "integer" }
-        }
+      "complete": { 
+        "type": "boolean" 
       },
-      "type": { "type": ["string", "null"] },
-      "alignment": { "type": ["string", "null"] },
-      "languages": { "type": "string" },
-      "stats": {
+      "basics": {
         "type": "object",
         "properties": {
-          "STR": { "type": "integer" },
-          "DEX": { "type": "integer" },
-          "CON": { "type": "integer" },
-          "INT": { "type": "integer" },
-          "WIS": { "type": "integer" },
-          "CHA": { "type": "integer" }
-        }
-      },
-      "AC": { "type": "integer" },
-      "ACType": { "type": "string" },
-      "Initiative": {
-        "type": "object",
-        "properties": {
-          "initOverrideValue": { "type": "integer" },
-          "initProficiency": { "type": "boolean" },
-          "initExpertise": { "type": "boolean" }
+          "monstername": { "type": "string" },
+          "monsterId": { "type": "string" },
+          "CR": { "type": "integer" },
+          "PB": { "type": "integer" },
+          "size": { "type": "string" },
+          "HP": {
+            "type": "object",
+            "properties": {
+              "HDSizeDefault": { "type": "integer" },
+              "HDSizeOverride": { "type": "integer" },
+              "HDAmount": { "type": "integer" },
+              "HPmodifier": { "type": "integer" }
+            }
+          },
+          "monstertype": { "type": ["string", "null"] },
+          "alignment": { "type": ["string", "null"] },
+          "languages": { "type": "string" },
+          "stats": {
+            "type": "object",
+            "properties": {
+              "STR": { "type": "integer" },
+              "DEX": { "type": "integer" },
+              "CON": { "type": "integer" },
+              "INT": { "type": "integer" },
+              "WIS": { "type": "integer" },
+              "CHA": { "type": "integer" }
+            }
+          },
+          "AC": { "type": "integer" },
+          "ACType": { "type": "string" },
+          "Initiative": {
+            "type": "object",
+            "properties": {
+              "initDefaultValue": { "type": "integer" },
+              "initOverrideValue": { "type": "integer" },
+              "initProficiency": { "type": "boolean" },
+              "initExpertise": { "type": "boolean" }
+            }
+          }
         }
       },
       "saves": {
@@ -45,7 +55,7 @@
             "type": "object",
             "properties": {
               "proficient": { "type": "boolean" },
-              "override": { "type": "boolean" },
+              "defaultValue": { "type": "integer" },
               "overrideValue": { "type": "integer" }
             }
           },
@@ -53,7 +63,7 @@
             "type": "object",
             "properties": {
               "proficient": { "type": "boolean" },
-              "override": { "type": "boolean" },
+              "defaultValue": { "type": "integer" },
               "overrideValue": { "type": "integer" }
             }
           },
@@ -61,7 +71,7 @@
             "type": "object",
             "properties": {
               "proficient": { "type": "boolean" },
-              "override": { "type": "boolean" },
+              "defaultValue": { "type": "integer" },
               "overrideValue": { "type": "integer" }
             }
           },
@@ -69,7 +79,7 @@
             "type": "object",
             "properties": {
               "proficient": { "type": "boolean" },
-              "override": { "type": "boolean" },
+              "defaultValue": { "type": "integer" },
               "overrideValue": { "type": "integer" }
             }
           },
@@ -77,7 +87,7 @@
             "type": "object",
             "properties": {
               "proficient": { "type": "boolean" },
-              "override": { "type": "boolean" },
+              "defaultValue": { "type": "integer" },
               "overrideValue": { "type": "integer" }
             }
           },
@@ -85,7 +95,7 @@
             "type": "object",
             "properties": {
               "proficient": { "type": "boolean" },
-              "override": { "type": "boolean" },
+              "defaultValue": { "type": "integer" },
               "overrideValue": { "type": "integer" }
             }
           }
@@ -96,7 +106,6 @@
         "items": {
           "type": "object",
           "properties": {
-            "id": { "type": "string" },
             "speed": { "type": "integer" },
             "type": { "type": ["string", "null"] },
             "note": { "type": "string" }
@@ -108,17 +117,10 @@
         "items": {
           "type": "object",
           "properties": {
-            "skill": {
-              "type": "object",
-              "properties": {
-                "stat": { "type": "string" },
-                "label": { "type": "string" }
-              }
-            },
-            "key": { "type": "string" },
+            "skill": { "type": "string" },
             "proficient": { "type": "boolean" },
             "expertise": { "type": "boolean" },
-            "override": { "type": "boolean" },
+            "defaultValue": { "type": "integer" },
             "overrideValue": { "type": "integer" }
           }
         }
@@ -130,12 +132,22 @@
           "darkvision": { "type": "integer" },
           "tremorsense": { "type": "integer" },
           "truesight": { "type": "integer" },
-          "passivePerception": { "type": "integer" },
-          "passiveInsight": { "type": "integer" }
+          "passivePerception": {
+            "type": "object",
+            "properties": {
+              "defaultValue": { "type": "integer" },
+              "overrideValue": { "type": "integer" }
+            }
+          },
+          "passiveInsight": {
+            "type": "object",
+            "properties": {
+              "defaultValue": { "type": "integer" },
+              "overrideValue": { "type": "integer" }
+            }
+          },
+          "sensesNotes": { "type": "string" }
         }
-      },
-      "sensesNotes": {
-        "type": "string"
       },
       "resistances": {
         "type": "array",
@@ -186,54 +198,49 @@
         "type": "object",
         "properties": {
           "stat": { "type": "string" },
-          "save": {
-            "type": "object",
-            "properties": {
-              "override": { "type": "boolean" },
-              "overrideValue": { "type": "integer" }
-            }
-          },
-          "modifier": {
-            "type": "object",
-            "properties": {
-              "override": { "type": "boolean" },
-              "overrideValue": { "type": "integer" }
-            }
-          },
-          "attack": {
-            "type": "object",
-            "properties": {
-              "override": { "type": "boolean" },
-              "overrideValue": { "type": "integer" }
-            }
-          },
-          "class": { "type": ["string", "null"] },
-          "level": { "type": "integer" },
-          "slots": {
-            "type": "array",
-            "items": { "type": "integer" },
-            "minItems": 9,
-            "maxItems": 9
-          },
+          "dc": { "type": "integer" },
+          "hasAttackrolls": { "type": "boolean" },
+          "bonus": { "type": "integer" },
           "atWill": {
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
-                "id": { "type": "string" },
-                "count": { "type": "integer" },
-                "rate": { "type": "string" },
-                "spells": { "type": "array", "items": { "type": "string" } }
+                "name": { "type": "string" },
+                "note": { "type": "string" }
               }
             }
           },
-          "standard": { "type": "array", "items": { "type": "string" } },
-          "notes": { "type": "string" },
-          "atWillNotes": { "type": "string" },
-          "useCustomClassPreamble": { "type": "boolean" },
-          "customClassPreamble": { "type": "string" },
-          "useCustomInnatePreamble": { "type": "boolean" },
-          "customInnatePreamble": { "type": "string" }
+          "once": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "note": { "type": "string" }
+              }
+            }
+          },
+          "twice": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "note": { "type": "string" }
+              }
+            }
+          },
+          "thrice": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "note": { "type": "string" }
+              }
+            }
+          }
         }
       },
       "attacks": {
@@ -427,8 +434,6 @@
           }
         }
       },
-      "useCustomLairActionPreamble": { "type": "boolean" },
-      "lairActionPreamble": { "type": "string" },
       "lairActions": {
         "type": "array",
         "items": {
