@@ -1,0 +1,20 @@
+{
+    "STR": {
+        "full": "Strength"
+    },
+    "DEX": {
+        "full": "Dexterity"
+    },
+    "CON": {
+        "full": "Constitution"
+    },
+    "INT": {
+        "full": "Intelligence"
+    },
+    "WIS": {
+        "full": "Wisdom"
+    },
+    "CHA": {
+        "full": "Charisma"
+    }
+}

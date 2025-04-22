@@ -1,0 +1,5 @@
+[
+    "If the {monster.name} fails a saving throw, it can choose to succeed instead.",
+    "If the {monster.name} fails a saving throw, it can choose to add +10 to its saving throw.",
+    "If the {monster.name} fails a saving throw, it can choose to succeed instead but lowering its Spell Safe DC by 1."
+]
