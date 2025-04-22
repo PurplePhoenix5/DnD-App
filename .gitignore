@@ -1,28 +1,28 @@
 # C++ Backend Build Output
-backend/build/
-backend/YourAppName # Falls das Executable woanders landet
+#backend/build/
+#backend/YourAppName # Falls das Executable woanders landet
 
 # Frontend Dependencies & Build Output
-frontend/node_modules/
-frontend/dist/
-frontend/build/
-frontend/.env*
-*.local
+#frontend/node_modules/
+#frontend/dist/
+#frontend/build/
+#frontend/.env*
+#*.local
 
 # VS Code specific
-.vscode/
+#.vscode/
 
 # OS specific
-.DS_Store
-Thumbs.db
+#.DS_Store
+#Thumbs.db
 
 # CMake files
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
-Makefile
-compile_commands.json
+#CMakeCache.txt
+#CMakeFiles/
+#cmake_install.cmake
+#Makefile
+#compile_commands.json
 
 # Andere temporäre Dateien
-*.log
-*.tmp
+#*.log
+#*.tmp

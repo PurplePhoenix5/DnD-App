@@ -1,0 +1,7 @@
+[
+{
+  "directory": "/workspace/build",
+  "command": "/usr/bin/g++  -I/workspace/build/_deps/crow-src/include -I/workspace/build/_deps/nlohmann_json-src/include -g -std=c++17 -o CMakeFiles/DnDApp.dir/src/main.cpp.o -c /workspace/backend/src/main.cpp",
+  "file": "/workspace/backend/src/main.cpp"
+}
+]

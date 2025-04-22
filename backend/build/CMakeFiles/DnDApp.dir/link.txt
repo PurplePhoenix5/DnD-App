@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/DnDApp.dir/src/main.cpp.o -o DnDApp  /usr/lib/x86_64-linux-gnu/libcmark.so.0.30.2 
