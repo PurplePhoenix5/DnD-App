@@ -1,6 +1,5 @@
 // src/utils/dndData/crData.js
 const rawCR = [
-    // ... (Daten aus CR.ts kopieren) ...
     { cr: '0', proficiency: 2, numeric: 0, xp: 0, },
     { cr: '1/8', proficiency: 2, numeric: 0.125, xp: 25, },
     { cr: '1/4', proficiency: 2, numeric: 0.25, xp: 50, },

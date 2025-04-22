@@ -1,0 +1,82 @@
+[
+    {
+        "name": "Common",
+        "typicalSpeakers": "Humans",
+        "script": "Common"
+    },
+    {
+        "name": "Dwarvish",
+        "typicalSpeakers": "Dwarves",
+        "script": "Dwarvish"
+    },
+    {
+        "name": "Elvish",
+        "typicalSpeakers": "Elves",
+        "script": "Elvish"
+    },
+    {
+        "name": "Giant",
+        "typicalSpeakers": "Ogres, giants",
+        "script": "Dwarvish"
+    },
+    {
+        "name": "Gnomish",
+        "typicalSpeakers": "Gnomes",
+        "script": "Dwarvish"
+    },
+    {
+        "name": "Goblin",
+        "typicalSpeakers": "Goblinoids",
+        "script": "Dwarvish"
+    },
+    {
+        "name": "Halfling",
+        "typicalSpeakers": "Halflings",
+        "script": "Common"
+    },
+    {
+        "name": "Orc",
+        "typicalSpeakers": "Orcs",
+        "script": "Dwarvish"
+    },
+    {
+        "name": "Abyssal",
+        "typicalSpeakers": "Demons",
+        "script": "Infernal"
+    },
+    {
+        "name": "Celestial",
+        "typicalSpeakers": "Celestials",
+        "script": "Celestial"
+    },
+    {
+        "name": "Draconic",
+        "typicalSpeakers": "Dragons, dragonborn",
+        "script": "Draconic"
+    },
+    {
+        "name": "Deep Speech",
+        "typicalSpeakers": "Mind flayers, beholders",
+        "script": null
+    },
+    {
+        "name": "Infernal",
+        "typicalSpeakers": "Devils",
+        "script": "Infernal"
+    },
+    {
+        "name": "Primordial",
+        "typicalSpeakers": "Elementals",
+        "script": "Dwarvish"
+    },
+    {
+        "name": "Sylvan",
+        "typicalSpeakers": "Fey creatures",
+        "script": "Elvish"
+    },
+    {
+        "name": "Undercommon",
+        "typicalSpeakers": "Underworld traders",
+        "script": "Elvish"
+    }
+]

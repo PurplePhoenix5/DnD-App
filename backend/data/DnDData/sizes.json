@@ -1,0 +1,20 @@
+{
+    "hdForSize": {
+        "Tiny": "d4",
+        "Small": "d6",
+        "Medium": "d8",
+        "Large": "d10",
+        "Huge": "d12",
+        "Gargantuan": "d20",
+        "Titan": "d20"
+    },
+    "creatureSizes": [
+        "Tiny",
+        "Small",
+        "Medium",
+        "Large",
+        "Huge",
+        "Gargantuan",
+        "Titan"
+    ]
+}
