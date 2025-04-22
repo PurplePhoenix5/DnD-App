@@ -7,21 +7,21 @@
       "basics": {
         "type": "object",
         "properties": {
-          "monstername": { "type": "string" },
-          "monsterId": { "type": "string" },
+          "name": { "type": "string" },
+          "id": { "type": "string" },
           "CR": { "type": "integer" },
           "PB": { "type": "integer" },
           "size": { "type": "string" },
           "HP": {
             "type": "object",
             "properties": {
-              "HDSizeDefault": { "type": "integer" },
-              "HDSizeOverride": { "type": "integer" },
+              "defaultDie": { "type": "integer" },
+              "overrideDie": { "type": "integer" },
               "HDAmount": { "type": "integer" },
               "HPmodifier": { "type": "integer" }
             }
           },
-          "monstertype": { "type": ["string", "null"] },
+          "type": { "type": ["string", "null"] },
           "alignment": { "type": ["string", "null"] },
           "languages": { "type": "string" },
           "stats": {
@@ -200,7 +200,7 @@
           "dc": { "type": "integer" },
           "bonus": { "type": "integer" },
           "hasAttackrolls": { "type": "boolean" },
-          "requiresSComponents": { "type": "string" },
+          "requiresSComponents": { "type": "boolean" },
           "atWill": {
             "type": "array",
             "items": {
@@ -252,11 +252,11 @@
               "type": "object" ,
               "properties": {
                 "name": { "type": "string" },
-                "attackMod": { "type": "string" },
+                "attackMod": { "type": "integer" },
                 "rangeType": { "type": "string" },
-                "reachMelee": { "type": "string" },
-                "reachRanged": { "type": "string" },
-                "reachDisadvantage": { "type": "string" },
+                "reachMelee": { "type": "integer" },
+                "reachRanged": { "type": "integer" },
+                "reachDisadvantage": { "type": "integer" },
                 "damage":{
                   "type": "array",
                   "items": {
@@ -435,43 +435,6 @@
             "description": { "type": "string" }
             }
           }
-        },
-    "required": [
-      "name",
-      "size",
-      "type",
-      "alignment",
-      "AC",
-      "ACType",
-      "CR",
-      "proficiency",
-      "HP",
-      "speeds",
-      "stats",
-      "saves",
-      "skills",
-      "resistances",
-      "immunities",
-      "vulnerabilities",
-      "conditions",
-      "senses",
-      "passivePerception",
-      "languages",
-      "attacks",
-      "multiattacks",
-      "spellcasting",
-      "traits",
-      "actions",
-      "legendaryActions",
-      "reactions",
-      "lairActions",
-      "regionalEffects",
-      "regionalEffectDescription",
-      "inventory"
-    ],
-    "minimum": [
-      "name",
-      "CR"
-    ]
+        }
   }
 }
