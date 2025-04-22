@@ -182,7 +182,6 @@
           "type": "object",
           "properties": {
             "name": { "type": "string" },
-            "id": { "type": "string" },
             "limitedUse": {
               "type": "object",
               "properties": {
@@ -199,8 +198,9 @@
         "properties": {
           "stat": { "type": "string" },
           "dc": { "type": "integer" },
-          "hasAttackrolls": { "type": "boolean" },
           "bonus": { "type": "integer" },
+          "hasAttackrolls": { "type": "boolean" },
+          "requiresSComponents": { "type": "string" },
           "atWill": {
             "type": "array",
             "items": {
@@ -243,176 +243,154 @@
           }
         }
       },
-      "attacks": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "id": { "type": "string" },
-            "name": { "type": "string" },
-            "distance": { "type": "string" },
-            "kind": { "type": "string" },
-            "modifier": {
-              "type": "object",
+      "actions": {
+        "type":"object",
+        "properties": {
+          "attackRoll": { 
+            "type": "array",
+            "items": {	
+              "type": "object" ,
               "properties": {
-                "override": { "type": "boolean" },
-                "overrideValue": { "type": "integer" },
-                "stat": { "type": "string" },
-                "proficient": { "type": "boolean" }
-              }
-            },
-            "range": {
-              "type": "object",
-              "properties": {
-                "standard": { "type": "integer" },
-                "long": { "type": "integer" },
-                "reach": { "type": "integer" }
-              }
-            },
-            "targets": { "type": "integer" },
-            "damage": {
-              "type": "object",
-              "properties": {
-                "dice": { "type": "integer" },
-                "count": { "type": "integer" },
-                "modifier": {
-                  "type": "object",
-                  "properties": {
-                    "override": { "type": "boolean" },
-                    "overrideValue": { "type": "integer" },
-                    "stat": { "type": "string" }
+                "name": { "type": "string" },
+                "attackMod": { "type": "string" },
+                "rangeType": { "type": "string" },
+                "reachMelee": { "type": "string" },
+                "reachRanged": { "type": "string" },
+                "reachDisadvantage": { "type": "string" },
+                "damage":{
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "averageDamage": { "type": "integer" },
+                      "count": { "type": "integer" },
+                      "size": { "type": "integer" },
+                      "modifier": { "type": "integer"},
+                      "type": { "type": "string" }
+                      }
                   }
                 },
-                "type": { "type": "string" }
+                "notes": { "type": "string" }
               }
-            },
-            "alternateDamage": {
+            }
+          },
+          "savingThrow": {
+            "type": "array",
+            "items": {
               "type": "object",
               "properties": {
-                "dice": { "type": "integer" },
-                "count": { "type": "integer" },
-                "modifier": {
-                  "type": "object",
+                "name": { "type": "string" },
+                "dc": { "type": "integer" },
+                "uses": { "type": "integer" },
+                "resetType": { "type": "string" },
+                "recharge": { "type": "string" },
+                "description": { "type": "string" },
+                "damage":{
+                  "type": "array",
                   "properties": {
-                    "override": { "type": "boolean" },
-                    "overrideValue": { "type": "integer" },
-                    "stat": { "type": "string" }
+                    "averageDamage": { "type": "integer" },
+                    "count": { "type": "integer" },
+                    "size": { "type": "integer" },
+                    "modifier": { "type": "integer"},
+                    "type": { "type": "string" }
                   }
-                },
-                "type": { "type": "string" },
-                "condition": { "type": "string" },
-                "active": { "type": "boolean" }
+                  },
+                "failNotes": { "type": "string" },
+                "successNotes": { "type": "string" },
+                "succesOrFailNotes": { "type": "string" }
               }
-            },
-            "additionalDamage": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "id": { "type": "string" },
-                  "dice": { "type": "integer" },
-                  "count": { "type": "integer" },
-                  "type": { "type": "string" },
-                  "note": { "type": "string" }
-                }
+            }
+          },
+          "other": {
+            "type": "array",
+            "items": {
+              "type":"object",
+              "properties": {
+              "name": { "type": "string" },
+              "uses": { "type": "integer" },
+              "resetType": { "type": "string" },
+              "recharge": { "type": "string" },
+              "notes": { "type": "string" }
               }
-            },
-            "save": { "type": ["integer", "null"] },
-            "description": { "type": "string" },
-            "legendaryOnly": { "type": "boolean" },
-            "useCustomRenderer": { "type": "boolean" },
-            "customRenderer": { "type": "string" }
+            }
           }
         }
       },
-      "actions": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "name": { "type": "string" },
-            "id": { "type": "string" },
-            "description": { "type": "string" },
-            "recharge": { "type": "string" },
-            "legendaryOnly": { "type": "boolean" },
-            "limitedUse": {
+      "bonusAction": {
+        "type":"object",
+        "properties": {
+          "attackRoll": { 
+            "type": "array",
+            "items": {	
+              "type": "object" ,
+              "properties": {
+                "name": { "type": "string" },
+                "attackMod": { "type": "string" },
+                "rangeType": { "type": "string" },
+                "reachMelee": { "type": "string" },
+                "reachRanged": { "type": "string" },
+                "reachDisadvantage": { "type": "string" },
+                "damage":{
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "averageDamage": { "type": "integer" },
+                      "count": { "type": "integer" },
+                      "size": { "type": "integer" },
+                      "modifier": { "type": "integer"},
+                      "type": { "type": "string" }
+                      }
+                  }
+                },
+                "notes": { "type": "string" }
+              }
+            }
+          },
+          "savingThrow": {
+            "type": "array",
+            "items": {
               "type": "object",
               "properties": {
-                "count": { "type": "integer" },
-                "rate": { "type": "string" }
+                "name": { "type": "string" },
+                "dc": { "type": "integer" },
+                "uses": { "type": "integer" },
+                "resetType": { "type": "string" },
+                "recharge": { "type": "string" },
+                "description": { "type": "string" },
+                "damage":{
+                  "type": "array",
+                  "properties": {
+                    "averageDamage": { "type": "integer" },
+                    "count": { "type": "integer" },
+                    "size": { "type": "integer" },
+                    "modifier": { "type": "integer"},
+                    "type": { "type": "string" }
+                  }
+                  },
+                "failNotes": { "type": "string" },
+                "successNotes": { "type": "string" },
+                "succesOrFailNotes": { "type": "string" }
               }
-            },
-            "customPreamble": { "type": "boolean" },
-            "bonusAction": { "type": "boolean" },
-            "stat": { "type": "string" },
-            "save": {
-              "type": "object",
+            }
+          },
+          "other": {
+            "type": "array",
+            "items": {
+              "type":"object",
               "properties": {
-                "override": { "type": "boolean" },
-                "overrideValue": { "type": "integer" }
-              }
-            },
-            "effects": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "case": "string",
-                "effect": "string"
-              }
-            },
-            "crAnnotation": {
-              "type": "object",
-              "properties": {
-                "maxDamage": { "type": "integer" },
-                "maxSave": { "type": "integer" },
-                "maxModifier": { "type": "integer" },
-                "multitarget": { "type": "boolean" },
-                "ehpMultiplier": { "type": "number" },
-                "ehpModifier": { "type": "integer" },
-                "acModifier": { "type": "integer" },
-                "include": { "type": "boolean" },
-                "automatic": { "type": "boolean" }
+              "name": { "type": "string" },
+              "uses": { "type": "integer" },
+              "resetType": { "type": "string" },
+              "recharge": { "type": "string" },
+              "notes": { "type": "string" }
               }
             }
           }
         }
       },
       "multiattacks": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "id": { "type": "string" },
-            "attacks": { "type": "array", "items": { "type": "string" } },
-            "actions": { "type": "array", "items": { "type": "string" } }
-          }
-        }
-      },
-      "multiattackOptions": {
-        "type": "object",
-        "properties": {
-          "useCustomRenderer": { "type": "boolean" },
-          "customMultiattackRenderer": { "type": "string" },
-          "postscript": { "type": "string" }
-        }
-      },
-      "legendaryActions": {
-        "type": "object",
-        "properties": {
-          "count": { "type": "integer" },
-          "actions": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "actionId": { "type": "string" },
-                "cost": { "type": "integer" }
-              }
-            }
-          },
-          "useCustomPreamble": { "type": "boolean" },
-          "customPreamble": { "type": "string" }
-        }
+        "type": "string"
       },
       "reactions": {
         "type": "array",
@@ -420,17 +398,31 @@
           "type": "object",
           "properties": {
             "name": { "type": "string" },
-            "limitedUse": {
-              "type": "object",
-              "properties": {
-                "count": { "type": "integer" },
-                "rate": { "type": "string" }
-              }
-            },
-            "id": { "type": "string" },
-            "description": { "type": "string" },
+            "uses": { "type": "integer" },
+            "resetType": { "type": "string" },
+            "recharge": { "type": "string" },
             "trigger": { "type": "string" },
             "response": { "type": "string" }
+          }
+        }
+      },
+      "legendaryActions": {
+        "type": "object",
+        "properties": {
+          "uses": { "type": "integer" },
+          "usesInLair": { "type": "integer" },
+          "LegendaryResistanceUses": { "type": "integer" },
+          "legendaryResistanceType": { "type": "string" },
+          "legendaryAction": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "cost": { "type": "integer" },
+                "description": { "type": "string" }
+              }
+            }
           }
         }
       },
@@ -440,39 +432,10 @@
           "type": "object",
           "properties": {
             "name": { "type": "string" },
-            "id": { "type": "string" },
-            "description": { "type": "string" },
-            "crAnnotation": {
-              "type": "object",
-              "properties": {
-                "maxDamage": { "type": "integer" },
-                "maxSave": { "type": "integer" },
-                "maxModifier": { "type": "integer" },
-                "multitarget": { "type": "boolean" },
-                "ehpMultiplier": { "type": "number" },
-                "ehpModifier": { "type": "integer" },
-                "acModifier": { "type": "integer" },
-                "include": { "type": "boolean" },
-                "automatic": { "type": "boolean" }
-              }
+            "description": { "type": "string" }
             }
           }
-        }
-      },
-      "regionalEffects": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "id": { "type": "string" },
-            "description": { "type": "string" }
-          }
-        }
-      },
-      "regionalEffectDescription": {
-        "type": "string"
-      }
-    },
+        },
     "required": [
       "name",
       "size",
@@ -511,4 +474,4 @@
       "CR"
     ]
   }
-  
+}
