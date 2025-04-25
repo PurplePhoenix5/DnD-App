@@ -1,6 +1,15 @@
 <!-- frontend/src/components/MonsterCreator/MonsterConfigurator.vue -->
 <script setup>
 import { ref } from 'vue';
+import { get } from 'lodash'; // Importiere get von lodash
+
+import BasicsConfig from './Basics/BasicsConfig.vue';
+
+const props = defineProps({
+    monsterData: { type: Object, required: true },
+    isEnabled: { type: Boolean, default: false }
+});
+const emit = defineEmits(['update-monster']);
 
 // Daten für die Expansion Panels
 const panels = ref([
@@ -21,41 +30,51 @@ const panels = ref([
   { id: 'lair', title: 'Lair Actions', icon: 'mdi-castle' },
 ]);
 
-// Optional: Steuert, welche Panels standardmäßig geöffnet sind (z.B. das erste)
-// const openPanels = ref(['basics']); // Öffnet das Panel mit value="basics"
+const openPanels = ref(['basics']); // Öffnet das Panel mit value="basics"
+
+function handleUpdate(path, value) {
+    emit('update-monster', { path, value });
+}
+
+// Verwende lodash.get, um die Daten sicher zu extrahieren
+const getDataForPanel = (panel) => {
+    if (!panel.path) return {}; // Fallback für Panels ohne Pfad
+    if (panel.path === 'basics') {
+         // Gib das gesamte basics-Objekt zurück
+         return props.monsterData.basics ?? {}; // Fallback auf leeres Objekt
+    }
+    // Standard: Hole den Wert über den Pfad
+    return get(props.monsterData, panel.path, {}); // Gib leeres Objekt als Default zurück
+};
+
 </script>
 
 <template>
-  <!-- v-expansion-panels als Hauptcontainer -->
-  <!-- 'variant="inset"' oder "accordion" oder "popout" für verschiedene Looks -->
-  <!-- 'multiple' erlaubt mehrere geöffnete Panels gleichzeitig -->
-  <v-expansion-panels
-    variant="popout"
-    #default
-    #v-model="openPanels" 
-  >
-    <!-- Iteriere durch die Panel-Daten -->
-    <v-expansion-panel
-      v-for="panel in panels"
-      :key="panel.id"
-      :value="panel.id"
-      elevation="1" 
-    >
-      <!-- Titel des Panels mit Icon -->
+  <v-expansion-panels variant="inset" multiple :disabled="!isEnabled" #default #v-model="openPanels">
+    <v-expansion-panel v-for="panel in panels" :key="panel.id" :value="panel.id" elevation="1">
       <v-expansion-panel-title>
         <v-icon :icon="panel.icon" start class="mr-2"></v-icon>
         {{ panel.title }}
       </v-expansion-panel-title>
 
-      <!-- Inhalt des Panels (Platzhalter) -->
-      <v-expansion-panel-text>
-        <p class="text-disabled pa-4">
-          Configuration for {{ panel.title }} goes here...
+      <v-expansion-panel-text eager>
+        <!-- Ansatz mit dynamischer Komponente (oder v-if wie zuvor) -->
+        <component
+           v-if="panel.component"
+           :is="panel.component"
+           :modelValue="getDataForPanel(panel)"
+           :is-enabled="panel.id === 'basics' || isEnabled" 
+           @update:modelValue="handleUpdate(panel.path, $event)"
+        />
+        <p v-else class="text-disabled pa-4">
+          Configuration for {{ panel.title }} not implemented yet.
         </p>
-        <!-- Hier kommen später die eigentlichen Formularfelder rein -->
       </v-expansion-panel-text>
     </v-expansion-panel>
   </v-expansion-panels>
+  <div v-if="!isEnabled" class="text-disabled text-center mt-4 text-caption">
+      Please enter Monster Name and CR in the "Basics" section to enable configuration.
+  </div>
 </template>
 
 <style scoped>

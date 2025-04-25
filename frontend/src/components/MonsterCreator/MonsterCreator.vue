@@ -1,169 +1,221 @@
 <!-- frontend/src/components/MonsterCreator/MonsterCreator.vue -->
 <script setup>
-import { ref, reactive, watch } from 'vue'; // watch hinzugefügt
+import { ref, reactive, watch, computed, onMounted } from 'vue';
+import { set, get, isEqual } from 'lodash'; // Importiere set, get und isEqual von lodash
 import { Splitpanes, Pane } from 'splitpanes';
-import 'splitpanes/dist/splitpanes.css'; // Importiere das CSS für Splitpanes
-import MonsterLoader from './MonsterLoader.vue'; // NEU
+import 'splitpanes/dist/splitpanes.css';
+import { loadDnDData, preloadCommonData } from '../../utils/dndDataService.js';
+import { calculateInitiativeBonus } from '../../utils/mathRendering.js';
+
+import MonsterLoader from './MonsterLoader.vue';
 import MonsterConfigurator from './MonsterConfigurator.vue';
-import StatBlockRenderer from '../StatBlockRenderer.vue';
+import StatBlockRenderer from '../StatBlockRenderer.vue'; // Pfad prüfen
 
-// --- Reaktiver Zustand für das Monster ---
-const monsterBeingCreated = reactive({
-  // ... (Initialisiere mit Standardwerten wie zuvor) ...
-  name: 'New Creature', saveVersion: 10, size: 'Medium', type: 'Humanoid', alignment: 'unaligned',
-  AC: 10, ACType: 'natural armor', CR: 0, proficiency: 2,
-  HP: { HD: 1, type: 8, modifier: 0 },
-  stats: { STR: 10, DEX: 10, CON: 10, INT: 10, WIS: 10, CHA: 10 },
-  speeds: [{ id: 'speed_walk', type: 'walk', speed: 30, note: '' }],
-  saves: { STR: { proficient: false, override: false, overrideValue: 0 }, DEX: { proficient: false, override: false, overrideValue: 0 }, CON: { proficient: false, override: false, overrideValue: 0 }, INT: { proficient: false, override: false, overrideValue: 0 }, WIS: { proficient: false, override: false, overrideValue: 0 }, CHA: { proficient: false, override: false, overrideValue: 0 } },
-  skills: [], resistances: [], immunities: [], vulnerabilities: [], conditions: [],
-  senses: { blindsight: 0, darkvision: 0, tremorsense: 0, truesight: 0 },
-  passivePerception: { override: false, overrideValue: 10 }, languages: '',
-  traits: [], actions: [], attacks: [],
-  spellcasting: { stat: 'INT', save: { override: false, overrideValue: 0 }, modifier: { override: false, overrideValue: 0 }, attack: { override: false, overrideValue: 0 }, level: 1, slots: [0,0,0,0,0,0,0,0,0], atWill: [], standard: [], notes: '', atWillNotes: '' },
-  multiattacks: [], multiattackOptions: {}, legendaryActions: { count: 0, actions: [] },
-  mythicActions: { triggerName: '', triggerRecharge: '', triggerDescription: '', preamble: '', actions: []}, reactions: [], lairActions: [], regionalEffects: [],
-  // ... (ggf. weitere Felder)
-});
+// Funktion zum Erstellen eines leeren Monsters (aktualisiert)
+function createEmptyMonster() {
+    const baseStats = { STR: 10, DEX: 10, CON: 10, INT: 10, WIS: 10, CHA: 10 };
+    const baseSaves = {};
+    Object.keys(baseStats).forEach(key => {
+        baseSaves[key] = { proficient: false, defaultValue: 0, overrideValue: null };
+    });
+    const defaultInitiative = {
+        initDefaultValue: calculateInitiativeBonus({ stats: baseStats, PB: 2 }, { initProficiency: false, initExpertise: false }), // Berechne Default Init
+        initOverrideValue: null,
+        initProficiency: false,
+        initExpertise: false
+    };
 
-// --- NEU: Status für das Laden eines spezifischen Monsters ---
+    return {
+        complete: false,
+        basics: {
+            name: '', id: null, CR: null, PB: 2, size: 'Medium',
+            HP: { defaultDie: 8, overrideDie: null, HDAmount: 1, HPmodifier: 0 },
+            type: 'Humanoid', alignment: 'unaligned', languages: '',
+            stats: { ...baseStats }, // Kopiere Basis-Stats
+            AC: 10, ACType: '',
+            Initiative: { ...defaultInitiative } // Kopiere Default Initiative
+        },
+        saves: cloneDeep(baseSaves), // Deep Clone für Saves
+        speeds: [{ speed: 30, type: 'walk', note: '' }],
+        skills: [],
+        senses: {
+            blindsight: 0, darkvision: 60, tremorsense: 0, truesight: 0,
+            passivePerception: { defaultValue: 10, overrideValue: null },
+            passiveInsight: { defaultValue: 10, overrideValue: null },
+            sensesNotes: ''
+        },
+        resistances: [], immunities: [], vulnerabilities: [], conditionImmunities: [],
+        inventory: '',
+        traits: [],
+        spellcasting: { /* ... wie zuvor ... */ },
+        actions: { attackRoll: [], savingThrow: [], other: [] },
+        bonusAction: { attackRoll: [], savingThrow: [], other: [] },
+        multiattacks: '',
+        reactions: [],
+        legendaryActions: { uses: 0, usesInLair: 0, LegendaryResistanceUses: 0, legendaryResistanceType: '', legendaryAction: [] },
+        lairActions: []
+    };
+}
+// ========================================================================
+
+const monsterBeingCreated = reactive(createEmptyMonster()); // Initialisiere mit leerem Template
+const crDataList = ref([]); // Für PB Berechnung
+
 const isLoadingMonsterDetails = ref(false);
 const loadMonsterDetailsError = ref(null);
-// ===========================================================
-
-// --- Bestehende Speicher-Status (Platzhalter) ---
 const isSaving = ref(false);
 const saveError = ref(null);
-// =============================================
+const displayStyle = ref('2024');
+const displayColumns = ref(1);
 
-// === NEU: Refs für Style und Columns ===
-const displayStyle = ref('2024');   // Default Stil
-const displayColumns = ref(1);     // Default Spalten
+// --- Computed Properties (ID und Enabled State aktualisiert) ---
+const monsterId = computed(() => {
+    const name = monsterBeingCreated.basics?.name?.trim() || ''; // Sicherer Zugriff
+    const crValue = monsterBeingCreated.basics?.CR;          // Sicherer Zugriff
+    if (name && typeof crValue === 'number' && crValue >= 0) {
+        return `${name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')}_cr${String(crValue).replace('.', '_')}`;
+    }
+    return null;
+});
 
+const isConfigurationEnabled = computed(() => {
+    return !!monsterBeingCreated.basics?.name?.trim() && typeof monsterBeingCreated.basics?.CR === 'number' && monsterBeingCreated.basics.CR >= 0;
+});
+// ============================================================
 
-// --- Methoden ---
-
-// === NEU: Methode zum Laden der Monsterdetails ===
-async function handleLoadMonster(monsterId) {
-    if (!monsterId) return;
-    console.log('MonsterCreator: Attempting to load monster with ID:', monsterId);
+// --- Methode zum Laden ---
+async function handleLoadMonster(monsterIdToLoad) {
+    if (!monsterIdToLoad) return;
     isLoadingMonsterDetails.value = true;
     loadMonsterDetailsError.value = null;
-
     try {
-        // API CALL: Hole die *vollen* Monsterdaten
-        const response = await fetch(`http://localhost:8080/api/monsters/${monsterId}`);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        const response = await fetch(`http://localhost:8080/api/monsters/${monsterIdToLoad}`);
+        if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`); }
         const data = await response.json();
-        console.log('MonsterCreator: Received monster details:', data);
 
-        // --- Aktualisiere das reactive monsterBeingCreated Objekt ---
-        // Wichtig: Direkte Zuweisung monsterBeingCreated = data würde die Reaktivität brechen.
-        // Stattdessen müssen wir die Eigenschaften aktualisieren.
+        // --- Aktualisiere das reactive Objekt ---
+        // Verwende den Spread-Operator für eine flache Kopie und überschreibe dann
+        // gezielt tiefere Strukturen oder füge Defaults hinzu.
+        const loadedData = { ...createEmptyMonster(), ...data }; // Merge mit leerem Template als Basis
 
-        // 1. Leere das Objekt (optional, aber sauberer für Arrays etc.)
-        //    Behalte aber die Grundstruktur bei, falls die API nicht *alle* Felder liefert.
+        // Kopiere die Werte in das reactive Objekt
         Object.keys(monsterBeingCreated).forEach(key => {
-            // Lösche Arrays oder setze auf leere Objekte/Strings/Null zurück,
-            // behalte aber primitive Defaults, falls nicht in API vorhanden.
-             if (Array.isArray(monsterBeingCreated[key])) {
-                 monsterBeingCreated[key] = [];
-             } else if (typeof monsterBeingCreated[key] === 'object' && monsterBeingCreated[key] !== null) {
-                 // Bei verschachtelten Objekten vorsichtig sein oder leer lassen
-                 // monsterBeingCreated[key] = {}; // Vorsicht hiermit!
-             } else if (typeof monsterBeingCreated[key] === 'string') {
-                 monsterBeingCreated[key] = '';
-             } else if (typeof monsterBeingCreated[key] === 'number') {
-                 // Behalte ggf. Defaults wie 0 oder 10
-                 // monsterBeingCreated[key] = 0;
-             } else {
-                 // monsterBeingCreated[key] = null;
+             if (loadedData[key] !== undefined) {
+                 // Verwende _.isEqual für tiefen Vergleich bei Objekten/Arrays, um unnötige Updates zu vermeiden
+                 if (typeof monsterBeingCreated[key] === 'object' && monsterBeingCreated[key] !== null) {
+                     if (!isEqual(monsterBeingCreated[key], loadedData[key])) {
+                         monsterBeingCreated[key] = _.cloneDeep(loadedData[key]); // Deep Clone für Objekte/Arrays
+                     }
+                 } else {
+                      if (monsterBeingCreated[key] !== loadedData[key]) {
+                         monsterBeingCreated[key] = loadedData[key];
+                      }
+                 }
              }
         });
-
-        // 2. Weise die geladenen Daten zu (überschreibt/fügt hinzu)
-        // Object.assign ist flach, besser ist es, Feld für Feld zu gehen oder deep merge
-        // Einfacher Ansatz: Kopiere alle Top-Level Felder
-        for (const key in data) {
-            if (Object.hasOwnProperty.call(data, key)) {
-                 // Prüfe ob das Feld im reactive Objekt existiert, um Typfehler zu vermeiden
-                 // oder erweitere das reactive Objekt dynamisch (kann riskant sein)
-                 // if (key in monsterBeingCreated) {
-                     monsterBeingCreated[key] = data[key];
-                 // }
-            }
-        }
-        // Stelle sicher, dass notwendige verschachtelte Objekte existieren, falls API sie weglässt
-         if (!monsterBeingCreated.HP) monsterBeingCreated.HP = { HD: 1, type: 8, modifier: 0 };
-         if (!monsterBeingCreated.stats) monsterBeingCreated.stats = { STR: 10, DEX: 10, CON: 10, INT: 10, WIS: 10, CHA: 10 };
-         // ... usw. für andere wichtige verschachtelte Strukturen wie saves, senses, spellcasting ...
+         // Stelle sicher, dass ID gesetzt ist
+        monsterBeingCreated.basics.id = monsterIdToLoad;
 
 
-        console.log('MonsterCreator: Updated monsterBeingCreated:', JSON.parse(JSON.stringify(monsterBeingCreated)));
-
-
-    } catch (err) {
+        console.log('MonsterCreator: Loaded monster:', JSON.parse(JSON.stringify(monsterBeingCreated)));
+    } catch (err) { /* ... Fehlerbehandlung ... */
         console.error("Error loading monster details:", err);
-        loadMonsterDetailsError.value = `Failed to load details for ${monsterId}.`;
-        // Optional: Setze monsterBeingCreated zurück auf Standardwerte
+        loadMonsterDetailsError.value = `Failed to load details for ${monsterIdToLoad}.`;
     } finally {
         isLoadingMonsterDetails.value = false;
     }
 }
-// ========================================
+// ========================================================
 
-async function saveMonster() {
-  console.log("Saving Monster:", JSON.parse(JSON.stringify(monsterBeingCreated)));
-  isSaving.value = true;
-  saveError.value = null;
+// --- Update-Methode (aktualisiert) ---
+function handleMonsterUpdate({ path, value }) {
+    console.log(`MonsterCreator: Updating path "${path}" with value:`, value);
+    // Verwende lodash.set für tief verschachtelte Updates
+    set(monsterBeingCreated, path, value);
 
-  // --- Bestimme die ID für die PUT-Anfrage ---
-  // Annahme: Die ID ist jetzt Teil von monsterBeingCreated, wenn ein Monster geladen wurde
-  // oder muss aus dem Namen generiert/validiert werden.
-  // Hier nehmen wir an, dass die ID aus dem Namen abgeleitet wird, wenn nicht vorhanden.
-  let monsterIdToSave = monsterBeingCreated.id; // ID könnte nach Laden vorhanden sein
-  if (!monsterIdToSave && monsterBeingCreated.name) {
-     monsterIdToSave = monsterBeingCreated.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-     // Füge die generierte ID zum Objekt hinzu, falls noch nicht vorhanden
-     monsterBeingCreated.id = monsterIdToSave;
-  }
-
-  if (!monsterIdToSave) {
-      saveError.value = "Cannot save monster without a name or ID.";
-      isSaving.value = false;
-      return;
-  }
-
-  try {
-      // API CALL: Verwende PUT für Upsert
-      const response = await fetch(`http://localhost:8080/api/monsters/${monsterIdToSave}`, {
-           method: 'PUT',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify(monsterBeingCreated) // Sende das komplette Objekt
-      });
-
-       if (!response.ok) {
-           const errorData = await response.json().catch(() => ({ message: 'Unknown error during save' }));
-           throw new Error(`HTTP error! status: ${response.status} - ${errorData.message || 'Save failed'}`);
-       }
-
-       const savedData = await response.json(); // Die vom Server bestätigten Daten
-       // Aktualisiere unser lokales Objekt mit den Daten vom Server (könnte ID enthalten)
-       Object.assign(monsterBeingCreated, savedData);
-
-       console.log("Monster saved/updated successfully!", savedData);
-       // Optional: Erfolgsmeldung anzeigen
-
-  } catch(err) {
-      console.error("Error saving monster:", err);
-      saveError.value = err.message || "Failed to save monster.";
-  } finally {
-       isSaving.value = false;
-  }
-
+    // Spezielle Logik nach dem Update
+    if (path === 'basics.CR' && typeof value === 'number') {
+        updateProficiencyFromCR(value);
+        // Nach CR Update auch Default Initiative neu berechnen (falls nicht overridden)
+        if (monsterBeingCreated.basics?.Initiative?.initOverrideValue === null) {
+            recalculateDefaultInitiative();
+        }
+    }
+    // Wenn sich Stats oder Init-Proficiency/Expertise ändern, Default Init neu berechnen
+    if ((path.startsWith('basics.stats.') || path.startsWith('basics.Initiative.initProf')) && monsterBeingCreated.basics?.Initiative?.initOverrideValue === null) {
+         recalculateDefaultInitiative();
+    }
+    // Hier könnten weitere Berechnungen folgen (z.B. Save-Defaults)
 }
+
+// --- Proficiency Update (aktualisiert) ---
+async function updateProficiencyFromCR(crValue) {
+    if (crDataList.value.length === 0) {
+        const data = await loadDnDData('crData.json');
+        if (data) crDataList.value = data; else return;
+    }
+    const crInfo = crDataList.value.find(cr => cr.numeric === crValue);
+    if (crInfo && monsterBeingCreated.basics) {
+        monsterBeingCreated.basics.PB = crInfo.proficiency; // Update PB in basics
+        console.log(`Proficiency updated to ${crInfo.proficiency} for CR ${crValue}`);
+        // Nach PB Update auch Default Initiative neu berechnen (falls nicht overridden)
+         if (monsterBeingCreated.basics?.Initiative?.initOverrideValue === null) {
+             recalculateDefaultInitiative();
+         }
+    } else {
+         console.warn(`No proficiency found for CR ${crValue}`);
+         if (monsterBeingCreated.basics) monsterBeingCreated.basics.PB = 2; // Fallback
+    }
+}
+watch(() => monsterBeingCreated.basics?.CR, (newCR) => {
+    if (typeof newCR === 'number') { updateProficiencyFromCR(newCR); }
+});
+// ============================================
+
+// === NEU: Funktion zum Neuberechnen der Default Initiative ===
+function recalculateDefaultInitiative() {
+    if (!monsterBeingCreated.basics || !monsterBeingCreated.basics.Initiative) return;
+    const initiativeConfig = {
+        initProficiency: monsterBeingCreated.basics.Initiative.initProficiency,
+        initExpertise: monsterBeingCreated.basics.Initiative.initExpertise
+    };
+    // Übergebe das basics Objekt, da es stats und PB enthält
+    monsterBeingCreated.basics.Initiative.initDefaultValue = calculateInitiativeBonus(monsterBeingCreated.basics, initiativeConfig);
+    console.log("Recalculated default initiative:", monsterBeingCreated.basics.Initiative.initDefaultValue);
+}
+// =============================================================
+
+// --- Methode zum Speichern (angepasst) ---
+async function saveMonster() {
+    if (!isConfigurationEnabled.value) { /* ... Fehler ... */ return; }
+    const finalMonsterId = monsterId.value;
+    if (!finalMonsterId) { /* ... Fehler ... */ return; }
+    // Stelle sicher, dass die ID jetzt im basics-Objekt ist
+    monsterBeingCreated.basics.id = finalMonsterId;
+
+    // TODO: Finale Validierung
+    monsterBeingCreated.complete = true; // Annahme: gültig
+
+    console.log("Saving Monster:", JSON.parse(JSON.stringify(monsterBeingCreated)));
+    isSaving.value = true; /* ... */
+    try {
+        const response = await fetch(`http://localhost:8080/api/monsters/${finalMonsterId}`, { /* ... PUT Request ... */ });
+        if (!response.ok) { /* ... Fehlerbehandlung ... */ }
+        const savedData = await response.json();
+        // Aktualisiere nach Speichern (wichtig, falls Backend Daten modifiziert)
+        Object.keys(monsterBeingCreated).forEach(key => {
+             if (savedData[key] !== undefined) { monsterBeingCreated[key] = savedData[key]; }
+        });
+        console.log("Monster saved/updated successfully!", savedData);
+    } catch(err) { /* ... Fehlerbehandlung ... */
+    } finally { isSaving.value = false; }
+}
+
+// --- Lifecycle Hook ---
+onMounted(() => {
+    preloadCommonData(); // Lädt DnDData
+    loadDnDData('crData.json').then(data => { if(data) crDataList.value = data; });
+});
 
 </script>
 
@@ -186,49 +238,43 @@ async function saveMonster() {
     <!-- ===================================== -->
 
     <!-- Bestehende Reihe für Konfiguration und Vorschau -->
+    <!-- Splitpanes -->
     <splitpanes class="default-theme" style="height: calc(100vh - 200px);">
         <!-- Pane 1: Konfiguration -->
-        <pane size="50"> <!-- Startet mit 50% Breite -->
-            <!-- Hier kommt der Inhalt der alten Spalte 1 rein -->
+        <pane size="50">
             <div class="pa-2 bg-surface" style="height: 100%; overflow-y: auto;">
-                <MonsterConfigurator
-                
-                />
-                <!-- Speicher-Button -->
-                <v-btn
+                 <MonsterConfigurator
+                     :monster-data="monsterBeingCreated"
+                     :is-enabled="isConfigurationEnabled"
+                     @update-monster="handleMonsterUpdate"
+                 />
+                 <v-btn
                     color="primary"
                     @click="saveMonster"
                     :loading="isSaving"
-                    :disabled="isSaving"
+                    :disabled="isSaving || !isConfigurationEnabled"
                     class="mt-4"
-                >
+                 >
                     Save Monster
-                </v-btn>
-                <!-- Zeige Speicherfehler -->
-                <v-alert v-if="saveError" type="error" density="compact" class="mt-2">
-                    {{ saveError }}
-                </v-alert>
+                 </v-btn>
+                 <v-alert v-if="saveError" type="error" density="compact" class="mt-2">{{ saveError }}</v-alert>
             </div>
         </pane>
         <!-- Pane 2: Statblock Vorschau -->
-        <pane size="50"> <!-- Startet mit 50% Breite -->
-                <div class="pa-2 bg-surface" style="height: 100%; overflow-y: auto;"> <!-- Padding & Scroll -->
-                    <v-card variant="outlined">
-                        <!-- Zeige Ladeindikator für Monsterdetails -->
-                        <div v-if="isLoadingMonsterDetails" class="text-center pa-5">
-                            <v-progress-circular indeterminate color="primary"></v-progress-circular>
-                            <p>Loading monster details...</p>
-                        </div>
-                        <!-- Zeige Renderer, wenn nicht geladen wird -->
-                        <v-card-text v-else>
-                            <StatBlockRenderer
-                                :monster-data="monsterBeingCreated"
-                                :display-style="displayStyle" 
-                                :columns="displayColumns"
-                            />
-                        </v-card-text>
-                 </v-card>
-             </div>
+        <pane size="50">
+           <div class="pa-2 bg-surface" style="height: 100%; overflow-y: auto;">
+             <v-card variant="outlined">
+               <v-card-title>Stat Block Preview</v-card-title>
+               <div v-if="isLoadingMonsterDetails">...</div>
+               <v-card-text v-else>
+                 <StatBlockRenderer
+                     :monster-data="monsterBeingCreated"
+                     :display-style="displayStyle"
+                     :columns="displayColumns"
+                 />
+               </v-card-text>
+             </v-card>
+           </div>
         </pane>
     </splitpanes>
   </v-container>

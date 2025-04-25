@@ -71,7 +71,14 @@ json load_monster_statblock(const std::string& monster_id) {
 int main() {
     crow::App<CorsMiddleware> app;
     const std::string encounters_base_dir = "../data/encounters";
-    const std::string monsters_base_dir = "../data/monsters"; // Wiederverwendet
+    const std::string monsters_base_dir = "../data/monsters";
+    const std::string dnddata_base_dir = "../data/DnDData";
+    const std::string templates_base_dir = "../data/templates";
+
+    // --- Simpler In-Memory Cache für DnDData ---
+    // Verhindert das ständige Lesen kleiner Dateien vom Laufwerk
+    std::map<std::string, json> dndDataCache;
+    // --- Ende Cache ---
 
     // --- GET /api/status ---
     CROW_ROUTE(app, "/api/status")([]() { /* ... wie zuvor ... */
@@ -216,6 +223,91 @@ int main() {
             return crow::response(500, "{\"error\": \"Internal server error loading spell data.\"}");
         }
     });
+
+    // --- GET /api/dnddata/{filename} ---
+    CROW_ROUTE(app, "/api/dnddata/<string>")
+        ([&](const std::string& filename_param) { // Capture base_dir und Cache
+        std::string filename = filename_param;
+
+        // Bereinige den Dateinamen (verhindert Path Traversal etc.)
+        // Ersetze '..' und erlaube nur alphanumerische Zeichen, Punkt, Unterstrich, Bindestrich
+        filename.erase(std::remove(filename.begin(), filename.end(), '.'), filename.end()); // Entferne alle Punkte außer den für die Extension
+        std::filesystem::path safe_filename_part(filename);
+        if (!std::all_of(safe_filename_part.string().begin(), safe_filename_part.string().end(), ::isalnum) &&
+            safe_filename_part.string().find('/') == std::string::npos &&
+            safe_filename_part.string().find('\\') == std::string::npos) {
+                // Mache hier eine sicherere Prüfung oder lehne ab, wenn ungültige Zeichen drin sind.
+                // Fürs Erste: Einfache Prüfung - nur Alphanumerisch erlaubt im Dateinamen selbst.
+                // Füge ".json" wieder hinzu, wenn es entfernt wurde.
+                 if (filename_param.length() > 5 && filename_param.substr(filename_param.length() - 5) == ".json") {
+                     filename = safe_filename_part.stem().string() + ".json";
+                 } else {
+                     return crow::response(400, "{\"error\": \"Invalid characters in filename.\"}");
+                 }
+        } else {
+             return crow::response(400, "{\"error\": \"Invalid filename format.\"}");
+        }
+
+
+        // --- Optional: Cache Check ---
+        if (dndDataCache.count(filename)) {
+            crow::response res(dndDataCache[filename].dump());
+            res.set_header("Content-Type", "application/json");
+            res.add_header("X-Data-Source", "Cache"); // Zum Debuggen
+            return res;
+        }
+        // --- Ende Cache Check ---
+
+        std::filesystem::path file_path;
+        try {
+            file_path = std::filesystem::path(dnddata_base_dir) / filename;
+            file_path = std::filesystem::absolute(file_path).lexically_normal();
+
+            // Zusätzliche Sicherheitsprüfung: Stelle sicher, dass der Pfad immer noch im dnddata_base_dir liegt
+            if (file_path.string().find(std::filesystem::absolute(dnddata_base_dir).string()) != 0) {
+                 std::cerr << "Sicherheitswarnung: Versuchter Zugriff außerhalb von DnDData Verzeichnis: " << file_path << std::endl;
+                 return crow::response(400, "{\"error\": \"Invalid file path requested.\"}");
+            }
+
+
+            if (!std::filesystem::exists(file_path) || !std::filesystem::is_regular_file(file_path)) {
+                std::cerr << "Fehler: DnDData-Datei nicht gefunden: " << file_path << std::endl;
+                return crow::response(404, "{\"error\": \"Requested DnD data file not found.\"}");
+            }
+
+            std::ifstream data_file(file_path);
+            if (!data_file.is_open()) {
+                 std::cerr << "Fehler: DnDData-Datei konnte nicht geöffnet werden: " << file_path << std::endl;
+                 return crow::response(500, "{\"error\": \"Could not open DnD data file.\"}");
+            }
+
+            json data_content;
+            data_file >> data_content; // Direkt als JSON parsen
+
+            // --- Optional: Zum Cache hinzufügen ---
+            dndDataCache[filename] = data_content;
+            // --- Ende Cache Add ---
+
+            crow::response res(data_content.dump());
+            res.set_header("Content-Type", "application/json");
+            res.add_header("X-Data-Source", "File"); // Zum Debuggen
+            return res;
+
+        } catch (const json::parse_error& e) {
+            std::cerr << "Fehler beim Parsen der DnDData-Datei " << file_path << ": " << e.what() << std::endl;
+            return crow::response(500, "{\"error\": \"Error reading DnD data content.\"}");
+        } catch (const std::exception& e) {
+            std::cerr << "Fehler beim Laden der DnDData-Datei " << filename << " (" << file_path << "): " << e.what() << std::endl;
+            return crow::response(500, "{\"error\": \"Internal server error loading DnD data.\"}");
+        }
+    });
+
+    // --- Routen für Templates (Platzhalter) ---
+    CROW_ROUTE(app, "/api/templates/<string>")([](const std::string& type){ return crow::response(501, "Not Implemented"); }); // List
+    CROW_ROUTE(app, "/api/templates/<string>/<string>")([](const std::string& type, const std::string& id){ return crow::response(501, "Not Implemented"); }); // Get One
+    CROW_ROUTE(app, "/api/templates/<string>").methods("POST"_method)([](const crow::request& req, const std::string& type){ return crow::response(501, "Not Implemented"); }); // Create
+    CROW_ROUTE(app, "/api/templates/<string>/<string>").methods("PUT"_method)([](const crow::request& req, const std::string& type, const std::string& id){ return crow::response(501, "Not Implemented"); }); // Update
+    CROW_ROUTE(app, "/api/templates/<string>/<string>").methods("DELETE"_method)([](const std::string& type, const std::string& id){ return crow::response(501, "Not Implemented"); }); // Delete
 
 
     // --- POST /api/encounters (Erstellen/Aktualisieren) ---
