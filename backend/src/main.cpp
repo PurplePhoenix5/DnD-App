@@ -18,16 +18,21 @@ struct CorsMiddleware {
     // ... (Middleware Code wie zuvor) ...
      struct context {};
     void before_handle(crow::request& req, crow::response& res, context& /*ctx*/) {
+
         if (req.method == "OPTIONS"_method) {
+            res.add_header("Access-Control-Allow-Origin", "http://localhost:5173");
+            res.add_header("Access-Control-Allow-Origin", "http://localhost:5174");
+            res.add_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+            res.add_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
             res.code = 204;
             res.end();
-            return;
         }
     }
     void after_handle(crow::request& /*req*/, crow::response& res, context& /*ctx*/) {
-        res.add_header("Access-Control-Allow-Origin", "http://localhost:5173");
-        res.add_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-        res.add_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        res.set_header("Access-Control-Allow-Origin", "http://localhost:5173");
+        res.add_header("Access-Control-Allow-Origin", "http://localhost:5174");
+        res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        res.set_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
     }
 };
 

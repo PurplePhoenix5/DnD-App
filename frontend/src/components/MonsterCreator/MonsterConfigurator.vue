@@ -14,15 +14,8 @@ const props = defineProps({
 const emit = defineEmits(['update-monster-field']);
 
 function handleFieldUpdate(payload) { // payload ist { key, value }
-    // Leite Pfad und Wert weiter, füge Panel-Pfad hinzu
-    const panelInfo = panels.value.find(p => p.id === payload.panelId); // Finde Panel anhand ID (muss im Event sein)
-    if (panelInfo) {
-         emit('update-monster-field', { path: `${panelInfo.path}.${payload.key}`, value: payload.value });
-    } else {
-        // Fallback für Basics oder andere direkte Updates
-         emit('update-monster-field', payload);
-    }
-
+  console.log('MonsterConfigurator: Relaying update:', payload);  
+  emit('update-monster-field', { path: payload.key, value: payload.value });
 }
 
 // Daten für die Expansion Panels
@@ -80,7 +73,7 @@ const getDataForPanel = (panel) => {
            :modelValue="getDataForPanel(panel)"
            :basicsData="getDataForPanel({ path: 'basics' })"
            :is-enabled="isEnabled"
-           @update:field="handleFieldUpdate({ ...$event, panelId: panel.id })"
+           @update:field="handleFieldUpdate($event)"
         />
         <p v-else class="text-disabled pa-4">
           Configuration for {{ panel.title }} not implemented yet.
