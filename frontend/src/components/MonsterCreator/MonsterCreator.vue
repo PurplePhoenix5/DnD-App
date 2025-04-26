@@ -9,18 +9,22 @@ import { calculateInitiativeBonus } from '../../utils/mathRendering.js';
 
 import MonsterLoader from './MonsterLoader.vue';
 import MonsterConfigurator from './MonsterConfigurator.vue';
+import { saveModifierForStat } from '../../utils/mathRendering.js';
 import StatBlockRenderer from '../StatBlockRenderer.vue'; // Pfad prüfen
 
 function handleMonsterFieldUpdate({ path, value }) {
     console.log(`MonsterCreator: Updating path "${path}" with value:`, value);
+    const oldPB = monsterBeingCreated.basics?.PB; // PB vor der Änderung speichern
+    const oldStats = cloneDeep(monsterBeingCreated.basics?.stats); // Stats vor der Änderung speichern
     set(monsterBeingCreated, path, value); // Update den Wert
 
-    // --- Neuberechnungen auslösen ---
+    let recalculateSaves = false;
 
     // 1. Proficiency Bonus bei CR-Änderung
-    if (path === 'basics.CR' && typeof value === 'number') {
-        updateProficiencyFromCR(value);
-        // Neuberechnung der Initiative wird durch PB-Änderung im Watch unten ausgelöst
+    if (path === 'basics.CR') {
+        if (typeof value === 'number') updateProficiencyFromCR(value);
+        // PB könnte sich geändert haben, Saves neu berechnen
+        recalculateSaves = true;
     }
 
     // 2. Default HD Size bei Size-Änderung (wenn kein Override)
@@ -45,7 +49,18 @@ function handleMonsterFieldUpdate({ path, value }) {
           recalculateDefaultInitiative();
      }
 
-    // Hier könnten weitere Berechnungen folgen (z.B. Saves bei Stat/PB-Änderung)
+     if (path.startsWith('basics.stats.') || path.startsWith('saves.')) {
+          recalculateSaves = true;
+     }
+
+     if (path === 'basics.CR' && oldPB !== monsterBeingCreated.basics?.PB) {
+         recalculateSaves = true;
+     }
+
+     if (recalculateSaves) {
+         recalculateAllSaveDefaults();
+     }
+
 }
 
 // Funktion zum Erstellen eines leeren Monsters (aktualisiert)
@@ -92,6 +107,21 @@ function createEmptyMonster() {
         legendaryActions: { uses: 0, usesInLair: 0, LegendaryResistanceUses: 0, legendaryResistanceType: '', legendaryAction: [] },
         lairActions: []
     };
+}
+
+function recalculateAllSaveDefaults() {
+     if (!monsterBeingCreated.basics || !monsterBeingCreated.saves) return;
+     console.log("MonsterCreator: Recalculating all save defaults...");
+     for (const statKey in monsterBeingCreated.saves) {
+          // Berechne neuen Default nur, wenn kein Override aktiv ist
+          if (monsterBeingCreated.saves[statKey].overrideValue === null) {
+              const tempMonster = { basics: monsterBeingCreated.basics, saves: monsterBeingCreated.saves };
+              const newDefault = saveModifierForStat(tempMonster, statKey);
+              // Update direkt im Objekt (ohne Event, da wir im selben Scope sind)
+              monsterBeingCreated.saves[statKey].defaultValue = newDefault;
+          }
+     }
+     console.log("MonsterCreator: Updated saves:", JSON.parse(JSON.stringify(monsterBeingCreated.saves)));
 }
 // ========================================================================
 
@@ -354,7 +384,7 @@ onMounted(() => {
                   @save-monster="handleSaveMonsterRequest"
                   @delete-monster="handleDeleteMonsterRequest"
                />
-               <v-alert v-if="loadMonsterDetailsError" ... >{{ loadMonsterDetailsError }}</v-alert>
+               <v-alert v-if="loadMonsterDetailsError" type="error" density="compact">{{ loadMonsterDetailsError }}</v-alert>
           </v-col>
       </v-row>
   

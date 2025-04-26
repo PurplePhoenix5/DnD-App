@@ -4,6 +4,7 @@ import { ref } from 'vue';
 import { get } from 'lodash'; // Importiere get von lodash
 
 import BasicsConfig from './Basics/BasicsConfig.vue';
+import SavesConfig from './Saving Throws/SavingThrowsConfig.vue';
 
 const props = defineProps({
     monsterData: { type: Object, required: true },
@@ -13,16 +14,21 @@ const props = defineProps({
 const emit = defineEmits(['update-monster-field']);
 
 function handleFieldUpdate(payload) { // payload ist { key, value }
-    // Leite den Pfad und Wert einfach nach oben weiter
-    // Füge den Panel-Pfad hinzu, falls nötig (hier ist es 'basics')
-    emit('update-monster-field', { path: `basics.${payload.key}`, value: payload.value });
-    // Für andere Panels wäre es z.B. `saves.${payload.key}`
+    // Leite Pfad und Wert weiter, füge Panel-Pfad hinzu
+    const panelInfo = panels.value.find(p => p.id === payload.panelId); // Finde Panel anhand ID (muss im Event sein)
+    if (panelInfo) {
+         emit('update-monster-field', { path: `${panelInfo.path}.${payload.key}`, value: payload.value });
+    } else {
+        // Fallback für Basics oder andere direkte Updates
+         emit('update-monster-field', payload);
+    }
+
 }
 
 // Daten für die Expansion Panels
 const panels = ref([
   { id: 'basics', title: 'Basics', icon: 'mdi-clipboard-text-outline', path: 'basics', component: BasicsConfig },
-  { id: 'saves', title: 'Saving Throws', icon: 'mdi-shield-half-full' },
+  { id: 'saves', title: 'Saving Throws', icon: 'mdi-shield-half-full', path: 'saves', component: SavesConfig },
   { id: 'speeds', title: 'Speeds', icon: 'mdi-run-fast' },
   { id: 'skills', title: 'Skills', icon: 'mdi-star-check-outline' },
   { id: 'senses', title: 'Senses', icon: 'mdi-eye-outline' },
@@ -37,10 +43,6 @@ const panels = ref([
   { id: 'legendary', title: 'Legendary Actions', icon: 'mdi-crown-outline' },
   { id: 'lair', title: 'Lair Actions', icon: 'mdi-castle' },
 ]);
-
-function handleUpdate(path, value) {
-    emit('update-monster', { path, value });
-}
 
 // Verwende lodash.get, um die Daten sicher zu extrahieren
 const getDataForPanel = (panel) => {
@@ -76,8 +78,9 @@ const getDataForPanel = (panel) => {
            v-if="panel.component"
            :is="panel.component"
            :modelValue="getDataForPanel(panel)"
-           :is-enabled="panel.id === 'basics' || isEnabled" 
-           @update:field="handleFieldUpdate($event)"
+           :basicsData="getDataForPanel({ path: 'basics' })"
+           :is-enabled="isEnabled"
+           @update:field="handleFieldUpdate({ ...$event, panelId: panel.id })"
         />
         <p v-else class="text-disabled pa-4">
           Configuration for {{ panel.title }} not implemented yet.

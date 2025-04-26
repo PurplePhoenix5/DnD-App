@@ -76,27 +76,23 @@ export function avgRoll(count, dice) {
   }
   
   /**
-   * Calculates the save modifier for a specific stat, considering proficiency and overrides.
-   * Uses the new monster template structure.
-   * @param {object} monster - The *full* monster object (needs basics.stats, basics.PB, saves)
-   * @param {string} stat - The stat key (e.g., 'STR', 'DEX')
-   * @returns {number} The save modifier
-   */
-  export function saveModifierForStat(monster, stat) {
-      const statKey = stat?.toUpperCase();
-      if (!monster || !statKey || !monster.basics || !monster.saves) return 0;
-  
-      const saveInfo = monster.saves[statKey];
-      const basics = monster.basics;
-  
-      if (saveInfo?.overrideValue !== null && saveInfo?.overrideValue !== undefined) {
-        return saveInfo.overrideValue;
-      } else {
-        const score = basics.stats?.[statKey] ?? 10;
-        const profBonus = saveInfo?.proficient ? (basics.PB ?? 2) : 0;
-        return statModifier(score) + profBonus;
-      }
-  }
+ * Calculates the save modifier for a specific stat, considering proficiency and overrides.
+ * Uses the new monster template structure.
+ * @param {object} monster - The *full* monster object (needs basics.stats, basics.PB, saves)
+ * @param {string} stat - The stat key (e.g., 'STR', 'DEX')
+ * @returns {number} The save modifier
+ */
+export function saveModifierForStat(monster, stat) {
+  const statKey = stat?.toUpperCase();
+  if (!monster || !statKey || !monster.basics || !monster.saves) return 0;
+
+  const saveInfo = monster.saves[statKey];
+  const basics = monster.basics;
+
+  const score = basics.stats?.[statKey] ?? 10;
+  const profBonus = saveInfo?.proficient ? (basics.PB ?? 2) : 0;
+  return statModifier(score) + profBonus;
+}
   
   /**
    * Calculates the save DC for an action based on a stat.

@@ -158,7 +158,6 @@ function uploadJson() {
                         item-title="title" item-value="value" label="Stat Reference (WIP)"
                         variant="solo-filled" density="compact" hide-details disabled
                      />
-                     <div class="text-caption text-disabled text-center mt-1">(Not implemented yet)</div>
                 </v-col>
             </v-row>
 
@@ -197,7 +196,14 @@ function uploadJson() {
                          </v-tooltip>
                          <v-tooltip location="top" text="Two Columns">
                                <template v-slot:activator="{props: tooltipProps}">
-                                 <v-btn :value="2" v-bind="tooltipProps" icon="mdi-view-column-outline" class="flex-grow-1"></v-btn> <!-- Icon geändert -->
+                                 <!-- Entferne icon="" Prop -->
+                                 <v-btn :value="2" v-bind="tooltipProps" class="flex-grow-1">
+                                     <!-- Verwende den Default Slot für zwei Icons -->
+                                     <div class="d-flex align-center justify-center ga-0"> <!-- ga-0 für keinen Abstand -->
+                                         <v-icon icon="mdi-view-sequential-outline" ></v-icon>
+                                         <v-icon icon="mdi-view-sequential-outline" ></v-icon>
+                                     </div>
+                                 </v-btn>
                              </template>
                          </v-tooltip>
                      </v-btn-toggle>
