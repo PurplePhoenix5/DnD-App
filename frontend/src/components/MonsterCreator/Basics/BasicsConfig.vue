@@ -2,7 +2,6 @@
 <script setup>
 import { computed, ref, onMounted, watch } from 'vue';
 import { cloneDeep, set } from 'lodash';
-import { VNumberInput } from 'vuetify/labs/VNumberInput';
 import { loadDnDData } from '../../../utils/dndDataService.js'; 
 import { statModifier, calculateInitiativeBonus, renderBonus } from '../../../utils/mathRendering.js'; 
 
@@ -229,7 +228,11 @@ const crDataListForSelect = computed(() => {
                 density="compact"
                 variant="outlined"
                 clearable
-                hint="Select to override default" persistent-hint/>
+              />
+              <v-tooltip
+                activator="parent"
+                location="top"
+                >Select to override default</v-tooltip>
         </v-col>
         <v-col cols="12" md="2">
             <v-number-input label="HD Count" v-model="hpHD" density="compact" variant="outlined" :min="1" control-variant="stacked" :reverse="false" inset/>
@@ -254,8 +257,11 @@ const crDataListForSelect = computed(() => {
                 multiple chips closable-chips deletable-chips
                 density="compact"
                 variant="outlined"
-                hint="Enter custom languages or select from list" persistent-hint
              />
+             <v-tooltip
+                activator="parent"
+                location="top"
+                >Enter custom languages or select from list</v-tooltip>
         </v-col>
 
          <!-- Zeile 4 (Stats) -->
@@ -267,6 +273,7 @@ const crDataListForSelect = computed(() => {
                 density="compact"
                 variant="outlined"
                 :min="0"
+                :max="30"
                 control-variant="stacked"
                 :reverse="false"
                 inset
