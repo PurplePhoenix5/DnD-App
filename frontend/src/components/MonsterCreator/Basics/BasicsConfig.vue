@@ -40,6 +40,10 @@ onMounted(async () => {
     if (crData) crDataList.value = crData || []; // Speichere geladene CR Daten
 });
 
+// --- Lokale Refs für Override Toggles ---
+const isHDOverride = ref(props.modelValue.HP?.overrideDie !== null);
+const isInitOverride = ref(props.modelValue.Initiative?.initOverrideValue !== null);
+
 // Hilfsfunktion zum Updaten des modelValue Objekts
 function updateValue(key, value) {
     // Erstelle immer eine tiefe Kopie, um das Original nicht zu mutieren
@@ -68,29 +72,30 @@ const size = computed({
   get: () => props.modelValue.size,
   set: (value) => {
       updateValue('size', value);
-      // === NEU: Setze Default HD Size basierend auf Size ===
-      const sizeData = sizes.value.find(s => s === value); // Finde Size-Daten
-       if (sizeData && props.modelValue.HP.overrideDie === null) { // Nur wenn kein Override gesetzt ist
+      // Setze Default HD Size, WENN kein Override aktiv ist
+      if (!isHDOverride.value) { // Prüfe lokalen Toggle-State
            const hdMapping = { 'Tiny': 4, 'Small': 6, 'Medium': 8, 'Large': 10, 'Huge': 12, 'Gargantuan': 20, 'Titan': 20 };
-           const defaultDie = hdMapping[value] || 8; // Default zu 8 wenn unbekannt
+           const defaultDie = hdMapping[value] || 8;
+           // Update direkt über den Pfad
            updateValue('HP.defaultDie', defaultDie);
-           // Setze overrideDie zurück, falls jemand es manuell entfernt
-           if (props.modelValue.HP.overrideDie === null && props.modelValue.HP.defaultDie !== defaultDie) {
-               // Dieser Fall sollte selten sein, aber zur Sicherheit
-               updateValue('HP.overrideDie', null);
-           }
+           // Stelle sicher, dass overrideDie null bleibt
+           updateValue('HP.overrideDie', null);
        }
-      //======================================================
   }
 });
 const hpHD = computed({
   get: () => props.modelValue.HP?.HDAmount,
   set: (value) => updateValue('HP.HDAmount', Math.max(1, parseInt(value, 10) || 1)) // Min 1 sicherstellen
 });
-const hpTypeDefault = computed(() => props.modelValue.HP?.defaultDie); // Nur zum Anzeigen
-const hpTypeOverride = computed({ // Für das Select-Feld
-  get: () => props.modelValue.HP?.overrideDie, // Zeigt den Override-Wert an
-  set: (value) => updateValue('HP.overrideDie', value ? parseInt(value, 10) : null) // Speichert Override oder null
+const hpTypeDefault = computed(() => props.modelValue.HP?.defaultDie ?? 8);
+const hpTypeOverride = computed({
+  get: () => props.modelValue.HP?.overrideDie,
+  set: (value) => {
+      const newOverride = value ? parseInt(value, 10) : null;
+      updateValue('HP.overrideDie', newOverride);
+      // Aktualisiere den Toggle-State, falls der Wert manuell gelöscht wird
+      isHDOverride.value = newOverride !== null;
+  }
 });
 const hpModifier = computed({
   get: () => props.modelValue.HP?.HPmodifier,
@@ -122,7 +127,12 @@ const acType = computed({ get: () => props.modelValue.ACType, set: (v) => update
 // Initiative
 const initOverrideValue = computed({
     get: () => props.modelValue.Initiative?.initOverrideValue,
-    set: (v) => updateValue('Initiative.initOverrideValue', v === '' || v === null ? null : parseInt(v, 10))
+    set: (v) => {
+        const newOverride = v === '' || v === null ? null : parseInt(v, 10);
+        updateValue('Initiative.initOverrideValue', newOverride);
+         // Aktualisiere den Toggle-State, falls der Wert manuell gelöscht wird
+        isInitOverride.value = newOverride !== null;
+    }
 });
 const initProficiency = computed({
     get: () => props.modelValue.Initiative?.initProficiency ?? false,
@@ -186,6 +196,26 @@ const crDataListForSelect = computed(() => {
     }));
 });
 
+function toggleHDOverride() {
+    isHDOverride.value = !isHDOverride.value;
+    if (!isHDOverride.value) {
+        // Wenn Override deaktiviert wird, setze overrideDie auf null
+        updateValue('HP.overrideDie', null);
+    } else {
+         // Wenn Override aktiviert wird, setze den Override auf den aktuellen Default
+         // oder einen sinnvollen Startwert, falls der Benutzer direkt ändern will.
+         updateValue('HP.overrideDie', props.modelValue.HP?.defaultDie ?? 8);
+    }
+}
+
+function toggleInitOverride() {
+    isInitOverride.value = !isInitOverride.value;
+    if (!isInitOverride.value) {
+        // Wenn Override deaktiviert wird, setze overrideValue auf null
+        updateValue('Initiative.initOverrideValue', null);
+    }
+    // Wenn aktiviert, kann der Benutzer direkt in das Feld tippen
+}
 
 </script>
 
@@ -196,49 +226,54 @@ const crDataListForSelect = computed(() => {
         <v-col cols="12" md="6">
             <v-text-field label="Name" v-model="name" density="compact" variant="outlined" clearable />
         </v-col>
-        <v-col cols="12" md="3"> <!-- CR nur 3 breit -->
+        <v-col cols="12" md="2"> 
              <v-select label="CR" :items="crDataListForSelect" v-model="cr" density="compact" variant="outlined" clearable/>
         </v-col>
-        <v-col cols="12" md="3">
-             <!-- Nur Anzeige des PB -->
-             <v-text-field label="Prof. Bonus (PB)" :model-value="renderBonus(modelValue.PB)" density="compact" variant="outlined" readonly hint="Calculated from CR" persistent-hint/>
+        <v-col cols="12" md="4">
+             <!-- Leer für Referenz -->
         </v-col>
 
         <!-- Zeile 2 -->
         <v-col cols="12" md="2">
              <v-select label="Size" :items="sizes" v-model="size" density="compact" variant="outlined"/>
         </v-col>
-        <v-col cols="12" md="2">
-             <!-- Zeige Default Die, wenn kein Override -->
-             <v-text-field
-                label="HD Size (Default)"
-                :model-value="`d${hpTypeDefault}`"
-                density="compact"
-                variant="outlined"
-                readonly
-                :hint="hpTypeOverride === null ? '' : `Overridden by d${hpTypeOverride}`"
-                persistent-hint
-                :class="{ 'text-disabled': hpTypeOverride !== null }" />
-        </v-col>
-        <v-col cols="12" md="2">
-             <v-select
-                label="HD Override"
-                :items="diceTypes"
-                v-model="hpTypeOverride"
-                density="compact"
-                variant="outlined"
-                clearable
-              />
-              <v-tooltip
-                activator="parent"
-                location="top"
-                >Select to override default</v-tooltip>
+        <v-col cols="12" md="2"> 
+             <div class="d-flex align-center">
+                 <v-text-field
+                    v-if="!isHDOverride"
+                    label="HD Size"
+                    :model-value="`d${hpTypeDefault}`"
+                    density="compact" variant="outlined" readonly
+                    hint="Default based on size" persistent-hint
+                 />
+                 <v-select
+                    v-else
+                    label="HD Size Override"
+                    :items="diceTypes"
+                    v-model="hpTypeOverride"
+                    density="compact" variant="outlined"
+                    hide-details
+                 />
+                 <v-tooltip location="top" :text="isHDOverride ? 'Use Default HD Size' : 'Override HD Size'">
+                     <template v-slot:activator="{ props: tooltipProps }">
+                         <v-btn
+                             v-bind="tooltipProps"
+                             :icon="isHDOverride ? 'mdi-lock-open-variant-outline' : 'mdi-lock-outline'"
+                             variant="text" size="small" class="ml-1"
+                             @click="toggleHDOverride"
+                         />
+                     </template>
+                 </v-tooltip>
+             </div>
         </v-col>
         <v-col cols="12" md="2">
             <v-number-input label="HD Count" v-model="hpHD" density="compact" variant="outlined" :min="1" control-variant="stacked" :reverse="false" inset/>
         </v-col>
-         <v-col cols="12" md="4"> <!-- HP Modifier 4 breit -->
+         <v-col cols="12" md="2"> <!-- HP Modifier 4 breit -->
             <v-number-input label="HP Modifier" v-model="hpModifier" density="compact" variant="outlined" control-variant="stacked" :reverse="false" inset/>
+        </v-col>
+        <v-col cols="12" md="4">
+             <!-- Leer für Referenz -->
         </v-col>
 
         <!-- Zeile 3 -->
@@ -300,28 +335,43 @@ const crDataListForSelect = computed(() => {
                 clearable
              />
          </v-col>
-          <v-col cols="12" md="3"> <!-- Init Bonus Feld -->
-            <v-number-input
-                 label="Init Bonus"
-                 v-model="initOverrideValue"
-                 density="compact" variant="outlined"
-                 :placeholder="initiativeDefaultValueDisplay"
-                 :hint="isInitiativeOverridden ? 'Override active' : 'Using default (DEX)'"
-                 persistent-hint
-                 clearable
-                 control-variant="stacked"
-                 :reverse="false"
-                 inset
-              >
-                 <template v-slot:append-inner>
-                    <v-tooltip :text="initiativeButtonTooltip">
+         <v-col cols="12" md="3"> <!-- Init Bonus Feld -->
+             <div class="d-flex align-center">
+                 <v-number-input
+                     label="Init Bonus"
+                     :model-value="isInitOverride ? initOverrideValue : initiativeDefaultValueDisplay"
+                     @update:model-value="initOverrideValue = $event" 
+                     density="compact" variant="outlined"
+                     :readonly="!isInitOverride" 
+                     :class="{ 'text-disabled': !isInitOverride }"
+                     :hint="isInitOverride ? 'Manual override active' : 'Using default (DEX + Prof/Exp)'"
+                     persistent-hint clearable
+                     control-variant="stacked"
+                     :reverse="false"
+                     inset
+                     class="left-aligned-input flex-grow-1" 
+                 >
+                      <!-- Triple-State Button im append-inner Slot -->
+                     <template v-slot:append-inner>
+                         <v-tooltip :text="initiativeButtonTooltip">
+                           <template v-slot:activator="{ props: tooltipProps }">
+                              <v-btn v-bind="tooltipProps" :icon="initiativeButtonIcon" variant="text" size="x-small" @click="cycleInitiativeProf" class="mr-1"/>
+                           </template>
+                         </v-tooltip>
+                     </template>
+                  </v-number-input>
+                  <!-- Override Toggle Button -->
+                  <v-tooltip location="top" :text="isInitOverride ? 'Use Default Initiative' : 'Override Initiative'">
                       <template v-slot:activator="{ props: tooltipProps }">
-                         <v-btn v-bind="tooltipProps" :icon="initiativeButtonIcon" variant="text" size="x-small" @click="cycleInitiativeProf" class="ml-1"/>
+                          <v-btn
+                              v-bind="tooltipProps"
+                              :icon="isInitOverride ? 'mdi-lock-open-variant-outline' : 'mdi-lock-outline'"
+                              variant="text" size="small" class="ml-1"
+                              @click="toggleInitOverride"
+                          />
                       </template>
-                    </v-tooltip>
-                 </template>
-              </v-number-input>
-              <!-- ============================================== -->
+                  </v-tooltip>
+             </div>
          </v-col>
          <v-col cols="12" md="3">
              <!-- Leer für Referenz -->
@@ -351,4 +401,16 @@ const crDataListForSelect = computed(() => {
   /* padding-inline-start: 8px !important; */
 }
 /* ============================================================ */
+:deep(.left-aligned-input .v-field__input) {
+  text-align: left !important;
+  /* padding-right: 30px !important; */ /* Ggf. anpassen, da jetzt nur noch ein Button rechts ist */
+}
+:deep(.left-aligned-input .v-field__append-inner) {
+    /* padding-inline-start: 0px !important; */ /* Entferne, falls die Buttons zu nah sind */
+    align-items: center;
+}
+:deep(.left-aligned-input .v-field__append-inner .v-btn) {
+    min-width: auto !important; /* Erlaube kleineren Button */
+    padding: 0 4px !important; /* Kleineres Padding */
+}
 </style>
