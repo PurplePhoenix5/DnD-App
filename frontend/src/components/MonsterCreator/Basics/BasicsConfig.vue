@@ -146,7 +146,7 @@ const chaMod = computed(() => renderBonus(statModifier(cha.value)));
 const initiativeDefaultValue = computed(() => props.modelValue.Initiative?.initDefaultValue ?? 0);
 const isInitiativeOverridden = computed(() => props.modelValue.Initiative?.initOverrideValue !== null);
 // const displayInitiativeBonus = computed(() => {
-    return isInitiativeOverridden.value ? initOverrideValue.value : initiativeDefaultValue.value;
+//    return isInitiativeOverridden.value ? initOverrideValue.value : initiativeDefaultValue.value;
 // });
 
 
