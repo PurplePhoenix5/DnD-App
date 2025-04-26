@@ -304,7 +304,6 @@ function toggleInitOverride() {
                  density="compact" variant="outlined"
                  :readonly="!isInitOverride" 
                  :class="{'input-is-default': !isInitOverride}" 
-                 clearable
                  control-variant="stacked"
                  :reverse="false"
                  inset

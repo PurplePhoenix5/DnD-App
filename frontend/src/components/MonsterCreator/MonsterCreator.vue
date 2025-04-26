@@ -102,6 +102,8 @@ const isLoadingMonsterDetails = ref(false);
 const loadMonsterDetailsError = ref(null);
 const isSaving = ref(false);
 const saveError = ref(null);
+const isDeleting = ref(false);
+const deleteError = ref(null);
 const displayStyle = ref('2024');
 const displayColumns = ref(1);
 
@@ -164,25 +166,107 @@ async function handleLoadMonster(monsterIdToLoad) {
 }
 // ========================================================
 
-// --- Update-Methode (aktualisiert) ---
-function handleMonsterUpdate({ path, value }) {
-    console.log(`MonsterCreator: Updating path "${path}" with value:`, value);
-    // Verwende lodash.set für tief verschachtelte Updates
-    set(monsterBeingCreated, path, value);
+// === Methode zum Speichern (wird jetzt vom Event aufgerufen) ===
+async function handleSaveMonsterRequest() {
+  if (!isConfigurationEnabled.value) { /* ... Fehler ... */ return; }
+  const finalMonsterId = monsterId.value; // ID aus Computed holen
+  if (!finalMonsterId) { /* ... Fehler ... */ return; }
 
-    // Spezielle Logik nach dem Update
-    if (path === 'basics.CR' && typeof value === 'number') {
-        updateProficiencyFromCR(value);
-        // Nach CR Update auch Default Initiative neu berechnen (falls nicht overridden)
-        if (monsterBeingCreated.basics?.Initiative?.initOverrideValue === null) {
-            recalculateDefaultInitiative();
-        }
+  // --- Validierung vor dem Speichern ---
+  let complete = true;
+  // Beispiel-Validierung (passe an deine Mindestanforderungen an!)
+  if (!monsterBeingCreated.basics.name?.trim()) complete = false;
+  if (typeof monsterBeingCreated.basics.CR !== 'number' || monsterBeingCreated.basics.CR < 0) complete = false;
+  if (!monsterBeingCreated.basics.type) complete = false;
+  if (!monsterBeingCreated.basics.alignment) complete = false;
+  if (!monsterBeingCreated.basics.HP || monsterBeingCreated.basics.HP.HDAmount < 1) complete = false;
+  if (!monsterBeingCreated.basics.AC || monsterBeingCreated.basics.AC < 0) complete = false;
+  if (!monsterBeingCreated.basics.stats || Object.values(monsterBeingCreated.basics.stats).some(s => typeof s !== 'number')) complete = false;
+  // Füge weitere Prüfungen hinzu (z.B. mindestens eine Action/Attack?)
+
+  monsterBeingCreated.complete = complete;
+  monsterBeingCreated.basics.id = finalMonsterId; // Stelle sicher, dass ID gesetzt ist
+
+  console.log("Saving Monster:", JSON.parse(JSON.stringify(monsterBeingCreated)));
+  isSaving.value = true;
+  saveError.value = null;
+  deleteError.value = null; // Lösche alten Delete-Error
+
+  // Bestimme den Zielordner basierend auf 'complete'
+  const savePathSegment = complete ? 'completed' : 'uncompleted';
+  // !!! WICHTIG: Das Backend muss diesen Pfad unterstützen !!!
+  // Wir senden ihn hier nicht direkt, sondern das Backend entscheidet anhand des Flags.
+  // Alternativ: Eigene API-Endpunkte /api/monsters/completed und /api/monsters/uncompleted
+
+  try {
+      // Verwende PUT /api/monsters/{id} für Upsert
+      const response = await fetch(`http://localhost:8080/api/monsters/${finalMonsterId}`, {
+           method: 'PUT',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify(monsterBeingCreated) // Sende das komplette Objekt
+      });
+       if (!response.ok) {
+           const errorData = await response.json().catch(() => ({ message: 'Unknown error during save' }));
+           throw new Error(`HTTP error! status: ${response.status} - ${errorData.message || 'Save failed'}`);
+       }
+       const savedData = await response.json();
+       // Aktualisiere lokalen State mit Antwort vom Server
+       Object.assign(monsterBeingCreated, savedData);
+       console.log("Monster saved/updated successfully!", savedData);
+       // Optional: Erfolgsmeldung
+
+  } catch(err) {
+      console.error("Error saving monster:", err);
+      saveError.value = err.message || "Failed to save monster.";
+  } finally {
+       isSaving.value = false;
+  }
+}
+
+// === NEU: Methode zum Löschen ===
+async function handleDeleteMonsterRequest(monsterIdToDelete) {
+    if (!monsterIdToDelete) {
+        deleteError.value = "No monster selected to delete.";
+        return;
     }
-    // Wenn sich Stats oder Init-Proficiency/Expertise ändern, Default Init neu berechnen
-    if ((path.startsWith('basics.stats.') || path.startsWith('basics.Initiative.initProf')) && monsterBeingCreated.basics?.Initiative?.initOverrideValue === null) {
-         recalculateDefaultInitiative();
+    // Bestätigung ist bereits im Loader erfolgt
+
+    console.log(`Deleting Monster with ID: ${monsterIdToDelete}`);
+    isDeleting.value = true;
+    deleteError.value = null;
+    saveError.value = null; // Lösche alten Save-Error
+
+    try {
+        const response = await fetch(`http://localhost:8080/api/monsters/${monsterIdToDelete}`, {
+            method: 'DELETE'
+        });
+         if (!response.ok) {
+             // Versuche Fehlermeldung zu bekommen
+             let errorMsg = `Delete failed with status ${response.status}`;
+             try {
+                 const errorData = await response.json();
+                 errorMsg = errorData.error || errorMsg;
+             } catch (e) { /* Ignoriere JSON Parse Fehler bei Fehler */ }
+             throw new Error(errorMsg);
+         }
+         console.log("Monster deleted successfully!");
+         // Erfolgreich gelöscht -> Formular leeren und Monsterliste neu laden
+         Object.assign(monsterBeingCreated, createEmptyMonster()); // Setze zurück
+         // Lade Monsterliste im Loader neu (indem wir den Loader selbst neu laden oder ein Event senden)
+         // Einfachste Variante: Gehe davon aus, dass fetchExistingMonsters im Loader neu getriggert wird,
+         // wenn sich z.B. die Route ändert (was hier nicht der Fall ist).
+         // Besser: Ein Event zum Neuladen senden oder den Loader Key ändern.
+         // Workaround: Manuell die Liste im Loader aktualisieren (nicht ideal)
+         // Alternative: Direkt hier die Liste im Loader neu fetchen (bricht Kapselung)
+
+         // Zeige Erfolgsmeldung (z.B. Snackbar)
+
+    } catch(err) {
+         console.error("Error deleting monster:", err);
+         deleteError.value = err.message || "Failed to delete monster.";
+    } finally {
+        isDeleting.value = false;
     }
-    // Hier könnten weitere Berechnungen folgen (z.B. Save-Defaults)
 }
 
 // --- Proficiency Update (aktualisiert) ---
@@ -255,46 +339,41 @@ onMounted(() => {
 </script>
 
 <template>
-  <v-container fluid>
-    <!-- === NEUE REIHE für Monster Loader === -->
-    <v-row>
-        <v-col cols="12">
-            <MonsterLoader
-                @load-monster="handleLoadMonster"
-                v-model:style="displayStyle"
-                v-model:columns="displayColumns"
-             />
-             <!-- Optional: Zeige Fehler beim Laden der Details -->
-             <v-alert v-if="loadMonsterDetailsError" type="error" density="compact" class="mt-2">
-                {{ loadMonsterDetailsError }}
-             </v-alert>
-        </v-col>
-    </v-row>
-    <!-- ===================================== -->
-
-    <!-- Bestehende Reihe für Konfiguration und Vorschau -->
-    <!-- Splitpanes -->
-    <splitpanes class="default-theme" style="height: calc(100vh - 200px);">
-        <!-- Pane 1: Konfiguration -->
-        <pane size="50">
-            <div class="pa-2 bg-surface" style="height: 100%; overflow-y: auto;">
-                 <MonsterConfigurator
-                     :monster-data="monsterBeingCreated"
-                     :is-enabled="isConfigurationEnabled"
-                     @update-monster-field="handleMonsterFieldUpdate"
-                 />
-                 <v-btn
-                    color="primary"
-                    @click="saveMonster"
-                    :loading="isSaving"
-                    :disabled="isSaving || !isConfigurationEnabled"
-                    class="mt-4"
-                 >
-                    Save Monster
-                 </v-btn>
-                 <v-alert v-if="saveError" type="error" density="compact" class="mt-2">{{ saveError }}</v-alert>
-            </div>
-        </pane>
+    <v-container fluid>
+      <!-- Monster Loader: Übergibt Status und hört auf neue Events -->
+      <v-row>
+          <v-col cols="12">
+              <MonsterLoader
+                  @load-monster="handleLoadMonster"
+                  v-model:style="displayStyle"
+                  v-model:columns="displayColumns"
+                  :monster-name="monsterBeingCreated.basics?.name" 
+                  :monster-c-r="monsterBeingCreated.basics?.CR" 
+                  :is-saving="isSaving"
+                  :is-deleting="isDeleting"
+                  @save-monster="handleSaveMonsterRequest"
+                  @delete-monster="handleDeleteMonsterRequest"
+               />
+               <v-alert v-if="loadMonsterDetailsError" ... >{{ loadMonsterDetailsError }}</v-alert>
+          </v-col>
+      </v-row>
+  
+      <!-- Splitpanes -->
+      <splitpanes class="default-theme" style="height: calc(100vh - 200px);">
+          <!-- Pane 1: Konfiguration -->
+          <pane size="50">
+              <div class="pa-2 bg-surface" style="height: 100%; overflow-y: auto;">
+                   <MonsterConfigurator
+                       :monster-data="monsterBeingCreated"
+                       :is-enabled="isConfigurationEnabled"
+                       @update-monster-field="handleMonsterFieldUpdate"
+                   />
+                   <!-- Speicher-Button wurde in den Loader verschoben -->
+                   <!-- <v-btn ... @click="handleSaveMonsterRequest" ... >Save Monster</v-btn> -->
+                   <v-alert v-if="saveError" type="error" density="compact" class="mt-2">{{ saveError }}</v-alert>
+                   <v-alert v-if="deleteError" type="error" density="compact" class="mt-2">{{ deleteError }}</v-alert> <!-- Delete Error anzeigen -->
+              </div>
+          </pane>
         <!-- Pane 2: Statblock Vorschau -->
         <pane size="50">
            <div class="pa-2 bg-surface" style="height: 100%; overflow-y: auto;">

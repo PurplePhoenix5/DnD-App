@@ -1,28 +1,35 @@
 <!-- frontend/src/components/MonsterCreator/MonsterLoader.vue -->
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 
 const props = defineProps({
     style: { type: String, default: '2024' },
-    columns: { type: Number, default: 1 }
+    columns: { type: Number, default: 1 },
+    monsterName: { type: String, default: '' },
+    monsterCR: { type: [Number, null], default: null },
+    isSaving: { type: Boolean, default: false },
+    isDeleting: { type: Boolean, default: false }
 });
 
 // Event zum Melden, welches Monster geladen werden soll
 const emit = defineEmits([
     'load-monster',
     'update:style',   // Event für Stil-Änderung (v-model:style)
-    'update:columns'  // Event für Spalten-Änderung (v-model:columns)
+    'update:columns',  // Event für Spalten-Änderung (v-model:columns)
+    'save-monster', // Event zum Speichern
+    'delete-monster' // Event zum Löschen
+    // 'upload-json' // Event für Upload (später)
 ]);
 
 // Daten für die Monster-Suche
-const existingMonsters = ref([]); // Format: [{ id: '...', name: '...' }]
+const existingMonsters = ref([]); 
 const selectedMonsterToLoad = ref(null);
 const isLoadingMonsters = ref(false);
 const loadError = ref(null);
 
-// === KORREKTUR: Lokale Refs mit Prop-Werten initialisieren (NACH defineProps) ===
-const selectedStyle = ref(props.style);   // Jetzt sollte props hier verfügbar sein
-const selectedColumns = ref(props.columns); // Jetzt sollte props hier verfügbar sein
+// --- Refs für Toggles ---
+const selectedStyle = ref(props.style);   
+const selectedColumns = ref(props.columns); 
 
 // Daten für das Stat-Referenz-Dropdown (Platzhalter)
 const statReferenceItems = ref([
@@ -61,12 +68,7 @@ onMounted(() => {
 
 // Beobachte die Auswahl im Autocomplete-Feld
 watch(selectedMonsterToLoad, (newId) => {
-    if (newId) {
-        console.log('MonsterLoader: Emitting load-monster with ID:', newId);
-        emit('load-monster', newId);
-        // Optional: Auswahl zurücksetzen nach dem Laden?
-        // selectedMonsterToLoad.value = null; // Oder im Parent nach erfolgreichem Laden
-    }
+    if (newId) { emit('load-monster', newId); }
 });
 
 watch(selectedStyle, (newStyle) => {
@@ -81,86 +83,141 @@ watch(selectedColumns, (newColumns) => {
 watch(() => props.style, (newVal) => selectedStyle.value = newVal );
 watch(() => props.columns, (newVal) => selectedColumns.value = newVal );
 
+const canSaveOrDelete = computed(() => {
+    // Speichern/Löschen erlaubt, wenn Name und CR gültig sind
+    return !!props.monsterName?.trim() && typeof props.monsterCR === 'number' && props.monsterCR >= 0;
+});
+
+function save() {
+    if (canSaveOrDelete.value) {
+        emit('save-monster');
+    }
+}
+
+function deleteMonster() {
+    // Löschen funktioniert nur, wenn ein Monster *geladen* wurde (selectedMonsterToLoad hat eine ID)
+    if (selectedMonsterToLoad.value && canSaveOrDelete.value) { // Zusätzliche Prüfung auf Name/CR des *geladenen* Monsters
+        if (confirm(`Are you sure you want to delete monster "${existingMonsters.value.find(m => m.id === selectedMonsterToLoad.value)?.name ?? selectedMonsterToLoad.value}"? This cannot be undone.`)) {
+            emit('delete-monster', selectedMonsterToLoad.value); // Sende die ID zum Löschen
+        }
+    } else {
+        alert("Select an existing monster from the list to delete it.");
+    }
+}
+
+function uploadJson() {
+    // Platzhalter für spätere Implementierung
+    alert("Upload JSON functionality not implemented yet.");
+}
 
 </script>
 
 <template>
     <v-card variant="tonal" class="mb-4">
         <v-card-text>
-            <v-row align="center" justify="center" dense>
-                <!-- Spalte für das Suchfeld -->
-                <v-col cols="12" sm="6" md="5">
+            <!-- === Zeile 1: Laden & Stat Ref === -->
+            <v-row dense class="mb-2">
+                <v-col cols="12" md="6"> <!-- Breite angepasst -->
                     <v-autocomplete
                         v-model="selectedMonsterToLoad"
                         :items="existingMonsters"
                         item-title="name"
                         item-value="id"
-                        label="Load Existing Monster"
+                        label="Load Existing / Search"
                         :loading="isLoadingMonsters"
                         :disabled="isLoadingMonsters"
-                        placeholder="Search and select..."
-                        clearable
-                        variant="solo-filled" 
-                        density="compact"
-                        hide-details="auto"
-                        no-data-text="No monsters found or loading..."
-                        prepend-inner-icon="mdi-magnify"
-                    />
-                     <v-alert v-if="loadError" type="warning" density="compact" class="mt-1">
-                        {{ loadError }}
-                     </v-alert>
+                        placeholder="Search or select..."
+                        clearable return-object=false 
+                        variant="solo-filled" density="compact" hide-details="auto"
+                        no-data-text="No monsters found..." prepend-inner-icon="mdi-magnify"
+                    >
+                        <!-- Slot, um Item mit complete-Icon anzuzeigen -->
+                         <template v-slot:item="{ props: itemProps, item }">
+                           <v-list-item v-bind="itemProps" :title="item.raw.name">
+                             <template v-slot:prepend>
+                               <v-tooltip location="top" :text="item.raw.complete ? 'Complete' : 'Incomplete'">
+                                 <template v-slot:activator="{ props: tooltipProps }">
+                                   <v-icon
+                                     v-bind="tooltipProps"
+                                     :icon="item.raw.complete ? 'mdi-check-circle' : 'mdi-circle-edit-outline'"
+                                     :color="item.raw.complete ? 'success' : 'warning'"
+                                     size="x-small"
+                                     class="mr-2"
+                                   ></v-icon>
+                                 </template>
+                               </v-tooltip>
+                             </template>
+                           </v-list-item>
+                         </template>
+                    </v-autocomplete>
+                     <v-alert v-if="loadError" type="warning" density="compact" class="mt-1"> {{ loadError }} </v-alert>
                 </v-col>
-
-                <!-- Spalte für das Stat-Referenz-Dropdown -->
-                <v-col cols="12" sm="6" md="4">
+                <v-col cols="12" md="6"> <!-- Breite angepasst -->
                      <v-select
-                        v-model="selectedStatReference"
-                        :items="statReferenceItems"
-                        item-title="title"
-                        item-value="value"
-                        label="Stat Reference (WIP)"
-                        variant="solo-filled"
-                        density="compact"
-                        hide-details
-                        disabled 
-                     ></v-select>
+                        v-model="selectedStatReference" :items="statReferenceItems"
+                        item-title="title" item-value="value" label="Stat Reference (WIP)"
+                        variant="solo-filled" density="compact" hide-details disabled
+                     />
                      <div class="text-caption text-disabled text-center mt-1">(Not implemented yet)</div>
                 </v-col>
             </v-row>
-            <v-row align="center" justify="center" dense>
-                 <!-- Spalte für Style Auswahl -->
-                 <v-col cols="auto">
-                    <span class="text-caption mr-2">Style:</span>
-                    <v-btn-toggle
-                        v-model="selectedStyle"
-                        variant="outlined"
-                        divided
-                        density="compact"
-                        mandatory 
-                    >
-                        <v-btn value="2014">2014</v-btn>
-                        <v-btn value="2024">2024</v-btn>
-                    </v-btn-toggle>
+
+            <!-- === Zeile 2: Aktionen & Layout === -->
+            <v-row dense align="center">
+                <!-- Save Button -->
+                <v-col cols="12" sm="6" md="3">
+                     <v-btn
+                        @click="save"
+                        :disabled="!canSaveOrDelete || isSaving || isDeleting"
+                        :loading="isSaving"
+                        color="primary" block prepend-icon="mdi-content-save">
+                        Save
+                     </v-btn>
+                </v-col>
+                 <!-- Delete Button -->
+                 <v-col cols="12" sm="6" md="3">
+                     <v-btn
+                         @click="deleteMonster"
+                         :disabled="!selectedMonsterToLoad || isSaving || isDeleting"
+                         :loading="isDeleting"
+                         color="error" block prepend-icon="mdi-delete">
+                         Delete Loaded
+                     </v-btn>
                  </v-col>
-                 <!-- Spalte für Spalten Auswahl -->
-                  <v-col cols="auto">
-                     <span class="text-caption mr-2">Columns:</span>
+                 <!-- Layout/Column Toggle -->
+                  <v-col cols="12" sm="6" md="3">
                      <v-btn-toggle
                          v-model="selectedColumns"
-                         variant="outlined"
-                         divided
-                         density="compact"
-                         mandatory 
+                         variant="outlined" divided mandatory density="compact" block
                      >
-                         <v-btn :value="1" icon="mdi-view-sequential-outline"></v-btn>
-                         <v-btn :value="2" icon="mdi-view-parallel-outline"></v-btn>
+                         <v-tooltip location="top" text="Single Column">
+                             <template v-slot:activator="{props: tooltipProps}">
+                                <v-btn :value="1" v-bind="tooltipProps" icon="mdi-view-sequential-outline" class="flex-grow-1"></v-btn>
+                             </template>
+                         </v-tooltip>
+                         <v-tooltip location="top" text="Two Columns">
+                               <template v-slot:activator="{props: tooltipProps}">
+                                 <v-btn :value="2" v-bind="tooltipProps" icon="mdi-view-column-outline" class="flex-grow-1"></v-btn> <!-- Icon geändert -->
+                             </template>
+                         </v-tooltip>
                      </v-btn-toggle>
                  </v-col>
+                  <!-- Upload Button (Platzhalter) -->
+                  <v-col cols="12" sm="6" md="3">
+                      <v-btn @click="uploadJson" disabled block prepend-icon="mdi-upload">
+                         Upload JSON
+                      </v-btn>
+                  </v-col>
             </v-row>
         </v-card-text>
     </v-card>
 </template>
 
 <style scoped>
-/* Optional: Stile anpassen */
+.v-btn-toggle {
+    display: flex; /* Sorgt dafür, dass Buttons die volle Breite einnehmen */
+}
+.v-btn-toggle .v-btn {
+    flex: 1 1 auto; /* Lässt Buttons gleichmäßig wachsen */
+}
 </style>

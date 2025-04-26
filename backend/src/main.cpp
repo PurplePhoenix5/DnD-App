@@ -165,13 +165,14 @@ int main() {
                          try {
                              json data;
                              file >> data;
-                             // Extrahiere nur die benötigten Felder für die Zusammenfassung
+                             // Extrahiere benötigte Felder + complete Flag
                              json summary_item;
-                             summary_item["id"] = entry.path().stem().string(); // ID aus Dateinamen
-                             summary_item["name"] = data.value("name", "Unknown");
-                             summary_item["cr"] = data.value("CR", 0); // Verwende value für Default
-                             summary_item["size"] = data.value("size", "Medium");
-                             summary_item["type"] = data.value("type", "unknown");
+                             summary_item["id"] = entry.path().stem().string();
+                             summary_item["name"] = data.value("basics", json::object()).value("name", "Unknown"); // Name aus basics
+                             summary_item["cr"] = data.value("basics", json::object()).value("CR", 0.0);          // CR aus basics
+                             summary_item["size"] = data.value("basics", json::object()).value("size", "Medium");    // Size aus basics
+                             summary_item["type"] = data.value("basics", json::object()).value("type", "unknown");    // Type aus basics
+                             summary_item["complete"] = data.value("complete", false);
                              monster_summary_list.push_back(summary_item);
                          } catch (const std::exception& e) {
                              std::cerr << "Fehler beim Verarbeiten der Monster-Datei " << entry.path() << ": " << e.what() << std::endl;
@@ -437,129 +438,176 @@ int main() {
             return crow::response(400, "{\"error\": \"Ungültiges JSON im Request Body.\"}");
         }
 
-        // 1. Zieldateipfad erstellen
-        std::filesystem::path target_file_path;
-         try {
-             target_file_path = std::filesystem::path(monsters_base_dir) / (monster_id_from_url + ".json");
-             target_file_path = std::filesystem::absolute(target_file_path).lexically_normal();
-         } catch (const std::exception& e) {
-             std::cerr << "Fehler beim Erstellen des Zielpfads für Monster '" << monster_id_from_url << "': " << e.what() << std::endl;
-             return crow::response(500, "{\"error\": \"Interner Fehler beim Erstellen des Dateipfads.\"}");
-         }
-
-        // === NEU: Prüfen, ob Datei *vor* dem Schreiben existiert ===
-        bool file_existed = false;
-        try {
-             file_existed = std::filesystem::exists(target_file_path) && std::filesystem::is_regular_file(target_file_path);
-        } catch(const std::exception& e) {
-             // Fehler bei exists kann passieren (z.B. Berechtigungen)
-             std::cerr << "Fehler beim Prüfen der Existenz von " << target_file_path << ": " << e.what() << std::endl;
-             // Man könnte hier abbrechen oder vorsichtig weitermachen
+        // Validierung (wie zuvor)
+        if (!incoming_data.contains("basics") || !incoming_data["basics"].contains("name")) {
+            return crow::response(400, "{\"error\": \"Missing 'basics.name' field.\"}");
         }
-        // ========================================================
+
+        // === NEU: Bestimme Zielordner basierend auf 'complete'-Flag ===
+        bool is_complete = incoming_data.value("complete", false);
+        std::string target_sub_dir = is_complete ? "completed" : "uncompleted";
+        std::string opposite_sub_dir = is_complete ? "uncompleted" : "completed"; // Für Löschen der alten Version
+
+        std::filesystem::path target_dir_path = std::filesystem::path(monsters_base_dir) / target_sub_dir;
+        std::filesystem::path target_file_path;
+        std::filesystem::path old_file_path; // Pfad zur evtl. existierenden alten Datei im anderen Ordner
+        // ===============================================================
+
+         try {
+             // Stelle sicher, dass die Zielverzeichnisse existieren
+             std::filesystem::create_directories(target_dir_path);
+             std::filesystem::create_directories(std::filesystem::path(monsters_base_dir) / opposite_sub_dir);
+
+             target_file_path = target_dir_path / (monster_id_from_url + ".json");
+             target_file_path = std::filesystem::absolute(target_file_path).lexically_normal();
+
+             old_file_path = std::filesystem::path(monsters_base_dir) / opposite_sub_dir / (monster_id_from_url + ".json");
+             old_file_path = std::filesystem::absolute(old_file_path).lexically_normal();
+
+
+         } catch (const std::exception& e) { /* ... Fehlerbehandlung ... */ }
+
+         // Prüfe, ob Datei im *anderen* Ordner existiert (für Statuscode und Löschen)
+         bool file_existed_in_other_dir = std::filesystem::exists(old_file_path);
+         // Prüfe, ob Datei im *Ziel*-Ordner existiert (für Statuscode)
+         bool file_existed_in_target_dir = std::filesystem::exists(target_file_path);
+         bool created_new = !file_existed_in_target_dir && !file_existed_in_other_dir;
 
 
         // 3. (Optional) Validierung der eingehenden Daten
-        if (!incoming_data.contains("name")) {
-            return crow::response(400, "{\"error\": \"Fehlendes 'name'-Feld in den Monsterdaten.\"}");
+        if (!incoming_data.contains("name") || !incoming_data.contains("CR")) {
+            return crow::response(400, "{\"error\": \"Fehlendes 'name'-Feld oder 'CR'-Feld in den Monsterdaten.\"}");
         }
         // Füge hier ggf. weitere Validierungen hinzu
 
-        // 4. Datei zum Schreiben öffnen (überschreibt/erstellt)
+        // Datei zum Schreiben öffnen (überschreibt/erstellt im Zielordner)
         try {
-            std::ofstream output_file(target_file_path); // Öffnet zum Schreiben
-            if (!output_file.is_open()) {
-                 std::cerr << "Fehler: Zieldatei konnte nicht zum Schreiben geöffnet werden (PUT): " << target_file_path << std::endl;
-                 return crow::response(500, "{\"error\": \"Monster konnte nicht gespeichert werden (Dateizugriff).\"}");
-            }
-            // Schreibe die *eingehenden* Daten pretty-printed
-            output_file << incoming_data.dump(4);
+            std::ofstream output_file(target_file_path);
+            if (!output_file.is_open()) { /* ... Fehler ... */ }
+            output_file << incoming_data.dump(4); // Schreibe die empfangenen Daten
             output_file.close();
-             if (file_existed) {
-                std::cout << "Monster erfolgreich aktualisiert: " << target_file_path << std::endl;
-             } else {
-                std::cout << "Monster erfolgreich erstellt: " << target_file_path << std::endl;
-             }
 
-        } catch (const std::exception& e) {
-             std::cerr << "Fehler beim Schreiben der Monster-Datei (PUT) " << target_file_path << ": " << e.what() << std::endl;
-             return crow::response(500, "{\"error\": \"Interner Fehler beim Speichern des Monsters.\"}");
-        }
+            // === NEU: Lösche alte Datei, falls sie im anderen Ordner existierte ===
+            if (file_existed_in_other_dir) {
+                try {
+                     if(std::filesystem::remove(old_file_path)) {
+                          std::cout << "Alte Monsterdatei gelöscht: " << old_file_path << std::endl;
+                     } else {
+                          std::cerr << "Warnung: Konnte alte Monsterdatei nicht löschen: " << old_file_path << std::endl;
+                     }
+                } catch(const std::exception& e) {
+                     std::cerr << "Warnung: Fehler beim Löschen der alten Monsterdatei " << old_file_path << ": " << e.what() << std::endl;
+                }
+            }
+            // ================================================================
 
-        // === NEU: Statuscode basierend auf Existenz vor dem Schreiben setzen ===
-        int status_code = file_existed ? 200 : 201; // 200 OK für Update, 201 Created für Neu
-        // ====================================================================
+            std::cout << "Monster erfolgreich gespeichert/aktualisiert: " << target_file_path << std::endl;
 
-        // 5. Erfolgsantwort senden
+        } catch (const std::exception& e) { /* ... Fehlerbehandlung ... */ }
+
+        // Statuscode: 201 für komplett neu, 200 für Update/Verschieben
+        int status_code = created_new ? 201 : 200;
+
+        // Erfolgsantwort senden
         crow::response res(status_code, incoming_data.dump());
         res.set_header("Content-Type", "application/json");
         return res;
     });
+  
 
     CROW_ROUTE(app, "/api/monsters/<string>").methods("GET"_method)
-        ([&](const crow::request& /*req*/, const std::string& monster_id){ // Capture base_dir
-        std::filesystem::path monster_file_path;
+        ([&](const std::string& monster_id){
+         std::vector<std::string> potential_dirs = {"completed", "uncompleted"};
+         std::filesystem::path found_path;
+         bool file_found = false;
+
+         for(const auto& subdir : potential_dirs) {
+             std::filesystem::path current_path;
+             try {
+                current_path = std::filesystem::absolute(std::filesystem::path(monsters_base_dir) / subdir / (monster_id + ".json")).lexically_normal();
+                if (std::filesystem::exists(current_path) && std::filesystem::is_regular_file(current_path)) {
+                    found_path = current_path;
+                    file_found = true;
+                    break; // Datei gefunden, Schleife beenden
+                }
+             } catch(const std::exception& e) {
+                  std::cerr << "Fehler beim Suchen nach " << current_path << ": " << e.what() << std::endl;
+                  // Suche weiter im nächsten Ordner
+             }
+         }
+
+         if (!file_found) {
+             std::cerr << "GET /api/monsters: Monster nicht gefunden in beiden Ordnern: " << monster_id << std::endl;
+             return crow::response(404, "{\"error\": \"Monster not found.\"}");
+         }
+
         try {
-            monster_file_path = std::filesystem::path(monsters_base_dir) / (monster_id + ".json");
-            monster_file_path = std::filesystem::absolute(monster_file_path).lexically_normal();
-
-            if (!std::filesystem::exists(monster_file_path) || !std::filesystem::is_regular_file(monster_file_path)) {
-                std::cerr << "GET /api/monsters: Monster nicht gefunden: " << monster_file_path << std::endl;
-                return crow::response(404, "{\"error\": \"Monster not found.\"}");
-            }
-
-            std::ifstream monster_file(monster_file_path);
+            std::ifstream monster_file(found_path);
             if (!monster_file.is_open()) {
-                 std::cerr << "GET /api/monsters: Datei nicht lesbar: " << monster_file_path << std::endl;
+                 std::cerr << "GET /api/monsters: Datei nicht lesbar: " << found_path << std::endl;
                  return crow::response(500, "{\"error\": \"Could not read monster file.\"}");
             }
-
-            // Lese den gesamten Dateiinhalt
             std::stringstream buffer;
             buffer << monster_file.rdbuf();
             std::string monster_content = buffer.str();
-
-            // Sende den rohen JSON-Inhalt zurück
             crow::response res(200, monster_content);
             res.set_header("Content-Type", "application/json");
             return res;
-
         } catch (const std::exception& e) {
-            std::cerr << "Fehler beim Laden von Monster " << monster_id << " (" << monster_file_path << "): " << e.what() << std::endl;
+            std::cerr << "Fehler beim Laden von Monster " << monster_id << " (" << found_path << "): " << e.what() << std::endl;
             return crow::response(500, "{\"error\": \"Internal server error loading monster details.\"}");
         }
     });
 
 
     // --- DELETE /api/encounters/{encounterId} (NEU) ---
-     CROW_ROUTE(app, "/api/encounters/<string>").methods("DELETE"_method)
-        ([&](const std::string& encounter_id) { // Capture base_dir
-         std::filesystem::path file_path;
-         try {
-             file_path = std::filesystem::path(encounters_base_dir) / (encounter_id + ".json");
-             file_path = std::filesystem::absolute(file_path).lexically_normal();
+    CROW_ROUTE(app, "/api/monsters/<string>").methods("DELETE"_method)
+    ([&](const std::string& monster_id) {
+     std::filesystem::path path_completed = std::filesystem::absolute(std::filesystem::path(monsters_base_dir) / "completed" / (monster_id + ".json")).lexically_normal();
+     std::filesystem::path path_uncompleted = std::filesystem::absolute(std::filesystem::path(monsters_base_dir) / "uncompleted" / (monster_id + ".json")).lexically_normal();
+     bool deleted = false;
+     bool tried_completed = false;
+     bool tried_uncompleted = false;
 
-             if (!std::filesystem::exists(file_path)) {
-                 return crow::response(404, "{\"error\": \"Encounter nicht gefunden.\"}");
-             }
-              if (!std::filesystem::is_regular_file(file_path)) {
-                 return crow::response(400, "{\"error\": \"Angegebene ID gehört nicht zu einer Datei.\"}");
-             }
-
-             // Versuche zu löschen
-             if (std::filesystem::remove(file_path)) {
-                 std::cout << "Encounter gelöscht: " << file_path << std::endl;
-                 return crow::response(204); // No Content - Standard für erfolgreiches DELETE
-             } else {
-                  std::cerr << "Fehler: Encounter-Datei konnte nicht gelöscht werden (Berechtigungen?): " << file_path << std::endl;
-                  return crow::response(500, "{\"error\": \"Datei konnte nicht gelöscht werden.\"}");
-             }
-
-         } catch (const std::exception& e) {
-             std::cerr << "Fehler beim Löschen des Encounters '" << encounter_id << "' (" << file_path << "): " << e.what() << std::endl;
-             return crow::response(500, "{\"error\": \"Interner Serverfehler beim Löschen.\"}");
+     try {
+         if (std::filesystem::exists(path_completed) && std::filesystem::is_regular_file(path_completed)) {
+              tried_completed = true;
+              if (std::filesystem::remove(path_completed)) {
+                  deleted = true;
+                  std::cout << "Monster gelöscht: " << path_completed << std::endl;
+              } else {
+                 std::cerr << "Fehler: Konnte Monsterdatei nicht löschen (completed): " << path_completed << std::endl;
+                  return crow::response(500, "{\"error\": \"Could not delete monster file (completed).\"}");
+              }
          }
-     });
+         // Versuche auch im anderen Ordner zu löschen, falls es verschoben wurde aber noch nicht gespeichert
+          if (std::filesystem::exists(path_uncompleted) && std::filesystem::is_regular_file(path_uncompleted)) {
+              tried_uncompleted = true;
+              if (std::filesystem::remove(path_uncompleted)) {
+                  deleted = true; // Setze deleted auf true, auch wenn es nur hier gefunden wurde
+                  std::cout << "Monster gelöscht: " << path_uncompleted << std::endl;
+              } else {
+                 std::cerr << "Fehler: Konnte Monsterdatei nicht löschen (uncompleted): " << path_uncompleted << std::endl;
+                 // Nur Fehler 500 senden, wenn *nichts* gelöscht werden konnte
+                 if (!deleted) return crow::response(500, "{\"error\": \"Could not delete monster file (uncompleted).\"}");
+              }
+         }
+
+         if (deleted) {
+              return crow::response(204); // No Content
+         } else if (tried_completed || tried_uncompleted) {
+              // Existierte in keinem der Ordner als Datei (sollte nicht passieren, wenn exists vorher prüft)
+               return crow::response(404, "{\"error\": \"Monster file found but could not be identified as regular file for deletion.\"}");
+         }
+          else {
+               return crow::response(404, "{\"error\": \"Monster not found in completed or uncompleted folders.\"}");
+         }
+
+     } catch (const std::exception& e) {
+         std::cerr << "Fehler beim Löschen des Monsters '" << monster_id << "': " << e.what() << std::endl;
+         return crow::response(500, "{\"error\": \"Internal server error during deletion.\"}");
+     }
+ });
 
 
     // --- Server Start ---
