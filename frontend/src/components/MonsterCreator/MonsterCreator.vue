@@ -11,6 +11,43 @@ import MonsterLoader from './MonsterLoader.vue';
 import MonsterConfigurator from './MonsterConfigurator.vue';
 import StatBlockRenderer from '../StatBlockRenderer.vue'; // Pfad prüfen
 
+function handleMonsterFieldUpdate({ path, value }) {
+    console.log(`MonsterCreator: Updating path "${path}" with value:`, value);
+    set(monsterBeingCreated, path, value); // Update den Wert
+
+    // --- Neuberechnungen auslösen ---
+
+    // 1. Proficiency Bonus bei CR-Änderung
+    if (path === 'basics.CR' && typeof value === 'number') {
+        updateProficiencyFromCR(value);
+        // Neuberechnung der Initiative wird durch PB-Änderung im Watch unten ausgelöst
+    }
+
+    // 2. Default HD Size bei Size-Änderung (wenn kein Override)
+    if (path === 'basics.size' && get(monsterBeingCreated, 'basics.HP.overrideDie') === null) {
+         const sizeVal = value; // Der neue Size-Wert
+         const hdMapping = { 'Tiny': 4, 'Small': 6, 'Medium': 8, 'Large': 10, 'Huge': 12, 'Gargantuan': 20, 'Titan': 20 };
+         const defaultDie = hdMapping[sizeVal] || 8;
+         set(monsterBeingCreated, 'basics.HP.defaultDie', defaultDie);
+    }
+
+    // 3. Default Initiative bei relevanter Änderung (DEX, Prof, Exp) *nur wenn kein Override*
+    if ((path.startsWith('basics.stats.DEX') || path === 'basics.Initiative.initProficiency' || path === 'basics.Initiative.initExpertise')
+        && get(monsterBeingCreated, 'basics.Initiative.initOverrideValue') === null)
+    {
+         console.log("MonsterCreator: Triggering recalculateDefaultInitiative due to change in:", path);
+         recalculateDefaultInitiative();
+    }
+
+     // 4. Wenn Override für Initiative entfernt wird, Default neu berechnen
+     if (path === 'basics.Initiative.initOverrideValue' && value === null) {
+          console.log("MonsterCreator: Triggering recalculateDefaultInitiative due to override removal");
+          recalculateDefaultInitiative();
+     }
+
+    // Hier könnten weitere Berechnungen folgen (z.B. Saves bei Stat/PB-Änderung)
+}
+
 // Funktion zum Erstellen eines leeren Monsters (aktualisiert)
 function createEmptyMonster() {
     const baseStats = { STR: 10, DEX: 10, CON: 10, INT: 10, WIS: 10, CHA: 10 };
@@ -156,20 +193,18 @@ async function updateProficiencyFromCR(crValue) {
     }
     const crInfo = crDataList.value.find(cr => cr.numeric === crValue);
     if (crInfo && monsterBeingCreated.basics) {
-        monsterBeingCreated.basics.PB = crInfo.proficiency; // Update PB in basics
+        const oldPB = monsterBeingCreated.basics.PB;
+        monsterBeingCreated.basics.PB = crInfo.proficiency;
         console.log(`Proficiency updated to ${crInfo.proficiency} for CR ${crValue}`);
-        // Nach PB Update auch Default Initiative neu berechnen (falls nicht overridden)
-         if (monsterBeingCreated.basics?.Initiative?.initOverrideValue === null) {
+        // Nur neu berechnen, wenn PB sich geändert hat UND kein Override aktiv ist
+        if (oldPB !== crInfo.proficiency && get(monsterBeingCreated, 'basics.Initiative.initOverrideValue') === null) {
              recalculateDefaultInitiative();
-         }
+        }
     } else {
          console.warn(`No proficiency found for CR ${crValue}`);
          if (monsterBeingCreated.basics) monsterBeingCreated.basics.PB = 2; // Fallback
     }
 }
-watch(() => monsterBeingCreated.basics?.CR, (newCR) => {
-    if (typeof newCR === 'number') { updateProficiencyFromCR(newCR); }
-});
 // ============================================
 
 // === NEU: Funktion zum Neuberechnen der Default Initiative ===
@@ -246,7 +281,7 @@ onMounted(() => {
                  <MonsterConfigurator
                      :monster-data="monsterBeingCreated"
                      :is-enabled="isConfigurationEnabled"
-                     @update-monster="handleMonsterUpdate"
+                     @update-monster-field="handleMonsterFieldUpdate"
                  />
                  <v-btn
                     color="primary"

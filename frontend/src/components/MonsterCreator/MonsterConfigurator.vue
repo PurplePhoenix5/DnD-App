@@ -9,7 +9,15 @@ const props = defineProps({
     monsterData: { type: Object, required: true },
     isEnabled: { type: Boolean, default: false }
 });
-const emit = defineEmits(['update-monster']);
+
+const emit = defineEmits(['update-monster-field']);
+
+function handleFieldUpdate(payload) { // payload ist { key, value }
+    // Leite den Pfad und Wert einfach nach oben weiter
+    // Füge den Panel-Pfad hinzu, falls nötig (hier ist es 'basics')
+    emit('update-monster-field', { path: `basics.${payload.key}`, value: payload.value });
+    // Für andere Panels wäre es z.B. `saves.${payload.key}`
+}
 
 // Daten für die Expansion Panels
 const panels = ref([
@@ -69,7 +77,7 @@ const getDataForPanel = (panel) => {
            :is="panel.component"
            :modelValue="getDataForPanel(panel)"
            :is-enabled="panel.id === 'basics' || isEnabled" 
-           @update:modelValue="handleUpdate(panel.path, $event)"
+           @update:field="handleFieldUpdate($event)"
         />
         <p v-else class="text-disabled pa-4">
           Configuration for {{ panel.title }} not implemented yet.

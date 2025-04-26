@@ -1,14 +1,16 @@
 <!-- frontend/src/components/MonsterCreator/Basics/BasicsConfig.vue -->
 <script setup>
 import { computed, ref, onMounted, watch } from 'vue';
-import { cloneDeep, set } from 'lodash';
 import { loadDnDData } from '../../../utils/dndDataService.js'; 
 import { statModifier, calculateInitiativeBonus, renderBonus } from '../../../utils/mathRendering.js'; 
 
 const props = defineProps({
-  modelValue: { type: Object, required: true }, // Erhält das 'basics'-Objekt
+  modelValue: { type: Object, required: true },
 });
-const emit = defineEmits(['update:modelValue']);
+
+const emit = defineEmits(['update:field']);
+
+
 
 // --- Lade Daten für Selects ---
 const sizes = ref([]);
@@ -43,104 +45,81 @@ onMounted(async () => {
 // --- Lokale Refs für Override Toggles ---
 const isHDOverride = ref(props.modelValue.HP?.overrideDie !== null);
 const isInitOverride = ref(props.modelValue.Initiative?.initOverrideValue !== null);
+watch(() => props.modelValue.HP?.overrideDie, (newVal) => { isHDOverride.value = newVal !== null; });
+watch(() => props.modelValue.Initiative?.initOverrideValue, (newVal) => { isInitOverride.value = newVal !== null; });
 
-// Hilfsfunktion zum Updaten des modelValue Objekts
-function updateValue(key, value) {
-    // Erstelle immer eine tiefe Kopie, um das Original nicht zu mutieren
-    const newObject = cloneDeep(props.modelValue);
-    // Verwende lodash.set, um den Wert am Pfad zu setzen
-    set(newObject, key, value);
-    // Sende das *gesamte* aktualisierte Objekt
-    emit('update:modelValue', newObject);
+function updateField(key, value) {
+    // Beispiel: key = 'name', 'CR', 'HP.HDAmount', 'stats.STR', 'Initiative.initProficiency'
+    console.log(`BasicsConfig: Emitting update:field - Key: ${key}, Value:`, value);
+    emit('update:field', { key: key, value: value });
 }
-
 
 // --- Computed Properties mit Getter/Setter für v-model ---
 const name = computed({
   get: () => props.modelValue.name,
-  set: (value) => updateValue('name', value)
+  set: (value) => updateField('name', value)
 });
 const cr = computed({
   get: () => props.modelValue.CR, // Liest den numerischen CR-Wert
   set: (value) => {
-    // value kommt vom v-select und sollte bereits der numerische Wert (numeric) sein
     const numericCR = typeof value === 'number' ? value : null;
-    updateValue('CR', numericCR);
+    updateField('CR', numericCR);
   }
 });
 const size = computed({
   get: () => props.modelValue.size,
   set: (value) => {
-      updateValue('size', value);
-      // Setze Default HD Size, WENN kein Override aktiv ist
-      if (!isHDOverride.value) { // Prüfe lokalen Toggle-State
-           const hdMapping = { 'Tiny': 4, 'Small': 6, 'Medium': 8, 'Large': 10, 'Huge': 12, 'Gargantuan': 20, 'Titan': 20 };
-           const defaultDie = hdMapping[value] || 8;
-           // Update direkt über den Pfad
-           updateValue('HP.defaultDie', defaultDie);
-           // Stelle sicher, dass overrideDie null bleibt
-           updateValue('HP.overrideDie', null);
-       }
+      updateField('size', value);
   }
 });
 const hpHD = computed({
   get: () => props.modelValue.HP?.HDAmount,
-  set: (value) => updateValue('HP.HDAmount', Math.max(1, parseInt(value, 10) || 1)) // Min 1 sicherstellen
+  set: (value) => updateField('HP.HDAmount', Math.max(1, parseInt(value, 10) || 1))
 });
-const hpTypeDefault = computed(() => props.modelValue.HP?.defaultDie ?? 8);
-const hpTypeOverride = computed({
-  get: () => props.modelValue.HP?.overrideDie,
-  set: (value) => {
-      const newOverride = value ? parseInt(value, 10) : null;
-      updateValue('HP.overrideDie', newOverride);
-      // Aktualisiere den Toggle-State, falls der Wert manuell gelöscht wird
-      isHDOverride.value = newOverride !== null;
-  }
+const displayedHpType = computed(() => {
+    return isHDOverride.value ? props.modelValue.HP?.overrideDie : props.modelValue.HP?.defaultDie;
 });
 const hpModifier = computed({
   get: () => props.modelValue.HP?.HPmodifier,
-  set: (value) => updateValue('HP.HPmodifier', parseInt(value, 10) || 0)
+  set: (value) => updateField('HP.HPmodifier', parseInt(value, 10) || 0)
 });
-const type = computed({ /* ... wie name ... */ get: () => props.modelValue.type, set: (v) => updateValue('type', v) });
-const alignment = computed({ /* ... */ get: () => props.modelValue.alignment, set: (v) => updateValue('alignment', v) });
-const languages = computed({ // Für v-combobox (erlaubt Freitexteingabe + Auswahl)
-  get: () => {
-      // Konvertiere String in Array für v-combobox, wenn nötig
-      const langString = props.modelValue.languages || '';
-      return langString.split(',').map(s => s.trim()).filter(s => s);
-  },
-  set: (value) => {
-      // Konvertiere Array zurück in String
-      updateValue('languages', Array.isArray(value) ? value.join(', ') : value || '');
-  }
+const type = computed({ get: () => props.modelValue.type, set: (v) => updateField('type', v) });
+const alignment = computed({ get: () => props.modelValue.alignment, set: (v) => updateField('alignment', v) });
+const languages = computed({
+  get: () => (props.modelValue.languages || '').split(',').map(s=>s.trim()).filter(s=>s),
+  set: (value) => updateField('languages', Array.isArray(value) ? value.join(', ') : '')
 });
 // Stats
-const str = computed({ get: () => props.modelValue.stats?.STR, set: (v) => updateValue('stats.STR', Math.max(0, parseInt(v, 10) || 0)) });
-const dex = computed({ get: () => props.modelValue.stats?.DEX, set: (v) => updateValue('stats.DEX', Math.max(0, parseInt(v, 10) || 0)) });
-const con = computed({ get: () => props.modelValue.stats?.CON, set: (v) => updateValue('stats.CON', Math.max(0, parseInt(v, 10) || 0)) });
-const int = computed({ get: () => props.modelValue.stats?.INT, set: (v) => updateValue('stats.INT', Math.max(0, parseInt(v, 10) || 0)) });
-const wis = computed({ get: () => props.modelValue.stats?.WIS, set: (v) => updateValue('stats.WIS', Math.max(0, parseInt(v, 10) || 0)) });
-const cha = computed({ get: () => props.modelValue.stats?.CHA, set: (v) => updateValue('stats.CHA', Math.max(0, parseInt(v, 10) || 0)) });
+const str = computed({ get: () => props.modelValue.stats?.STR, set: (v) => updateField('stats.STR', Math.max(0, parseInt(v, 10) || 0)) });
+const dex = computed({ get: () => props.modelValue.stats?.DEX, set: (v) => updateField('stats.DEX', Math.max(0, parseInt(v, 10) || 0)) });
+const con = computed({ get: () => props.modelValue.stats?.CON, set: (v) => updateField('stats.CON', Math.max(0, parseInt(v, 10) || 0)) });
+const int = computed({ get: () => props.modelValue.stats?.INT, set: (v) => updateField('stats.INT', Math.max(0, parseInt(v, 10) || 0)) });
+const wis = computed({ get: () => props.modelValue.stats?.WIS, set: (v) => updateField('stats.WIS', Math.max(0, parseInt(v, 10) || 0)) });
+const cha = computed({ get: () => props.modelValue.stats?.CHA, set: (v) => updateField('stats.CHA', Math.max(0, parseInt(v, 10) || 0)) });
 // AC
-const ac = computed({ get: () => props.modelValue.AC, set: (v) => updateValue('AC', parseInt(v, 10) || 0) });
-const acType = computed({ get: () => props.modelValue.ACType, set: (v) => updateValue('ACType', v) });
+const ac = computed({ get: () => props.modelValue.AC, set: (v) => updateField('AC', parseInt(v, 10) || 0) });
+const acType = computed({ get: () => props.modelValue.ACType, set: (v) => updateField('ACType', v || '') });
 // Initiative
 const initOverrideValue = computed({
     get: () => props.modelValue.Initiative?.initOverrideValue,
     set: (v) => {
         const newOverride = v === '' || v === null ? null : parseInt(v, 10);
-        updateValue('Initiative.initOverrideValue', newOverride);
-         // Aktualisiere den Toggle-State, falls der Wert manuell gelöscht wird
+        updateField('Initiative.initOverrideValue', newOverride);
         isInitOverride.value = newOverride !== null;
     }
 });
+const displayedInitiativeBonus = computed(() => {
+    return isInitOverride.value
+        ? props.modelValue.Initiative?.initOverrideValue 
+        : props.modelValue.Initiative?.initDefaultValue;  
+});
 const initProficiency = computed({
     get: () => props.modelValue.Initiative?.initProficiency ?? false,
-    set: (v) => updateValue('Initiative.initProficiency', v)
+    set: (v) => updateField('Initiative.initProficiency', v)
 });
 const initExpertise = computed({
     get: () => props.modelValue.Initiative?.initExpertise ?? false,
-    set: (v) => updateValue('Initiative.initExpertise', v)
+    set: (v) => updateField('Initiative.initExpertise', v)
 });
 
 
@@ -151,13 +130,7 @@ const conMod = computed(() => renderBonus(statModifier(con.value)));
 const intMod = computed(() => renderBonus(statModifier(int.value)));
 const wisMod = computed(() => renderBonus(statModifier(wis.value)));
 const chaMod = computed(() => renderBonus(statModifier(cha.value)));
-
-const initiativeDefaultValue = computed(() => props.modelValue.Initiative?.initDefaultValue ?? 0);
 const isInitiativeOverridden = computed(() => props.modelValue.Initiative?.initOverrideValue !== null);
-// const displayInitiativeBonus = computed(() => {
-//    return isInitiativeOverridden.value ? initOverrideValue.value : initiativeDefaultValue.value;
-// });
-
 
 // --- Logik für den Triple-State Button (Initiative) ---
 const initiativeProfState = computed(() => {
@@ -165,13 +138,14 @@ const initiativeProfState = computed(() => {
     if (initProficiency.value) return 'proficient';
     return 'none';
 });
-
 function cycleInitiativeProf() {
     let newProf = false; let newExp = false;
     if (initiativeProfState.value === 'none') { newProf = true; }
     else if (initiativeProfState.value === 'proficient') { newProf = true; newExp = true; }
-    // Update beide Werte im Initiative-Objekt
-    updateValue('Initiative', { ...props.modelValue.Initiative, initProficiency: newProf, initExpertise: newExp });
+    // === Sende separate Updates für die Flags ===
+    updateField('Initiative.initProficiency', newProf);
+    updateField('Initiative.initExpertise', newExp);
+    // ===========================================
 }
 
 const initiativeButtonIcon = computed(() => {
@@ -190,31 +164,23 @@ const initiativeButtonTooltip = computed(() => {
 const crDataListForSelect = computed(() => {
     return crDataList.value.map(cr => ({
         // Zeige CR-String und XP an
-        title: `CR ${cr.cr} (${cr.xp.toLocaleString()} XP)`,
+        title: `${cr.cr} (${cr.xp.toLocaleString()} XP)`,
         // Der Wert des Selects soll der numerische CR sein
         value: cr.numeric
     }));
 });
 
 function toggleHDOverride() {
-    isHDOverride.value = !isHDOverride.value;
-    if (!isHDOverride.value) {
-        // Wenn Override deaktiviert wird, setze overrideDie auf null
-        updateValue('HP.overrideDie', null);
-    } else {
-         // Wenn Override aktiviert wird, setze den Override auf den aktuellen Default
-         // oder einen sinnvollen Startwert, falls der Benutzer direkt ändern will.
-         updateValue('HP.overrideDie', props.modelValue.HP?.defaultDie ?? 8);
-    }
+    const nextState = !isHDOverride.value;
+    isHDOverride.value = nextState; 
+    if (!nextState) { updateField('HP.overrideDie', null); }
+    else { updateField('HP.overrideDie', props.modelValue.HP?.defaultDie ?? 8); }
 }
 
 function toggleInitOverride() {
-    isInitOverride.value = !isInitOverride.value;
-    if (!isInitOverride.value) {
-        // Wenn Override deaktiviert wird, setze overrideValue auf null
-        updateValue('Initiative.initOverrideValue', null);
-    }
-    // Wenn aktiviert, kann der Benutzer direkt in das Feld tippen
+    const nextState = !isInitOverride.value;
+    isInitOverride.value = nextState; 
+    if (!nextState) { updateField('Initiative.initOverrideValue', null); }
 }
 
 </script>
@@ -227,7 +193,7 @@ function toggleInitOverride() {
             <v-text-field label="Name" v-model="name" density="compact" variant="outlined" clearable />
         </v-col>
         <v-col cols="12" md="2"> 
-             <v-select label="CR" :items="crDataListForSelect" v-model="cr" density="compact" variant="outlined" clearable/>
+             <v-select label="CR" :items="crDataListForSelect" v-model="cr" density="compact" variant="outlined"/>
         </v-col>
         <v-col cols="12" md="4">
              <!-- Leer für Referenz -->
@@ -237,40 +203,36 @@ function toggleInitOverride() {
         <v-col cols="12" md="2">
              <v-select label="Size" :items="sizes" v-model="size" density="compact" variant="outlined"/>
         </v-col>
-        <v-col cols="12" md="2"> 
-             <div class="d-flex align-center">
-                 <v-text-field
-                    v-if="!isHDOverride"
-                    label="HD Size"
-                    :model-value="`d${hpTypeDefault}`"
-                    density="compact" variant="outlined" readonly
-                    hint="Default based on size" persistent-hint
-                 />
-                 <v-select
-                    v-else
-                    label="HD Size Override"
-                    :items="diceTypes"
-                    v-model="hpTypeOverride"
-                    density="compact" variant="outlined"
-                    hide-details
-                 />
-                 <v-tooltip location="top" :text="isHDOverride ? 'Use Default HD Size' : 'Override HD Size'">
-                     <template v-slot:activator="{ props: tooltipProps }">
-                         <v-btn
-                             v-bind="tooltipProps"
-                             :icon="isHDOverride ? 'mdi-lock-open-variant-outline' : 'mdi-lock-outline'"
-                             variant="text" size="small" class="ml-1"
-                             @click="toggleHDOverride"
-                         />
-                     </template>
-                 </v-tooltip>
-             </div>
+        <v-col cols="12" md="2">
+             <v-select
+                :label="isHDOverride ? 'HD Size' : 'HD Size'"
+                :items="diceTypes"
+                :model-value="displayedHpType" 
+                @update:model-value="updateField('HP.overrideDie', $event === null ? null : Number($event))"
+                density="compact" variant="outlined"
+                :readonly="!isHDOverride" 
+                :class="{'input-is-default': !isHDOverride}" 
+             >
+                 <!-- Override Toggle Button im Slot -->
+                 <template v-slot:append-inner>
+                     <v-tooltip location="top" :text="isHDOverride ? 'Use Default' : 'Use Override'">
+                         <template v-slot:activator="{ props: tooltipProps }">
+                             <v-btn
+                                 v-bind="tooltipProps"
+                                 :icon="isHDOverride ? 'mdi-lock-open-variant-outline' : 'mdi-lock-outline'"
+                                 variant="text" size="small"
+                                 @click.stop="toggleHDOverride" 
+                             />
+                         </template>
+                     </v-tooltip>
+                 </template>
+             </v-select>
         </v-col>
         <v-col cols="12" md="2">
-            <v-number-input label="HD Count" v-model="hpHD" density="compact" variant="outlined" :min="1" control-variant="stacked" :reverse="false" inset/>
+            <v-number-input label="HD Count" v-model="hpHD" :model-value="modelValue.HP?.HDAmount" @update:model-value="updateField('HP.HDAmount', Math.max(1, parseInt($event, 10) || 1))" density="compact" variant="outlined" :min="1" control-variant="stacked" :reverse="false" inset/>
         </v-col>
          <v-col cols="12" md="2"> <!-- HP Modifier 4 breit -->
-            <v-number-input label="HP Modifier" v-model="hpModifier" density="compact" variant="outlined" control-variant="stacked" :reverse="false" inset/>
+            <v-number-input label="HP Modifier" v-model="hpModifier" :model-value="modelValue.HP?.HPmodifier" @update:model-value="updateField('HP.HPmodifier', parseInt($event, 10) || 0)" density="compact" variant="outlined" control-variant="stacked" :reverse="false" inset/>
         </v-col>
         <v-col cols="12" md="4">
              <!-- Leer für Referenz -->
@@ -278,10 +240,10 @@ function toggleInitOverride() {
 
         <!-- Zeile 3 -->
         <v-col cols="12" md="3">
-             <v-select label="Type" :items="types" v-model="type" density="compact" variant="outlined" clearable/>
+             <v-select label="Type" :items="types" v-model="type" density="compact" variant="outlined"/>
         </v-col>
         <v-col cols="12" md="3">
-             <v-select label="Alignment" :items="alignments" v-model="alignment" density="compact" variant="outlined" clearable/>
+             <v-select label="Alignment" :items="alignments" v-model="alignment" density="compact" variant="outlined"/>
         </v-col>
         <v-col cols="12" md="6">
              <!-- v-combobox erlaubt Freitexteingabe und Auswahl -->
@@ -304,7 +266,7 @@ function toggleInitOverride() {
             <v-number-input
                 :label="statKey"
                 :model-value="modelValue.stats?.[statKey]"
-                @update:model-value="updateValue(`stats.${statKey}`, parseInt($event, 10) || 0)"
+                @update:model-value="updateField(`stats.${statKey}`, parseInt($event, 10) || 0)"
                 density="compact"
                 variant="outlined"
                 :min="0"
@@ -325,7 +287,6 @@ function toggleInitOverride() {
             <v-number-input label="AC" v-model="ac" density="compact" variant="outlined" :min="0" control-variant="stacked" :reverse="false" inset/>
          </v-col>
           <v-col cols="12" md="4">
-             <!-- v-combobox erlaubt auch eigene Eingabe -->
              <v-combobox
                 label="AC Type"
                 :items="acTypes"
@@ -336,42 +297,42 @@ function toggleInitOverride() {
              />
          </v-col>
          <v-col cols="12" md="3"> <!-- Init Bonus Feld -->
-             <div class="d-flex align-center">
-                 <v-number-input
-                     label="Init Bonus"
-                     :model-value="isInitOverride ? initOverrideValue : initiativeDefaultValueDisplay"
-                     @update:model-value="initOverrideValue = $event" 
-                     density="compact" variant="outlined"
-                     :readonly="!isInitOverride" 
-                     :class="{ 'text-disabled': !isInitOverride }"
-                     :hint="isInitOverride ? 'Manual override active' : 'Using default (DEX + Prof/Exp)'"
-                     persistent-hint clearable
-                     control-variant="stacked"
-                     :reverse="false"
-                     inset
-                     class="left-aligned-input flex-grow-1" 
-                 >
-                      <!-- Triple-State Button im append-inner Slot -->
-                     <template v-slot:append-inner>
+             <v-number-input
+                 label="Init Bonus"
+                 :model-value="displayedInitiativeBonus" 
+                 @update:model-value="updateField('Initiative.initOverrideValue', $event === '' || $event === null ? null : parseInt($event, 10))"
+                 density="compact" variant="outlined"
+                 :readonly="!isInitOverride" 
+                 :class="{'input-is-default': !isInitOverride}" 
+                 clearable
+                 control-variant="stacked"
+                 :reverse="false"
+                 inset
+                 class="left-aligned-input"
+              >
+                 <!-- Buttons im append-inner Slot -->
+                 <template v-slot:append-inner>
+                     <div class="d-flex align-center">
+                         <!-- Triple-State Button -->
                          <v-tooltip :text="initiativeButtonTooltip">
                            <template v-slot:activator="{ props: tooltipProps }">
                               <v-btn v-bind="tooltipProps" :icon="initiativeButtonIcon" variant="text" size="x-small" @click="cycleInitiativeProf" class="mr-1"/>
                            </template>
                          </v-tooltip>
-                     </template>
-                  </v-number-input>
-                  <!-- Override Toggle Button -->
-                  <v-tooltip location="top" :text="isInitOverride ? 'Use Default Initiative' : 'Override Initiative'">
-                      <template v-slot:activator="{ props: tooltipProps }">
-                          <v-btn
-                              v-bind="tooltipProps"
-                              :icon="isInitOverride ? 'mdi-lock-open-variant-outline' : 'mdi-lock-outline'"
-                              variant="text" size="small" class="ml-1"
-                              @click="toggleInitOverride"
-                          />
-                      </template>
-                  </v-tooltip>
-             </div>
+                         <!-- Override Toggle Button -->
+                         <v-tooltip location="top" :text="isInitOverride ? 'Use Default' : 'Use Override'">
+                             <template v-slot:activator="{ props: tooltipProps }">
+                                 <v-btn
+                                     v-bind="tooltipProps"
+                                     :icon="isInitOverride ? 'mdi-lock-open-variant-outline' : 'mdi-lock-outline'"
+                                     variant="text" size="x-small"
+                                     @click.stop="toggleInitOverride" 
+                                 />
+                             </template>
+                         </v-tooltip>
+                     </div>
+                 </template>
+              </v-number-input>
          </v-col>
          <v-col cols="12" md="3">
              <!-- Leer für Referenz -->
@@ -412,5 +373,10 @@ function toggleInitOverride() {
 :deep(.left-aligned-input .v-field__append-inner .v-btn) {
     min-width: auto !important; /* Erlaube kleineren Button */
     padding: 0 4px !important; /* Kleineres Padding */
+    margin: 0 1px; /* Kleiner Abstand zwischen Buttons */
+}
+.input-is-default :deep(.v-field__input) {
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)) !important;
+  /*font-style: italic;*/
 }
 </style>
