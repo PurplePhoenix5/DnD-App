@@ -13,7 +13,7 @@ const emit = defineEmits(['update-monster']);
 
 // Daten für die Expansion Panels
 const panels = ref([
-  { id: 'basics', title: 'Basics', icon: 'mdi-clipboard-text-outline' },
+  { id: 'basics', title: 'Basics', icon: 'mdi-clipboard-text-outline', path: 'basics', component: BasicsConfig },
   { id: 'saves', title: 'Saving Throws', icon: 'mdi-shield-half-full' },
   { id: 'speeds', title: 'Speeds', icon: 'mdi-run-fast' },
   { id: 'skills', title: 'Skills', icon: 'mdi-star-check-outline' },
@@ -29,8 +29,6 @@ const panels = ref([
   { id: 'legendary', title: 'Legendary Actions', icon: 'mdi-crown-outline' },
   { id: 'lair', title: 'Lair Actions', icon: 'mdi-castle' },
 ]);
-
-const openPanels = ref(['basics']); // Öffnet das Panel mit value="basics"
 
 function handleUpdate(path, value) {
     emit('update-monster', { path, value });
@@ -50,8 +48,15 @@ const getDataForPanel = (panel) => {
 </script>
 
 <template>
-  <v-expansion-panels variant="inset" multiple :disabled="!isEnabled" #default #v-model="openPanels">
-    <v-expansion-panel v-for="panel in panels" :key="panel.id" :value="panel.id" elevation="1">
+  <v-expansion-panels variant="inset" multiple #default #v-model="openPanels">
+    <v-expansion-panel 
+      v-for="panel in panels"
+      :key="panel.id"
+      :value="panel.id"
+      elevation="1"
+      #default
+      :disabled="panel.id !== 'basics' && !isEnabled"
+    >
       <v-expansion-panel-title>
         <v-icon :icon="panel.icon" start class="mr-2"></v-icon>
         {{ panel.title }}

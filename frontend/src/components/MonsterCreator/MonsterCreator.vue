@@ -1,7 +1,7 @@
 <!-- frontend/src/components/MonsterCreator/MonsterCreator.vue -->
 <script setup>
 import { ref, reactive, watch, computed, onMounted } from 'vue';
-import { set, get, isEqual } from 'lodash'; // Importiere set, get und isEqual von lodash
+import { set, get, isEqual, cloneDeep  } from 'lodash'; // Importiere set, get und isEqual von lodash
 import { Splitpanes, Pane } from 'splitpanes';
 import 'splitpanes/dist/splitpanes.css';
 import { loadDnDData, preloadCommonData } from '../../utils/dndDataService.js';
@@ -265,13 +265,26 @@ onMounted(() => {
            <div class="pa-2 bg-surface" style="height: 100%; overflow-y: auto;">
              <v-card variant="outlined">
                <v-card-title>Stat Block Preview</v-card-title>
-               <div v-if="isLoadingMonsterDetails">...</div>
+               <div v-if="isLoadingMonsterDetails" class="text-center pa-5">
+                  <v-progress-circular indeterminate color="primary"></v-progress-circular>
+                  <p>Loading monster details...</p>
+               </div>
                <v-card-text v-else>
-                 <StatBlockRenderer
-                     :monster-data="monsterBeingCreated"
-                     :display-style="displayStyle"
-                     :columns="displayColumns"
-                 />
+                   <!-- === StatBlockRenderer auskommentiert === -->
+                   <!--
+                   <StatBlockRenderer
+                       :monster-data="monsterBeingCreated"
+                       :display-style="displayStyle"
+                       :columns="displayColumns"
+                   />
+                   -->
+                   <!-- === Platzhalter hinzugefügt === -->
+                   <div class="pa-4 text-center text-disabled">
+                       <p>Stat Block Preview is temporarily disabled.</p>
+                       <p>Current Monster Data:</p>
+                       <pre style="max-height: 400px; overflow: auto; text-align: left; background-color: rgba(0,0,0,0.1); padding: 8px; border-radius: 4px;">{{ JSON.stringify(monsterBeingCreated, null, 2) }}</pre>
+                   </div>
+                   <!-- ============================== -->
                </v-card-text>
              </v-card>
            </div>

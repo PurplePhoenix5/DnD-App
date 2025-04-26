@@ -226,27 +226,31 @@ int main() {
 
     // --- GET /api/dnddata/{filename} ---
     CROW_ROUTE(app, "/api/dnddata/<string>")
-        ([&](const std::string& filename_param) { // Capture base_dir und Cache
-        std::string filename = filename_param;
+        ([&](const std::string& requested_filename) { // Capture base_dir und Cache
 
-        // Bereinige den Dateinamen (verhindert Path Traversal etc.)
-        // Ersetze '..' und erlaube nur alphanumerische Zeichen, Punkt, Unterstrich, Bindestrich
-        filename.erase(std::remove(filename.begin(), filename.end(), '.'), filename.end()); // Entferne alle Punkte außer den für die Extension
-        std::filesystem::path safe_filename_part(filename);
-        if (!std::all_of(safe_filename_part.string().begin(), safe_filename_part.string().end(), ::isalnum) &&
-            safe_filename_part.string().find('/') == std::string::npos &&
-            safe_filename_part.string().find('\\') == std::string::npos) {
-                // Mache hier eine sicherere Prüfung oder lehne ab, wenn ungültige Zeichen drin sind.
-                // Fürs Erste: Einfache Prüfung - nur Alphanumerisch erlaubt im Dateinamen selbst.
-                // Füge ".json" wieder hinzu, wenn es entfernt wurde.
-                 if (filename_param.length() > 5 && filename_param.substr(filename_param.length() - 5) == ".json") {
-                     filename = safe_filename_part.stem().string() + ".json";
-                 } else {
-                     return crow::response(400, "{\"error\": \"Invalid characters in filename.\"}");
-                 }
-        } else {
-             return crow::response(400, "{\"error\": \"Invalid filename format.\"}");
+        // === NEUE, SICHERERE VALIDIERUNG ===
+        // 1. Prüfe auf leeren Dateinamen
+        if (requested_filename.empty()) {
+            return crow::response(400, "{\"error\": \"Filename cannot be empty.\"}");
         }
+
+        // 2. Prüfe auf ungültige Zeichen (Path Traversal etc.)
+        if (requested_filename.find("..") != std::string::npos || // Verhindere ".."
+            requested_filename.find('/') != std::string::npos ||  // Verhindere Slashes
+            requested_filename.find('\\') != std::string::npos) { // Verhindere Backslashes
+             std::cerr << "Sicherheitswarnung: Ungültige Zeichen im Dateinamen angefordert: " << requested_filename << std::endl;
+             return crow::response(400, "{\"error\": \"Invalid characters in filename.\"}");
+        }
+
+        // 3. Prüfe die Dateiendung (erlaube nur .json)
+        if (requested_filename.length() <= 5 || requested_filename.substr(requested_filename.length() - 5) != ".json") {
+             std::cerr << "Sicherheitswarnung: Ungültige Dateiendung angefordert: " << requested_filename << std::endl;
+             return crow::response(400, "{\"error\": \"Invalid file extension. Only .json allowed.\"}");
+        }
+        // === ENDE VALIDIERUNG ===
+
+        // Verwende den validierten Dateinamen direkt
+        const std::string filename = requested_filename;
 
 
         // --- Optional: Cache Check ---
@@ -259,6 +263,7 @@ int main() {
         // --- Ende Cache Check ---
 
         std::filesystem::path file_path;
+        std::filesystem::path absolute_base_path;
         try {
             file_path = std::filesystem::path(dnddata_base_dir) / filename;
             file_path = std::filesystem::absolute(file_path).lexically_normal();
