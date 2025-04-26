@@ -1,6 +1,8 @@
 <!-- frontend/src/components/MonsterCreator/Basics/BasicsConfig.vue -->
 <script setup>
 import { computed, ref, onMounted, watch } from 'vue';
+import { cloneDeep, set } from 'lodash';
+import { VNumberInput } from 'vuetify/labs/VNumberInput';
 import { loadDnDData } from '../../../utils/dndDataService.js'; 
 import { statModifier, calculateInitiativeBonus, renderBonus } from '../../../utils/mathRendering.js'; 
 
@@ -41,16 +43,12 @@ onMounted(async () => {
 
 // Hilfsfunktion zum Updaten des modelValue Objekts
 function updateValue(key, value) {
-    // Spezialbehandlung für verschachtelte Objekte
-    if (key.startsWith('HP.') || key.startsWith('stats.') || key.startsWith('Initiative.')) {
-        const keys = key.split('.');
-        const newObject = _.cloneDeep(props.modelValue); // Tiefe Kopie
-        _.set(newObject, keys, value); // Setze den Wert im verschachtelten Objekt
-        emit('update:modelValue', newObject);
-    } else {
-        // Normales Top-Level Update
-        emit('update:modelValue', { ...props.modelValue, [key]: value });
-    }
+    // Erstelle immer eine tiefe Kopie, um das Original nicht zu mutieren
+    const newObject = cloneDeep(props.modelValue);
+    // Verwende lodash.set, um den Wert am Pfad zu setzen
+    set(newObject, key, value);
+    // Sende das *gesamte* aktualisierte Objekt
+    emit('update:modelValue', newObject);
 }
 
 
@@ -88,7 +86,7 @@ const size = computed({
 });
 const hpHD = computed({
   get: () => props.modelValue.HP?.HDAmount,
-  set: (value) => updateValue('HP.HDAmount', parseInt(value, 10) || 1)
+  set: (value) => updateValue('HP.HDAmount', Math.max(1, parseInt(value, 10) || 1)) // Min 1 sicherstellen
 });
 const hpTypeDefault = computed(() => props.modelValue.HP?.defaultDie); // Nur zum Anzeigen
 const hpTypeOverride = computed({ // Für das Select-Feld
@@ -113,12 +111,12 @@ const languages = computed({ // Für v-combobox (erlaubt Freitexteingabe + Auswa
   }
 });
 // Stats
-const str = computed({ get: () => props.modelValue.stats?.STR, set: (v) => updateValue('stats.STR', parseInt(v, 10) || 0) });
-const dex = computed({ get: () => props.modelValue.stats?.DEX, set: (v) => updateValue('stats.DEX', parseInt(v, 10) || 0) });
-const con = computed({ get: () => props.modelValue.stats?.CON, set: (v) => updateValue('stats.CON', parseInt(v, 10) || 0) });
-const int = computed({ get: () => props.modelValue.stats?.INT, set: (v) => updateValue('stats.INT', parseInt(v, 10) || 0) });
-const wis = computed({ get: () => props.modelValue.stats?.WIS, set: (v) => updateValue('stats.WIS', parseInt(v, 10) || 0) });
-const cha = computed({ get: () => props.modelValue.stats?.CHA, set: (v) => updateValue('stats.CHA', parseInt(v, 10) || 0) });
+const str = computed({ get: () => props.modelValue.stats?.STR, set: (v) => updateValue('stats.STR', Math.max(0, parseInt(v, 10) || 0)) });
+const dex = computed({ get: () => props.modelValue.stats?.DEX, set: (v) => updateValue('stats.DEX', Math.max(0, parseInt(v, 10) || 0)) });
+const con = computed({ get: () => props.modelValue.stats?.CON, set: (v) => updateValue('stats.CON', Math.max(0, parseInt(v, 10) || 0)) });
+const int = computed({ get: () => props.modelValue.stats?.INT, set: (v) => updateValue('stats.INT', Math.max(0, parseInt(v, 10) || 0)) });
+const wis = computed({ get: () => props.modelValue.stats?.WIS, set: (v) => updateValue('stats.WIS', Math.max(0, parseInt(v, 10) || 0)) });
+const cha = computed({ get: () => props.modelValue.stats?.CHA, set: (v) => updateValue('stats.CHA', Math.max(0, parseInt(v, 10) || 0)) });
 // AC
 const ac = computed({ get: () => props.modelValue.AC, set: (v) => updateValue('AC', parseInt(v, 10) || 0) });
 const acType = computed({ get: () => props.modelValue.ACType, set: (v) => updateValue('ACType', v) });
@@ -147,9 +145,9 @@ const chaMod = computed(() => renderBonus(statModifier(cha.value)));
 
 const initiativeDefaultValue = computed(() => props.modelValue.Initiative?.initDefaultValue ?? 0);
 const isInitiativeOverridden = computed(() => props.modelValue.Initiative?.initOverrideValue !== null);
-const displayInitiativeBonus = computed(() => {
+// const displayInitiativeBonus = computed(() => {
     return isInitiativeOverridden.value ? initOverrideValue.value : initiativeDefaultValue.value;
-});
+// });
 
 
 // --- Logik für den Triple-State Button (Initiative) ---
@@ -160,19 +158,11 @@ const initiativeProfState = computed(() => {
 });
 
 function cycleInitiativeProf() {
-    let newProf = false;
-    let newExp = false;
-    if (initiativeProfState.value === 'none') {
-        newProf = true; // -> Proficient
-    } else if (initiativeProfState.value === 'proficient') {
-        newProf = true; // Bleibt Proficient
-        newExp = true;  // -> Expertise
-    } else { // War Expertise
-        // -> None
-    }
-     // Wichtig: Beide gleichzeitig updaten, um korrekte Neuberechnung auszulösen
-     const newInitiativeData = { ...props.modelValue.Initiative, initProficiency: newProf, initExpertise: newExp };
-     updateValue('Initiative', newInitiativeData);
+    let newProf = false; let newExp = false;
+    if (initiativeProfState.value === 'none') { newProf = true; }
+    else if (initiativeProfState.value === 'proficient') { newProf = true; newExp = true; }
+    // Update beide Werte im Initiative-Objekt
+    updateValue('Initiative', { ...props.modelValue.Initiative, initProficiency: newProf, initExpertise: newExp });
 }
 
 const initiativeButtonIcon = computed(() => {
@@ -242,10 +232,10 @@ const crDataListForSelect = computed(() => {
                 hint="Select to override default" persistent-hint/>
         </v-col>
         <v-col cols="12" md="2">
-             <v-text-field type="number" label="HD Count" v-model.number="hpHD" density="compact" variant="outlined" min="1"/>
+            <v-number-input label="HD Count" v-model="hpHD" density="compact" variant="outlined" :min="1" control-variant="stacked" :reverse="false" inset/>
         </v-col>
          <v-col cols="12" md="4"> <!-- HP Modifier 4 breit -->
-             <v-text-field type="number" label="HP Modifier" v-model.number="hpModifier" density="compact" variant="outlined"/>
+            <v-number-input label="HP Modifier" v-model="hpModifier" density="compact" variant="outlined" control-variant="stacked" :reverse="false" inset/>
         </v-col>
 
         <!-- Zeile 3 -->
@@ -270,25 +260,27 @@ const crDataListForSelect = computed(() => {
 
          <!-- Zeile 4 (Stats) -->
          <v-col cols="12" md="2" v-for="statKey in ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']" :key="statKey">
-            <v-text-field
-                type="number"
+            <v-number-input
                 :label="statKey"
-                :model-value="modelValue.stats ? modelValue.stats[statKey] : 10"
+                :model-value="modelValue.stats?.[statKey]"
                 @update:model-value="updateValue(`stats.${statKey}`, parseInt($event, 10) || 0)"
                 density="compact"
                 variant="outlined"
-                min="0"
-            >
-                <!-- Zeige Modifier daneben -->
+                :min="0"
+                control-variant="stacked"
+                :reverse="false"
+                inset
+             >
                 <template v-slot:append-inner>
-                    <span class="text-caption text-disabled">({{ renderBonus(statModifier(modelValue.stats ? modelValue.stats[statKey] : 10)) }})</span>
+                    <span class="text-caption text-disabled">({{ renderBonus(statModifier(modelValue.stats?.[statKey])) }})</span>
                 </template>
-            </v-text-field>
+             </v-number-input>
+             <!-- ================================== -->
          </v-col>
 
          <!-- Zeile 5 (AC & Initiative) -->
          <v-col cols="12" md="2">
-            <v-text-field type="number" label="AC" v-model.number="ac" density="compact" variant="outlined" min="0"/>
+            <v-number-input label="AC" v-model="ac" density="compact" variant="outlined" :min="0" control-variant="stacked" :reverse="false" inset/>
          </v-col>
           <v-col cols="12" md="4">
              <!-- v-combobox erlaubt auch eigene Eingabe -->
@@ -302,30 +294,27 @@ const crDataListForSelect = computed(() => {
              />
          </v-col>
           <v-col cols="12" md="3"> <!-- Init Bonus Feld -->
-             <v-text-field
-                 type="number"
+            <v-number-input
                  label="Init Bonus"
-                 v-model.number="initOverrideValue"
+                 v-model="initOverrideValue"
                  density="compact" variant="outlined"
-                 :placeholder="renderBonus(initiativeDefaultValue)"
+                 :placeholder="initiativeDefaultValueDisplay"
                  :hint="isInitiativeOverridden ? 'Override active' : 'Using default (DEX)'"
                  persistent-hint
                  clearable
+                 control-variant="stacked"
+                 :reverse="false"
+                 inset
               >
                  <template v-slot:append-inner>
                     <v-tooltip :text="initiativeButtonTooltip">
                       <template v-slot:activator="{ props: tooltipProps }">
-                         <v-btn
-                            v-bind="tooltipProps"
-                            :icon="initiativeButtonIcon"
-                            variant="text" size="x-small"
-                            @click="cycleInitiativeProf"
-                            class="ml-1"
-                         />
+                         <v-btn v-bind="tooltipProps" :icon="initiativeButtonIcon" variant="text" size="x-small" @click="cycleInitiativeProf" class="ml-1"/>
                       </template>
                     </v-tooltip>
                  </template>
-              </v-text-field>
+              </v-number-input>
+              <!-- ============================================== -->
          </v-col>
          <v-col cols="12" md="3">
              <!-- Leer für Referenz -->
@@ -346,4 +335,13 @@ const crDataListForSelect = computed(() => {
     color: rgb(var(--v-theme-info)); /* z.B. Blau */
     font-weight: bold;
 }
+/* === NEU: Stelle Input-Text linksbündig in v-number-input === */
+/* Diese Regel muss möglicherweise angepasst werden, je nachdem, wie Vuetify */
+/* die internen Klassen genau strukturiert. Untersuche das Element im Browser! */
+:deep(.v-number-input .v-field__input) {
+  text-align: left !important;
+  /* Du musst evtl. auch das padding anpassen, wenn der Text zu nah an den Buttons ist */
+  /* padding-inline-start: 8px !important; */
+}
+/* ============================================================ */
 </style>

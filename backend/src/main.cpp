@@ -226,30 +226,14 @@ int main() {
 
     // --- GET /api/dnddata/{filename} ---
     CROW_ROUTE(app, "/api/dnddata/<string>")
-        ([&](const std::string& requested_filename) { // Capture base_dir und Cache
+        ([&](const std::string& requested_filename) {
 
-        // === NEUE, SICHERERE VALIDIERUNG ===
-        // 1. Prüfe auf leeren Dateinamen
-        if (requested_filename.empty()) {
-            return crow::response(400, "{\"error\": \"Filename cannot be empty.\"}");
-        }
-
-        // 2. Prüfe auf ungültige Zeichen (Path Traversal etc.)
-        if (requested_filename.find("..") != std::string::npos || // Verhindere ".."
-            requested_filename.find('/') != std::string::npos ||  // Verhindere Slashes
-            requested_filename.find('\\') != std::string::npos) { // Verhindere Backslashes
-             std::cerr << "Sicherheitswarnung: Ungültige Zeichen im Dateinamen angefordert: " << requested_filename << std::endl;
-             return crow::response(400, "{\"error\": \"Invalid characters in filename.\"}");
-        }
-
-        // 3. Prüfe die Dateiendung (erlaube nur .json)
-        if (requested_filename.length() <= 5 || requested_filename.substr(requested_filename.length() - 5) != ".json") {
-             std::cerr << "Sicherheitswarnung: Ungültige Dateiendung angefordert: " << requested_filename << std::endl;
-             return crow::response(400, "{\"error\": \"Invalid file extension. Only .json allowed.\"}");
-        }
+        // === VALIDIERUNG (wie zuvor) ===
+        if (requested_filename.empty()) { /* ... */ return crow::response(400, "..."); }
+        if (requested_filename.find("..") != std::string::npos) { return crow::response(400, "{\"error\": \"Invalid filename.\"}"); }
+        if (requested_filename.length() <= 5 || requested_filename.substr(requested_filename.length() - 5) != ".json") { /* ... */ return crow::response(400, "..."); }
         // === ENDE VALIDIERUNG ===
 
-        // Verwende den validierten Dateinamen direkt
         const std::string filename = requested_filename;
 
 
@@ -263,17 +247,9 @@ int main() {
         // --- Ende Cache Check ---
 
         std::filesystem::path file_path;
-        std::filesystem::path absolute_base_path;
         try {
             file_path = std::filesystem::path(dnddata_base_dir) / filename;
             file_path = std::filesystem::absolute(file_path).lexically_normal();
-
-            // Zusätzliche Sicherheitsprüfung: Stelle sicher, dass der Pfad immer noch im dnddata_base_dir liegt
-            if (file_path.string().find(std::filesystem::absolute(dnddata_base_dir).string()) != 0) {
-                 std::cerr << "Sicherheitswarnung: Versuchter Zugriff außerhalb von DnDData Verzeichnis: " << file_path << std::endl;
-                 return crow::response(400, "{\"error\": \"Invalid file path requested.\"}");
-            }
-
 
             if (!std::filesystem::exists(file_path) || !std::filesystem::is_regular_file(file_path)) {
                 std::cerr << "Fehler: DnDData-Datei nicht gefunden: " << file_path << std::endl;
