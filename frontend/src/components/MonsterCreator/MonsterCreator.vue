@@ -19,12 +19,12 @@ function handleMonsterFieldUpdate({ path, value }) {
     set(monsterBeingCreated, path, value); // Update den Wert
 
     let recalculateSaves = false;
-
-    // 1. Proficiency Bonus bei CR-Änderung
-    if (path === 'basics.CR') {
-        if (typeof value === 'number') updateProficiencyFromCR(value);
-        // PB könnte sich geändert haben, Saves neu berechnen
-        recalculateSaves = true;
+    // Prüfe, ob Stats, PB (via CR) oder Save-Proficiency geändert wurde
+    if (path.startsWith('basics.stats.') ||
+        path.startsWith('saves.') || // Änderung an proficient oder overrideValue
+        (path === 'basics.CR' && get(monsterBeingCreated, 'basics.PB') !== oldPB)) // PB hat sich geändert
+    {
+         recalculateSaves = true;
     }
 
     // 2. Default HD Size bei Size-Änderung (wenn kein Override)
@@ -58,7 +58,7 @@ function handleMonsterFieldUpdate({ path, value }) {
      }
 
      if (recalculateSaves) {
-         recalculateAllSaveDefaults();
+         recalculateAllSaveDefaults(); 
      }
 
 }
@@ -113,15 +113,15 @@ function recalculateAllSaveDefaults() {
      if (!monsterBeingCreated.basics || !monsterBeingCreated.saves) return;
      console.log("MonsterCreator: Recalculating all save defaults...");
      for (const statKey in monsterBeingCreated.saves) {
-          // Berechne neuen Default nur, wenn kein Override aktiv ist
+          // Berechne neuen Default nur, wenn KEIN Override aktiv ist
           if (monsterBeingCreated.saves[statKey].overrideValue === null) {
               const tempMonster = { basics: monsterBeingCreated.basics, saves: monsterBeingCreated.saves };
-              const newDefault = saveModifierForStat(tempMonster, statKey);
-              // Update direkt im Objekt (ohne Event, da wir im selben Scope sind)
+              const newDefault = saveModifierForStat(tempMonster, statKey); // Nutze mathRendering
+              // Update direkt im Objekt
               monsterBeingCreated.saves[statKey].defaultValue = newDefault;
           }
      }
-     console.log("MonsterCreator: Updated saves:", JSON.parse(JSON.stringify(monsterBeingCreated.saves)));
+     console.log("MonsterCreator: Updated saves defaults:", JSON.parse(JSON.stringify(monsterBeingCreated.saves)));
 }
 // ========================================================================
 
