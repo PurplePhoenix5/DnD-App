@@ -445,19 +445,25 @@ int main() {
             return crow::response(400, "{\"error\": \"Ungültiges JSON im Request Body.\"}");
         }
 
-        // Validierung (wie zuvor)
-        if (!incoming_data.contains("basics") || !incoming_data["basics"].contains("name")) {
-            return crow::response(400, "{\"error\": \"Missing 'basics.name' field.\"}");
+        if (!incoming_data.contains("basics") || !incoming_data["basics"].is_object()) {
+            return crow::response(400, "{\"error\": \"Missing or invalid 'basics' object.\"}");
+        }
+        const json& basics_data = incoming_data["basics"];
+        if (!basics_data.contains("name") || !basics_data["name"].is_string() || basics_data["name"].get<std::string>().empty()) {
+            return crow::response(400, "{\"error\": \"Missing or empty 'basics.name' field.\"}");
+        }
+        if (!basics_data.contains("CR") || !basics_data["CR"].is_number()) {
+            return crow::response(400, "{\"error\": \"Missing or invalid 'basics.CR' field (must be a number).\"}");
         }
 
         // === NEU: Bestimme Zielordner basierend auf 'complete'-Flag ===
         bool is_complete = incoming_data.value("complete", false);
         std::string target_sub_dir = is_complete ? "completed" : "uncompleted";
-        std::string opposite_sub_dir = is_complete ? "uncompleted" : "completed"; // Für Löschen der alten Version
+        std::string opposite_sub_dir = is_complete ? "uncompleted" : "completed"; 
 
         std::filesystem::path target_dir_path = std::filesystem::path(monsters_base_dir) / target_sub_dir;
         std::filesystem::path target_file_path;
-        std::filesystem::path old_file_path; // Pfad zur evtl. existierenden alten Datei im anderen Ordner
+        std::filesystem::path old_file_path; 
         // ===============================================================
 
          try {
@@ -479,13 +485,6 @@ int main() {
          // Prüfe, ob Datei im *Ziel*-Ordner existiert (für Statuscode)
          bool file_existed_in_target_dir = std::filesystem::exists(target_file_path);
          bool created_new = !file_existed_in_target_dir && !file_existed_in_other_dir;
-
-
-        // 3. (Optional) Validierung der eingehenden Daten
-        if (!incoming_data.contains("name") || !incoming_data.contains("CR")) {
-            return crow::response(400, "{\"error\": \"Fehlendes 'name'-Feld oder 'CR'-Feld in den Monsterdaten.\"}");
-        }
-        // Füge hier ggf. weitere Validierungen hinzu
 
         // Datei zum Schreiben öffnen (überschreibt/erstellt im Zielordner)
         try {
