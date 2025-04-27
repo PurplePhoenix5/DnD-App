@@ -183,70 +183,73 @@ watch([() => props.basicsData.stats, () => props.basicsData.PB, allSkillsData],
 </script>
 
 <template>
-  <div>
-    <div v-if="isLoadingData">Loading skills data...</div>
-    <div v-else>
-      <v-row dense>
-        <!-- Iteriere über die Skills im modelValue und zeige je 2 pro Zeile -->
-        <v-col cols="12" md="6" v-for="(skill, index) in modelValue" :key="skill.skill">
-          <div class="d-flex align-center">
-             <!-- Number Input für den Skill Bonus -->
-             <v-number-input
-               :label="skill.skill"
-               :model-value="overrideStates[skill.skill] ? skill.overrideValue : skill.defaultValue"
-               @update:model-value="updateSkillField(index, 'overrideValue', $event === '' || $event === null ? null : parseInt($event, 10))"
-               density="compact" variant="outlined"
-               :readonly="!overrideStates[skill.skill]"
-               :class="{'input-is-default': !overrideStates[skill.skill]}"
-               control-variant="stacked" :reverse="false" inset
-               class="left-aligned-input flex-grow-1"
-               :disabled="!isEnabled"
-             >
-               <!-- Prepend-Inner Slot für Proficiency/Expertise Toggle -->
-               <template v-slot:prepend-inner>
-                  <v-tooltip location="top" :text="getSkillProfTooltip(index)">
-                     <template v-slot:activator="{ props: tooltipProps }">
-                         <v-btn
-                             v-bind="tooltipProps"
-                             :icon="getSkillProfIcon(index)"
-                             :color="skill.proficient ? (skill.expertise ? 'primary' : 'success') : 'grey'"
-                             variant="text" size="x-small"
-                             @click.stop="cycleSkillProficiency(index)"
-                             :disabled="!isEnabled || overrideStates[skill.skill]"
-                             class="mr-1"
-                         />
-                     </template>
-                  </v-tooltip>
-               </template>
-
-               <!-- Append-Inner Slot für Override Toggle -->
-               <template v-slot:append-inner>
-                  <v-tooltip location="top" :text="overrideStates[skill.skill] ? 'Use Default' : 'Override Bonus'">
-                      <template v-slot:activator="{ props: tooltipProps }">
-                          <v-btn
-                              v-bind="tooltipProps"
-                              :icon="overrideStates[skill.skill] ? 'mdi-lock-open-variant-outline' : 'mdi-lock-outline'"
-                              variant="text" size="x-small"
-                              @click.stop="toggleSkillOverride(index)"
-                              :disabled="!isEnabled"
-                          />
-                      </template>
-                  </v-tooltip>
-               </template>
-             </v-number-input>
-
-             <!-- Delete Button daneben -->
-             <v-btn
-                icon="mdi-delete-outline"
-                variant="text" color="error"
-                size="x-small" class="ml-1"
-                @click="removeSkill(index)"
-                :disabled="!isEnabled"
-                aria-label="Remove skill"
-             />
-          </div>
-        </v-col>
-      </v-row>
+    <div>
+      <div v-if="isLoadingData">Loading skills data...</div>
+      <div v-else>
+        <v-row dense>
+          <!-- Iteriere über die Skills -->
+          <v-col cols="12" md="6" v-for="(skill, index) in modelValue" :key="skill.skill">
+            <!-- === Geändert: d-flex umschließt jetzt Input UND Button === -->
+            <div class="d-flex align-center ga-1"> <!-- ga-1 für kleinen Abstand -->
+  
+               <!-- Number Input für den Skill Bonus -->
+               <v-number-input
+                 :label="skill.skill"
+                 :model-value="overrideStates[skill.skill] ? skill.overrideValue : skill.defaultValue"
+                 @update:model-value="updateSkillField(index, 'overrideValue', $event === '' || $event === null ? null : parseInt($event, 10))"
+                 density="compact" variant="outlined"
+                 :readonly="!overrideStates[skill.skill]"
+                 :class="{'input-is-default': !overrideStates[skill.skill]}"
+                 hide-details="auto"
+                 control-variant="stacked" :reverse="false" inset
+                 class="left-aligned-input flex-grow-1" 
+                 :disabled="!isEnabled"
+               >
+                 <!-- Prepend-Inner Slot für Proficiency Toggle -->
+                 <template v-slot:prepend-inner>
+                    <v-tooltip location="top" :text="getSkillProfTooltip(index)">
+                       <template v-slot:activator="{ props: tooltipProps }">
+                           <v-btn
+                               v-bind="tooltipProps"
+                               :icon="getSkillProfIcon(index)"
+                               :color="skill.proficient ? (skill.expertise ? 'primary' : 'success') : 'grey'"
+                               variant="text" size="x-small"
+                               @click.stop="cycleSkillProficiency(index)"
+                               :disabled="!isEnabled || overrideStates[skill.skill]"
+                               class="mr-1"
+                           />
+                       </template>
+                    </v-tooltip>
+                 </template>
+                 <!-- Append-Inner Slot für Override Toggle -->
+                 <template v-slot:append-inner>
+                    <v-tooltip location="top" :text="overrideStates[skill.skill] ? 'Use Default' : 'Override Bonus'">
+                        <template v-slot:activator="{ props: tooltipProps }">
+                            <v-btn
+                                v-bind="tooltipProps"
+                                :icon="overrideStates[skill.skill] ? 'mdi-lock-open-variant-outline' : 'mdi-lock-outline'"
+                                variant="text" size="x-small"
+                                @click.stop="toggleSkillOverride(index)"
+                                :disabled="!isEnabled"
+                            />
+                        </template>
+                    </v-tooltip>
+                 </template>
+               </v-number-input>
+  
+               <!-- Delete Button jetzt INNERHALB des d-flex -->
+               <v-btn
+                  icon="mdi-delete-outline"
+                  variant="text" color="error"
+                  @click="removeSkill(index)"
+                  :disabled="!isEnabled"
+                  aria-label="Remove skill"
+                  class="flex-shrink-1" 
+               />
+               <!-- ================================================== -->
+            </div>
+          </v-col>
+        </v-row>
 
       <!-- Add Skill Button/Select -->
       <v-row dense>
@@ -258,7 +261,6 @@ watch([() => props.basicsData.stats, () => props.basicsData.PB, allSkillsData],
                 density="compact" variant="outlined"
                 :disabled="!isEnabled || availableSkillsToAdd.length === 0"
                 hide-details
-                clearable
                 class="mt-2"
                 no-data-text="All skills added"
               >
