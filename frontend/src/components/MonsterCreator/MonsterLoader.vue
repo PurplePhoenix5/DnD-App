@@ -117,6 +117,15 @@ function uploadJson() {
     alert("Upload JSON functionality not implemented yet.");
 }
 
+function clearSelection() {
+    selectedMonsterToLoad.value = null;
+}
+
+defineExpose({
+    refreshList: fetchExistingMonsters, // Mache fetchExistingMonsters als refreshList verfügbar
+    clearSelection                   // Mache clearSelection verfügbar
+});
+
 </script>
 
 <template>

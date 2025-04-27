@@ -13,6 +13,7 @@ import { saveModifierForStat } from '../../utils/mathRendering.js';
 import StatBlockRenderer from '../StatBlockRenderer.vue'; // Pfad prüfen
 
 const emptyMonsterStructure = createEmptyMonster(); 
+const monsterLoaderRef = ref(null);
 
 function handleMonsterFieldUpdate({ path, value }) {
     console.log(`MonsterCreator: Received update - Path: "${path}", Value:`, value);
@@ -203,6 +204,11 @@ async function handleLoadMonster(monsterIdToLoad) {
 
 
         console.log('MonsterCreator: Loaded monster:', JSON.parse(JSON.stringify(monsterBeingCreated)));
+
+        if (monsterLoaderRef.value) {
+            monsterLoaderRef.value.refreshList();
+        }
+
     } catch (err) { /* ... Fehlerbehandlung ... */
         console.error("Error loading monster details:", err);
         loadMonsterDetailsError.value = `Failed to load details for ${monsterIdToLoad}.`;
@@ -260,6 +266,10 @@ async function handleSaveMonsterRequest() {
        Object.assign(monsterBeingCreated, savedData);
        console.log("Monster saved/updated successfully!", savedData);
        // Optional: Erfolgsmeldung
+       if (monsterLoaderRef.value) {
+            monsterLoaderRef.value.refreshList(); // Rufe die exponierte Methode auf
+            monsterLoaderRef.value.clearSelection(); // Rufe die exponierte Methode auf
+       }
 
   } catch(err) {
       console.error("Error saving monster:", err);
@@ -390,6 +400,7 @@ onMounted(() => {
       <v-row>
           <v-col cols="12">
               <MonsterLoader
+                  ref="monsterLoaderRef"
                   @load-monster="handleLoadMonster"
                   v-model:style="displayStyle"
                   v-model:columns="displayColumns"

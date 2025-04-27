@@ -5,6 +5,7 @@ import { get } from 'lodash'; // Importiere get von lodash
 
 import BasicsConfig from './Basics/BasicsConfig.vue';
 import SavesConfig from './Saving Throws/SavingThrowsConfig.vue';
+import SpeedsConfig from './Speeds/SpeedsConfig.vue';
 
 const props = defineProps({
     monsterData: { type: Object, required: true },
@@ -22,7 +23,7 @@ function handleFieldUpdate(payload) { // payload ist { key, value }
 const panels = ref([
   { id: 'basics', title: 'Basics', icon: 'mdi-clipboard-text-outline', path: 'basics', component: BasicsConfig },
   { id: 'saves', title: 'Saving Throws', icon: 'mdi-shield-half-full', path: 'saves', component: SavesConfig },
-  { id: 'speeds', title: 'Speeds', icon: 'mdi-run-fast' },
+  { id: 'speeds', title: 'Speeds', icon: 'mdi-run-fast', path: 'speeds', component: SpeedsConfig  },
   { id: 'skills', title: 'Skills', icon: 'mdi-star-check-outline' },
   { id: 'senses', title: 'Senses', icon: 'mdi-eye-outline' },
   { id: 'resistances', title: 'Resistances & Immunities', icon: 'mdi-shield-check-outline' },
@@ -75,6 +76,10 @@ const getDataForPanel = (panel) => {
            :is-enabled="isEnabled"
            @update:field="handleFieldUpdate($event)"
         />
+        <SpeedsConfig v-else-if="panel.id === 'speeds'"
+                      :modelValue="getDataForPanel(panel)"
+                      :is-enabled="isEnabled"
+                      @update:field="handleFieldUpdate($event)" />
         <p v-else class="text-disabled pa-4">
           Configuration for {{ panel.title }} not implemented yet.
         </p>

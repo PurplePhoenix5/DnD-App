@@ -1,0 +1,117 @@
+{
+    "actions": {
+        "attackRoll": [],
+        "other": [],
+        "savingThrow": []
+    },
+    "basics": {
+        "AC": 10,
+        "ACType": "Leather Armor",
+        "CR": 5,
+        "HP": {
+            "HDAmount": 2,
+            "HPmodifier": 0,
+            "defaultDie": 8,
+            "overrideDie": null
+        },
+        "Initiative": {
+            "initDefaultValue": 6,
+            "initExpertise": true,
+            "initOverrideValue": null,
+            "initProficiency": true
+        },
+        "PB": 3,
+        "alignment": "unaligned",
+        "id": "testcompleted_cr5",
+        "languages": "Dwarvish",
+        "name": "TestCompleted",
+        "size": "Medium",
+        "stats": {
+            "CHA": 10,
+            "CON": 10,
+            "DEX": 10,
+            "INT": 10,
+            "STR": 10,
+            "WIS": 10
+        },
+        "type": "Humanoid"
+    },
+    "bonusAction": {
+        "attackRoll": [],
+        "other": [],
+        "savingThrow": []
+    },
+    "complete": true,
+    "conditionImmunities": [],
+    "immunities": [],
+    "inventory": "",
+    "lairActions": [],
+    "legendaryActions": {
+        "LegendaryResistanceUses": 0,
+        "legendaryAction": [],
+        "legendaryResistanceType": "",
+        "uses": 0,
+        "usesInLair": 0
+    },
+    "multiattacks": "",
+    "reactions": [],
+    "resistances": [],
+    "saves": {
+        "CHA": {
+            "defaultValue": 0,
+            "overrideValue": null,
+            "proficient": false
+        },
+        "CON": {
+            "defaultValue": 0,
+            "overrideValue": null,
+            "proficient": false
+        },
+        "DEX": {
+            "defaultValue": 0,
+            "overrideValue": null,
+            "proficient": false
+        },
+        "INT": {
+            "defaultValue": 0,
+            "overrideValue": null,
+            "proficient": false
+        },
+        "STR": {
+            "defaultValue": 0,
+            "overrideValue": null,
+            "proficient": false
+        },
+        "WIS": {
+            "defaultValue": 0,
+            "overrideValue": null,
+            "proficient": false
+        }
+    },
+    "senses": {
+        "blindsight": 0,
+        "darkvision": 60,
+        "passiveInsight": {
+            "defaultValue": 10,
+            "overrideValue": null
+        },
+        "passivePerception": {
+            "defaultValue": 10,
+            "overrideValue": null
+        },
+        "sensesNotes": "",
+        "tremorsense": 0,
+        "truesight": 0
+    },
+    "skills": [],
+    "speeds": [
+        {
+            "note": "",
+            "speed": 30,
+            "type": "walk"
+        }
+    ],
+    "spellcasting": {},
+    "traits": [],
+    "vulnerabilities": []
+}
