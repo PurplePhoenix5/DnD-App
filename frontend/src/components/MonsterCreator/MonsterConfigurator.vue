@@ -6,6 +6,7 @@ import { get } from 'lodash'; // Importiere get von lodash
 import BasicsConfig from './Basics/BasicsConfig.vue';
 import SavesConfig from './Saving Throws/SavingThrowsConfig.vue';
 import SpeedsConfig from './Speeds/SpeedsConfig.vue';
+import SkillsConfig from './Skills/SkillsConfig.vue';
 
 const props = defineProps({
     monsterData: { type: Object, required: true },
@@ -24,7 +25,7 @@ const panels = ref([
   { id: 'basics', title: 'Basics', icon: 'mdi-clipboard-text-outline', path: 'basics', component: BasicsConfig },
   { id: 'saves', title: 'Saving Throws', icon: 'mdi-shield-half-full', path: 'saves', component: SavesConfig },
   { id: 'speeds', title: 'Speeds', icon: 'mdi-run-fast', path: 'speeds', component: SpeedsConfig  },
-  { id: 'skills', title: 'Skills', icon: 'mdi-star-check-outline' },
+  { id: 'skills', title: 'Skills', icon: 'mdi-star-check-outline', path: 'skills', component: SkillsConfig },
   { id: 'senses', title: 'Senses', icon: 'mdi-eye-outline' },
   { id: 'resistances', title: 'Resistances & Immunities', icon: 'mdi-shield-check-outline' },
   { id: 'inventory', title: 'Inventory', icon: 'mdi-treasure-chest-outline' }, 
@@ -44,6 +45,9 @@ const getDataForPanel = (panel) => {
     if (panel.path === 'basics') {
          // Gib das gesamte basics-Objekt zurück
          return props.monsterData.basics ?? {}; // Fallback auf leeres Objekt
+    }
+    if (panel.path === 'skills') {
+         return get(props.monsterData, 'skills', []); // Default leeres Array
     }
     // Standard: Hole den Wert über den Pfad
     return get(props.monsterData, panel.path, {}); // Gib leeres Objekt als Default zurück
@@ -78,6 +82,11 @@ const getDataForPanel = (panel) => {
         />
         <SpeedsConfig v-else-if="panel.id === 'speeds'"
                       :modelValue="getDataForPanel(panel)"
+                      :is-enabled="isEnabled"
+                      @update:field="handleFieldUpdate($event)" />
+        <SkillsConfig v-else-if="panel.id === 'skills'"
+                      :modelValue="getDataForPanel(panel)"
+                      :basicsData="getDataForPanel({ path: 'basics' })" 
                       :is-enabled="isEnabled"
                       @update:field="handleFieldUpdate($event)" />
         <p v-else class="text-disabled pa-4">

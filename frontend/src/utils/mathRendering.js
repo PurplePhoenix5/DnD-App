@@ -111,29 +111,27 @@ export function saveModifierForStat(monster, stat) {
   }
   
   /**
-   * Calculates the bonus for a specific skill, considering proficiency, expertise, and overrides.
-   * Uses the new monster template structure.
-   * @param {object} monster - The *full* monster object (needs basics.stats, basics.PB, skills)
-   * @param {object} skillInfo - The skill object from the monster's skills array { skill: string, proficient: boolean, expertise: boolean, overrideValue: number | null }
-   * @param {object} skillsData - The loaded skills data mapping skill names to stats (optional, but recommended for stat lookup)
-   * @returns {number} The skill bonus
-   */
-  export function bonusForSkill(monster, skillInfo, skillsData = {}) {
-      if (!monster || !monster.basics || !skillInfo?.skill) return 0;
-      if (skillInfo.overrideValue !== null && skillInfo.overrideValue !== undefined) {
-        return skillInfo.overrideValue;
-      }
-  
-      // Finde den zugehörigen Stat (benötigt geladene skillsData)
-      const skillDefinition = skillsData[skillInfo.skill];
-      const statKey = skillDefinition?.stat || 'INT'; // Fallback auf INT oder was sinnvoll ist
-  
-      const profBonus = monster.basics.PB ?? 2;
-      const profMultiplier = skillInfo.expertise ? 2 : skillInfo.proficient ? 1 : 0;
-      const score = monster.basics.stats?.[statKey] ?? 10;
-  
-      return statModifier(score) + (profBonus * profMultiplier);
-  }
+ * Calculates the bonus for a specific skill, considering proficiency, expertise, and overrides.
+ * Uses the new monster template structure.
+ * WICHTIG: Diese Funktion berechnet den Bonus basierend auf den übergebenen skillInfo.
+ * Sie berücksichtigt *nicht* selbst den overrideValue, das muss der Caller tun.
+ * @param {object} monsterBasics - Nur das 'basics'-Objekt des Monsters (needs stats, PB)
+ * @param {object} skillInfo - Das skill object aus monster.skills { skill: string, proficient: boolean, expertise: boolean }
+ * @param {object} skillsData - Die geladenen skills.json Daten { SKILL_NAME: { stat: 'XYZ' } }
+ * @returns {number} The calculated skill bonus (without override)
+ */
+export function calculateSkillBonus(monsterBasics, skillInfo, skillsData = {}) {
+  if (!monsterBasics || !skillInfo?.skill || !skillsData) return 0;
+
+  const skillDefinition = skillsData[skillInfo.skill]; // Finde Skill-Definition
+  const statKey = skillDefinition?.stat || 'INT'; // Fallback auf INT
+
+  const profBonus = monsterBasics.PB ?? 2;
+  const profMultiplier = skillInfo.expertise ? 2 : skillInfo.proficient ? 1 : 0;
+  const score = monsterBasics.stats?.[statKey] ?? 10;
+
+  return statModifier(score) + (profBonus * profMultiplier);
+}
   
   /**
    * Calculates the attack bonus for an Attack Roll action.

@@ -5,36 +5,36 @@
         "savingThrow": []
     },
     "basics": {
-        "AC": 20,
-        "ACType": "Hide Armor",
-        "CR": 5,
+        "AC": 10,
+        "ACType": "natural armor",
+        "CR": 0,
         "HP": {
-            "HDAmount": 5,
-            "HPmodifier": 5,
+            "HDAmount": 1,
+            "HPmodifier": 1,
             "defaultDie": 8,
             "overrideDie": null
         },
         "Initiative": {
-            "initDefaultValue": 5,
+            "initDefaultValue": 2,
             "initExpertise": false,
             "initOverrideValue": null,
-            "initProficiency": false
+            "initProficiency": true
         },
-        "PB": 3,
+        "PB": 2,
         "alignment": "Neutral",
-        "id": "defaulttest_cr5",
-        "languages": "Common, Dwarvish, Elvish, Giant, Gnomish",
-        "name": "DefaultTest",
+        "id": "testuncompleted_cr0",
+        "languages": "Dwarvish",
+        "name": "TestUncompleted",
         "size": "Medium",
         "stats": {
-            "CHA": 20,
-            "CON": 20,
-            "DEX": 20,
-            "INT": 20,
-            "STR": 20,
-            "WIS": 20
+            "CHA": 10,
+            "CON": 10,
+            "DEX": 10,
+            "INT": 10,
+            "STR": 10,
+            "WIS": 10
         },
-        "type": "Dragon"
+        "type": "Giant"
     },
     "bonusAction": {
         "attackRoll": [],
@@ -58,32 +58,32 @@
     "resistances": [],
     "saves": {
         "CHA": {
-            "defaultValue": 5,
+            "defaultValue": 0,
             "overrideValue": null,
             "proficient": false
         },
         "CON": {
-            "defaultValue": 5,
+            "defaultValue": 0,
             "overrideValue": null,
             "proficient": false
         },
         "DEX": {
-            "defaultValue": 5,
+            "defaultValue": 0,
             "overrideValue": null,
             "proficient": false
         },
         "INT": {
-            "defaultValue": 5,
+            "defaultValue": 0,
             "overrideValue": null,
             "proficient": false
         },
         "STR": {
-            "defaultValue": 5,
+            "defaultValue": 0,
             "overrideValue": null,
             "proficient": false
         },
         "WIS": {
-            "defaultValue": 5,
+            "defaultValue": 0,
             "overrideValue": null,
             "proficient": false
         }
@@ -109,11 +109,6 @@
             "note": "",
             "speed": 30,
             "type": "walk"
-        },
-        {
-            "note": "hovering",
-            "speed": 30,
-            "type": "flying"
         }
     ],
     "spellcasting": {},

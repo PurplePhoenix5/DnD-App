@@ -69,23 +69,6 @@ function removeSpeedLine(index) {
     emitUpdate(newSpeeds);
 }
 
-// --- Computed Property für die Anzeige ---
-// Erstellt eine Version des Arrays mit Defaults für die erste Zeile, falls diese leer ist
-const speedsForDisplay = computed(() => {
-    if (props.modelValue.length === 0) {
-        // Sollte durch onMounted nicht passieren, aber als Fallback
-        return [{ speed: 30, type: 'walk', note: '' }];
-    }
-    return props.modelValue.map((speed, index) => {
-        if (index === 0 && speed.speed === null && speed.type === null && speed.note === '') {
-             // Wende Defaults nur an, wenn die erste Zeile *genau* leer ist
-             return { speed: 30, type: 'walk', note: '' };
-        }
-        return speed;
-    });
-});
-
-
 </script>
 
 <template>
@@ -176,7 +159,7 @@ const speedsForDisplay = computed(() => {
 :deep(.left-aligned-input .v-field__input) {
   text-align: left !important;
   /* Passe Padding für Suffix und Buttons an */
-   padding-right: 55px !important; /* Beispielwert */
+   padding-right: 5px !important; /* Beispielwert */
 }
 :deep(.left-aligned-input .v-field__append-inner) {
     align-items: center;
@@ -191,7 +174,7 @@ const speedsForDisplay = computed(() => {
 /* Passe Padding Rechts an, um Platz für Suffix UND Buttons zu machen */
 :deep(.speed-input .v-field__input) {
   /* Mehr Platz rechts nötig: Suffix (~20px?) + Buttons (~25px?) + etwas Luft */
-  padding-right: 60px !important; /* Beispielwert, anpassen! */
+  padding-right: 5px !important; /* Beispielwert, anpassen! */
 }
 
 /* Style für Suffix im Speed-Input */

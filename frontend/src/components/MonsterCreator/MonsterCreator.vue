@@ -1,87 +1,20 @@
 <!-- frontend/src/components/MonsterCreator/MonsterCreator.vue -->
 <script setup>
 import { ref, reactive, watch, computed, onMounted } from 'vue';
-import { set, get, isEqual, cloneDeep  } from 'lodash'; // Importiere set, get und isEqual von lodash
+import { set, get, isEqual, cloneDeep } from 'lodash';
 import { Splitpanes, Pane } from 'splitpanes';
 import 'splitpanes/dist/splitpanes.css';
 import { loadDnDData, preloadCommonData } from '../../utils/dndDataService.js';
-import { calculateInitiativeBonus } from '../../utils/mathRendering.js';
+import { calculateInitiativeBonus, calculateSkillBonus, statModifier, saveModifierForStat } from '../../utils/mathRendering.js';
 
 import MonsterLoader from './MonsterLoader.vue';
 import MonsterConfigurator from './MonsterConfigurator.vue';
-import { saveModifierForStat } from '../../utils/mathRendering.js';
-import StatBlockRenderer from '../StatBlockRenderer.vue'; // Pfad prüfen
+// import StatBlockRenderer from '../StatBlockRenderer.vue'; // Pfad prüfen
 
 const emptyMonsterStructure = createEmptyMonster(); 
 const monsterLoaderRef = ref(null);
+const skillsDataGlobal = ref({}); 
 
-function handleMonsterFieldUpdate({ path, value }) {
-    console.log(`MonsterCreator: Received update - Path: "${path}", Value:`, value);
-
-    // === KORREKTUR: Bestimme den korrekten Pfad ===
-    let targetPath = path;
-    // Prüfe, ob der empfangene Pfad ein Schlüssel im 'basics'-Objekt des Templates ist
-    // (oder im HP-, stats-, Initiative-Unterobjekt von basics)
-    if (emptyMonsterStructure.basics && path in emptyMonsterStructure.basics) {
-        targetPath = `basics.${path}`;
-    } else if (emptyMonsterStructure.basics?.HP && path.startsWith('HP.')) {
-        targetPath = `basics.${path}`;
-    } else if (emptyMonsterStructure.basics?.stats && path.startsWith('stats.')) {
-        targetPath = `basics.${path}`;
-    } else if (emptyMonsterStructure.basics?.Initiative && path.startsWith('Initiative.')) {
-        targetPath = `basics.${path}`;
-    }
-    // Füge hier ggf. weitere Prüfungen für andere verschachtelte Objekte hinzu,
-    // falls Unterkomponenten direkt tiefere Pfade senden (z.B. für actions.attackRoll[0].name)
-    // Beispiel:
-    // else if (path.startsWith('attackRoll[')) { targetPath = `actions.${path}`; }
-
-    console.log(`MonsterCreator: Setting path "${targetPath}" with value:`, value);
-    // ============================================
-
-    // Verwende den korrigierten Pfad mit lodash.set
-    set(monsterBeingCreated, targetPath, value);
-
-    // --- Neuberechnungen auslösen (verwende jetzt targetPath) ---
-    const oldPB = get(monsterBeingCreated, 'basics.PB'); // PB *vor* möglicher Änderung holen
-
-    // 1. Proficiency Bonus bei CR-Änderung
-    if (targetPath === 'basics.CR' && typeof value === 'number') {
-        updateProficiencyFromCR(value);
-    }
-
-    // 2. Default HD Size bei Size-Änderung (wenn kein Override)
-    if (targetPath === 'basics.size' && get(monsterBeingCreated, 'basics.HP.overrideDie') === null) {
-        const sizeVal = value;
-        const hdMapping = { 'Tiny': 4, 'Small': 6, 'Medium': 8, 'Large': 10, 'Huge': 12, 'Gargantuan': 20, 'Titan': 20 };
-        const defaultDie = hdMapping[sizeVal] || 8;
-        set(monsterBeingCreated, 'basics.HP.defaultDie', defaultDie);
-    }
-
-    // 3. Default Initiative bei relevanter Änderung (DEX, Prof, Exp, PB) *nur wenn kein Override*
-    const pbAfterUpdate = get(monsterBeingCreated, 'basics.PB'); // PB *nach* möglicher CR-Änderung
-    if ((targetPath === 'basics.stats.DEX' || targetPath === 'basics.Initiative.initProficiency' || targetPath === 'basics.Initiative.initExpertise' || (targetPath === 'basics.CR' && oldPB !== pbAfterUpdate) )
-        && get(monsterBeingCreated, 'basics.Initiative.initOverrideValue') === null)
-    {
-         console.log("MonsterCreator: Triggering recalculateDefaultInitiative due to change in:", targetPath);
-         recalculateDefaultInitiative();
-    }
-
-     // 4. Wenn Override für Initiative entfernt wird, Default neu berechnen
-     if (targetPath === 'basics.Initiative.initOverrideValue' && value === null) {
-          console.log("MonsterCreator: Triggering recalculateDefaultInitiative due to override removal");
-          recalculateDefaultInitiative();
-     }
-
-     // 5. Default Saves bei relevanter Änderung (Stats, Prof, Exp, PB) *nur wenn kein Override*
-     // Beachte: 'saves.STR.proficient' kommt von SavesConfig als path
-     if (targetPath.startsWith('basics.stats.') || targetPath.startsWith('saves.') || (targetPath === 'basics.CR' && oldPB !== pbAfterUpdate))
-     {
-        recalculateAllSaveDefaults(); // Ruft intern die Prüfung für Overrides auf
-     }
-}
-
-// Funktion zum Erstellen eines leeren Monsters (aktualisiert)
 function createEmptyMonster() {
     const baseStats = { STR: 10, DEX: 10, CON: 10, INT: 10, WIS: 10, CHA: 10 };
     const baseSaves = {};
@@ -127,6 +60,67 @@ function createEmptyMonster() {
     };
 }
 
+function handleMonsterFieldUpdate({ path, value }) {
+    console.log(`MonsterCreator: Received update - Path: "${path}", Value:`, value);
+
+    let targetPath = path;
+    if (emptyMonsterStructure.basics && path in emptyMonsterStructure.basics) {
+        targetPath = `basics.${path}`;
+    } else if (emptyMonsterStructure.basics?.HP && path.startsWith('HP.')) {
+        targetPath = `basics.${path}`;
+    } else if (emptyMonsterStructure.basics?.stats && path.startsWith('stats.')) {
+        targetPath = `basics.${path}`;
+    } else if (emptyMonsterStructure.basics?.Initiative && path.startsWith('Initiative.')) {
+        targetPath = `basics.${path}`;
+    }
+
+    console.log(`MonsterCreator: Setting path "${targetPath}" with value:`, value);
+
+    const oldPB = get(monsterBeingCreated, 'basics.PB'); 
+    const oldStats = cloneDeep(get(monsterBeingCreated, 'basics.stats'));
+    const pbAfterUpdate = get(monsterBeingCreated, 'basics.PB'); // PB *nach* möglicher CR-Änderung
+
+    set(monsterBeingCreated, targetPath, value);
+    let recalculateSaves = false;
+    let recalculatePassives = false;
+
+    if (path === 'basics.CR' && typeof value === 'number') {
+         updateProficiencyFromCR(value); 
+         recalculateSaves=true; 
+        }
+    if (path === 'basics.size' && get(monsterBeingCreated, 'basics.HP.overrideDie') ) { 
+        const sizeVal = value;
+        const hdMapping = { 'Tiny': 4, 'Small': 6, 'Medium': 8, 'Large': 10, 'Huge': 12, 'Gargantuan': 20, 'Titan': 20 };
+        const defaultDie = hdMapping[sizeVal] || 8;
+        set(monsterBeingCreated, 'basics.HP.defaultDie', defaultDie); 
+    }
+    if (path.startsWith('basics.stats.')) { 
+        recalculateSaves=true; 
+        recalculatePassives=true; 
+    } 
+    if ((targetPath === 'basics.stats.DEX' || targetPath === 'basics.Initiative.initProficiency' || targetPath === 'basics.Initiative.initExpertise' || (targetPath === 'basics.CR' && oldPB !== pbAfterUpdate) ) && get(monsterBeingCreated, 'basics.Initiative.initOverrideValue') === null) { 
+        console.log("MonsterCreator: Triggering recalculateDefaultInitiative due to change in:", targetPath);
+        recalculateDefaultInitiative(); 
+    }
+    if (targetPath === 'basics.Initiative.initOverrideValue' && value === null) { 
+        console.log("MonsterCreator: Triggering recalculateDefaultInitiative due to override removal");
+        recalculateDefaultInitiative();
+     }
+    if (path.startsWith('saves.')) { 
+        recalculateSaves = true; 
+    } // Save Prof/Override geändert
+    if (path.startsWith('skills.')) { 
+        recalculatePassives = true; 
+    }
+    if (targetPath.startsWith('basics.stats.') || targetPath.startsWith('saves.') || (targetPath === 'basics.CR' && oldPB !== pbAfterUpdate)) {
+        recalculateAllSaveDefaults(); 
+    }
+
+    if (recalculateSaves) recalculateAllSaveDefaults();
+    if (recalculatePassives) recalculatePassiveDefaults();
+
+}
+
 function recalculateAllSaveDefaults() {
      if (!monsterBeingCreated.basics || !monsterBeingCreated.saves) return;
      console.log("MonsterCreator: Recalculating all save defaults...");
@@ -140,6 +134,44 @@ function recalculateAllSaveDefaults() {
           }
      }
      console.log("MonsterCreator: Updated saves defaults:", JSON.parse(JSON.stringify(monsterBeingCreated.saves)));
+}
+
+function recalculatePassiveDefaults() {
+    // Prüfe, ob die benötigten Daten (basics, skills, senses UND die geladenen skillsData) vorhanden sind
+    if (!monsterBeingCreated.basics || !monsterBeingCreated.skills || !monsterBeingCreated.senses || Object.keys(skillsDataGlobal.value).length === 0) {
+        console.log("MonsterCreator: Skipping passive default calculation - data not ready.");
+        return;
+    }
+    console.log("MonsterCreator: Recalculating passive defaults...");
+
+    // Passive Perception
+    const ppConfig = monsterBeingCreated.senses.passivePerception;
+    if (ppConfig && (ppConfig.overrideValue === null || ppConfig.overrideValue === undefined)) {
+         const perceptionSkillInfo = monsterBeingCreated.skills.find(s => s.skill === 'Perception');
+         // Rufe die importierte Funktion auf, übergebe globale Skill-Daten
+         const perceptionBonus = perceptionSkillInfo
+             ? calculateSkillBonus(monsterBeingCreated.basics, perceptionSkillInfo, skillsDataGlobal.value)
+             : statModifier(monsterBeingCreated.basics.stats?.WIS); // Verwende importierte Funktion
+         const newPPDefault = 10 + perceptionBonus;
+         if (ppConfig.defaultValue !== newPPDefault) {
+             set(monsterBeingCreated, 'senses.passivePerception.defaultValue', newPPDefault);
+         }
+    }
+
+     // Passive Insight
+     const piConfig = monsterBeingCreated.senses.passiveInsight;
+     if (piConfig && (piConfig.overrideValue === null || piConfig.overrideValue === undefined)) {
+          const insightSkillInfo = monsterBeingCreated.skills.find(s => s.skill === 'Insight');
+          // Rufe die importierte Funktion auf
+          const insightBonus = insightSkillInfo
+              ? calculateSkillBonus(monsterBeingCreated.basics, insightSkillInfo, skillsDataGlobal.value)
+              : statModifier(monsterBeingCreated.basics.stats?.WIS); // Verwende importierte Funktion
+          const newPIDefault = 10 + insightBonus;
+           if (piConfig.defaultValue !== newPIDefault) {
+              set(monsterBeingCreated, 'senses.passiveInsight.defaultValue', newPIDefault);
+           }
+     }
+      console.log("MonsterCreator: Updated passive defaults:", JSON.parse(JSON.stringify(monsterBeingCreated.senses)));
 }
 // ========================================================================
 
@@ -387,9 +419,18 @@ async function saveMonster() {
 }
 
 // --- Lifecycle Hook ---
-onMounted(() => {
-    preloadCommonData(); // Lädt DnDData
+onMounted(async () => {
+    preloadCommonData(); 
     loadDnDData('crData.json').then(data => { if(data) crDataList.value = data; });
+    const [crData, skillsData] = await Promise.all([
+         loadDnDData('crData.json'),
+         loadDnDData('skills.json')
+    ]);
+    if(crData) crDataList.value = crData;
+    if(skillsData) skillsDataGlobal.value = skillsData; 
+
+    recalculateAllSaveDefaults();
+    recalculatePassiveDefaults();
 });
 
 </script>
