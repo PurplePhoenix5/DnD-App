@@ -51,7 +51,7 @@ const getDataForPanel = (panel) => {
 </script>
 
 <template>
-  <v-expansion-panels variant="inset" multiple #default #v-model="openPanels">
+  <v-expansion-panels variant="popout" multiple #default #v-model="openPanels">
     <v-expansion-panel 
       v-for="panel in panels"
       :key="panel.id"

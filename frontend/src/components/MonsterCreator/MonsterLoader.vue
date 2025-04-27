@@ -66,9 +66,16 @@ onMounted(() => {
     fetchExistingMonsters();
 });
 
-// Beobachte die Auswahl im Autocomplete-Feld
 watch(selectedMonsterToLoad, (newId) => {
-    if (newId) { emit('load-monster', newId); }
+    // newId sollte hier der Wert von item-value sein (die Monster-ID als String)
+    if (newId && typeof newId === 'string') { // Zusätzliche Prüfung auf String
+        console.log('MonsterLoader: Emitting load-monster with ID:', newId);
+        emit('load-monster', newId);
+    } else if (newId) {
+         // Fallback, falls doch das Objekt kommt (sollte nicht passieren ohne return-object)
+         console.warn('MonsterLoader: selectedMonsterToLoad is an object, emitting id:', newId.id);
+         if (newId.id) emit('load-monster', newId.id);
+    }
 });
 
 watch(selectedStyle, (newStyle) => {
@@ -127,7 +134,7 @@ function uploadJson() {
                         :loading="isLoadingMonsters"
                         :disabled="isLoadingMonsters"
                         placeholder="Search or select..."
-                        clearable return-object=false 
+                        clearable  
                         variant="solo-filled" density="compact" hide-details="auto"
                         no-data-text="No monsters found..." prepend-inner-icon="mdi-magnify"
                     >

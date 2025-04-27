@@ -21,7 +21,6 @@ struct CorsMiddleware {
 
         if (req.method == "OPTIONS"_method) {
             res.add_header("Access-Control-Allow-Origin", "http://localhost:5173");
-            res.add_header("Access-Control-Allow-Origin", "http://localhost:5174");
             res.add_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
             res.add_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
             res.code = 204;
@@ -30,7 +29,6 @@ struct CorsMiddleware {
     }
     void after_handle(crow::request& /*req*/, crow::response& res, context& /*ctx*/) {
         res.set_header("Access-Control-Allow-Origin", "http://localhost:5173");
-        res.add_header("Access-Control-Allow-Origin", "http://localhost:5174");
         res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         res.set_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
     }
@@ -160,28 +158,31 @@ int main() {
     });
 
      // --- GET /api/monsters/summary ---
-     CROW_ROUTE(app, "/api/monsters/summary")([&]() { // Capture base_dir
+     CROW_ROUTE(app, "/api/monsters/summary")([&]() {
         json monster_summary_list = json::array();
+        // === Geändert: Verwende recursive_directory_iterator ===
         try {
-             for (const auto& entry : std::filesystem::directory_iterator(monsters_base_dir)) {
+             // Iteriere rekursiv durch monsters_base_dir und Unterordner
+             for (const auto& entry : std::filesystem::recursive_directory_iterator(monsters_base_dir)) {
+                 // Verarbeite nur .json Dateien (ignoriere Ordner)
                  if (entry.is_regular_file() && entry.path().extension() == ".json") {
                      std::ifstream file(entry.path());
                      if (file.is_open()) {
                          try {
                              json data;
                              file >> data;
-                             // Extrahiere benötigte Felder + complete Flag
                              json summary_item;
+                             // Verwende den Dateinamen ohne Endung als ID
                              summary_item["id"] = entry.path().stem().string();
-                             summary_item["name"] = data.value("basics", json::object()).value("name", "Unknown"); // Name aus basics
-                             summary_item["cr"] = data.value("basics", json::object()).value("CR", 0.0);          // CR aus basics
-                             summary_item["size"] = data.value("basics", json::object()).value("size", "Medium");    // Size aus basics
-                             summary_item["type"] = data.value("basics", json::object()).value("type", "unknown");    // Type aus basics
+                             // Extrahiere Daten sicher
+                             summary_item["name"] = data.value("basics", json::object()).value("name", "Unknown");
+                             summary_item["cr"] = data.value("basics", json::object()).value("CR", 0.0);
+                             summary_item["size"] = data.value("basics", json::object()).value("size", "Medium");
+                             summary_item["type"] = data.value("basics", json::object()).value("type", "unknown");
                              summary_item["complete"] = data.value("complete", false);
                              monster_summary_list.push_back(summary_item);
                          } catch (const std::exception& e) {
                              std::cerr << "Fehler beim Verarbeiten der Monster-Datei " << entry.path() << ": " << e.what() << std::endl;
-                             // Überspringe fehlerhafte Dateien
                          }
                      }
                  }
@@ -190,6 +191,7 @@ int main() {
             std::cerr << "Fehler beim Auflisten der Monster in " << monsters_base_dir << ": " << e.what() << std::endl;
             return crow::response(500, "{\"error\": \"Serverfehler beim Auflisten der Monster.\"}");
         }
+        // ====================================================
         crow::response res(monster_summary_list.dump());
         res.set_header("Content-Type", "application/json");
         return res;

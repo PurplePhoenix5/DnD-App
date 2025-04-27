@@ -12,55 +12,72 @@ import MonsterConfigurator from './MonsterConfigurator.vue';
 import { saveModifierForStat } from '../../utils/mathRendering.js';
 import StatBlockRenderer from '../StatBlockRenderer.vue'; // Pfad prüfen
 
-function handleMonsterFieldUpdate({ path, value }) {
-    console.log(`MonsterCreator: Updating path "${path}" with value:`, value);
-    const oldPB = monsterBeingCreated.basics?.PB; // PB vor der Änderung speichern
-    const oldStats = cloneDeep(monsterBeingCreated.basics?.stats); // Stats vor der Änderung speichern
-    set(monsterBeingCreated, path, value); // Update den Wert
+const emptyMonsterStructure = createEmptyMonster(); 
 
-    let recalculateSaves = false;
-    // Prüfe, ob Stats, PB (via CR) oder Save-Proficiency geändert wurde
-    if (path.startsWith('basics.stats.') ||
-        path.startsWith('saves.') || // Änderung an proficient oder overrideValue
-        (path === 'basics.CR' && get(monsterBeingCreated, 'basics.PB') !== oldPB)) // PB hat sich geändert
-    {
-         recalculateSaves = true;
+function handleMonsterFieldUpdate({ path, value }) {
+    console.log(`MonsterCreator: Received update - Path: "${path}", Value:`, value);
+
+    // === KORREKTUR: Bestimme den korrekten Pfad ===
+    let targetPath = path;
+    // Prüfe, ob der empfangene Pfad ein Schlüssel im 'basics'-Objekt des Templates ist
+    // (oder im HP-, stats-, Initiative-Unterobjekt von basics)
+    if (emptyMonsterStructure.basics && path in emptyMonsterStructure.basics) {
+        targetPath = `basics.${path}`;
+    } else if (emptyMonsterStructure.basics?.HP && path.startsWith('HP.')) {
+        targetPath = `basics.${path}`;
+    } else if (emptyMonsterStructure.basics?.stats && path.startsWith('stats.')) {
+        targetPath = `basics.${path}`;
+    } else if (emptyMonsterStructure.basics?.Initiative && path.startsWith('Initiative.')) {
+        targetPath = `basics.${path}`;
+    }
+    // Füge hier ggf. weitere Prüfungen für andere verschachtelte Objekte hinzu,
+    // falls Unterkomponenten direkt tiefere Pfade senden (z.B. für actions.attackRoll[0].name)
+    // Beispiel:
+    // else if (path.startsWith('attackRoll[')) { targetPath = `actions.${path}`; }
+
+    console.log(`MonsterCreator: Setting path "${targetPath}" with value:`, value);
+    // ============================================
+
+    // Verwende den korrigierten Pfad mit lodash.set
+    set(monsterBeingCreated, targetPath, value);
+
+    // --- Neuberechnungen auslösen (verwende jetzt targetPath) ---
+    const oldPB = get(monsterBeingCreated, 'basics.PB'); // PB *vor* möglicher Änderung holen
+
+    // 1. Proficiency Bonus bei CR-Änderung
+    if (targetPath === 'basics.CR' && typeof value === 'number') {
+        updateProficiencyFromCR(value);
     }
 
     // 2. Default HD Size bei Size-Änderung (wenn kein Override)
-    if (path === 'basics.size' && get(monsterBeingCreated, 'basics.HP.overrideDie') === null) {
-         const sizeVal = value; // Der neue Size-Wert
-         const hdMapping = { 'Tiny': 4, 'Small': 6, 'Medium': 8, 'Large': 10, 'Huge': 12, 'Gargantuan': 20, 'Titan': 20 };
-         const defaultDie = hdMapping[sizeVal] || 8;
-         set(monsterBeingCreated, 'basics.HP.defaultDie', defaultDie);
+    if (targetPath === 'basics.size' && get(monsterBeingCreated, 'basics.HP.overrideDie') === null) {
+        const sizeVal = value;
+        const hdMapping = { 'Tiny': 4, 'Small': 6, 'Medium': 8, 'Large': 10, 'Huge': 12, 'Gargantuan': 20, 'Titan': 20 };
+        const defaultDie = hdMapping[sizeVal] || 8;
+        set(monsterBeingCreated, 'basics.HP.defaultDie', defaultDie);
     }
 
-    // 3. Default Initiative bei relevanter Änderung (DEX, Prof, Exp) *nur wenn kein Override*
-    if ((path.startsWith('basics.stats.DEX') || path === 'basics.Initiative.initProficiency' || path === 'basics.Initiative.initExpertise')
+    // 3. Default Initiative bei relevanter Änderung (DEX, Prof, Exp, PB) *nur wenn kein Override*
+    const pbAfterUpdate = get(monsterBeingCreated, 'basics.PB'); // PB *nach* möglicher CR-Änderung
+    if ((targetPath === 'basics.stats.DEX' || targetPath === 'basics.Initiative.initProficiency' || targetPath === 'basics.Initiative.initExpertise' || (targetPath === 'basics.CR' && oldPB !== pbAfterUpdate) )
         && get(monsterBeingCreated, 'basics.Initiative.initOverrideValue') === null)
     {
-         console.log("MonsterCreator: Triggering recalculateDefaultInitiative due to change in:", path);
+         console.log("MonsterCreator: Triggering recalculateDefaultInitiative due to change in:", targetPath);
          recalculateDefaultInitiative();
     }
 
      // 4. Wenn Override für Initiative entfernt wird, Default neu berechnen
-     if (path === 'basics.Initiative.initOverrideValue' && value === null) {
+     if (targetPath === 'basics.Initiative.initOverrideValue' && value === null) {
           console.log("MonsterCreator: Triggering recalculateDefaultInitiative due to override removal");
           recalculateDefaultInitiative();
      }
 
-     if (path.startsWith('basics.stats.') || path.startsWith('saves.')) {
-          recalculateSaves = true;
+     // 5. Default Saves bei relevanter Änderung (Stats, Prof, Exp, PB) *nur wenn kein Override*
+     // Beachte: 'saves.STR.proficient' kommt von SavesConfig als path
+     if (targetPath.startsWith('basics.stats.') || targetPath.startsWith('saves.') || (targetPath === 'basics.CR' && oldPB !== pbAfterUpdate))
+     {
+        recalculateAllSaveDefaults(); // Ruft intern die Prüfung für Overrides auf
      }
-
-     if (path === 'basics.CR' && oldPB !== monsterBeingCreated.basics?.PB) {
-         recalculateSaves = true;
-     }
-
-     if (recalculateSaves) {
-         recalculateAllSaveDefaults(); 
-     }
-
 }
 
 // Funktion zum Erstellen eines leeren Monsters (aktualisiert)
@@ -170,10 +187,9 @@ async function handleLoadMonster(monsterIdToLoad) {
         // Kopiere die Werte in das reactive Objekt
         Object.keys(monsterBeingCreated).forEach(key => {
              if (loadedData[key] !== undefined) {
-                 // Verwende _.isEqual für tiefen Vergleich bei Objekten/Arrays, um unnötige Updates zu vermeiden
-                 if (typeof monsterBeingCreated[key] === 'object' && monsterBeingCreated[key] !== null) {
-                     if (!isEqual(monsterBeingCreated[key], loadedData[key])) {
-                         monsterBeingCreated[key] = _.cloneDeep(loadedData[key]); // Deep Clone für Objekte/Arrays
+                 if (typeof monsterBeingCreated[key] === 'object' && monsterBeingCreated[key] !== null && typeof loadedData[key] === 'object' && loadedData[key] !== null) { // Sicherere Prüfung
+                     if (!isEqual(monsterBeingCreated[key], loadedData[key])) { // Verwende isEqual direkt
+                         monsterBeingCreated[key] = cloneDeep(loadedData[key]); // Verwende cloneDeep direkt
                      }
                  } else {
                       if (monsterBeingCreated[key] !== loadedData[key]) {
@@ -391,7 +407,7 @@ onMounted(() => {
       <!-- Splitpanes -->
       <splitpanes class="default-theme" style="height: calc(100vh - 200px);">
           <!-- Pane 1: Konfiguration -->
-          <pane size="50">
+          <pane size="70">
               <div class="pa-2 bg-surface" style="height: 100%; overflow-y: auto;">
                    <MonsterConfigurator
                        :monster-data="monsterBeingCreated"
@@ -405,7 +421,7 @@ onMounted(() => {
               </div>
           </pane>
         <!-- Pane 2: Statblock Vorschau -->
-        <pane size="50">
+        <pane size="30">
            <div class="pa-2 bg-surface" style="height: 100%; overflow-y: auto;">
              <v-card variant="outlined">
                <v-card-title>Stat Block Preview</v-card-title>
@@ -447,7 +463,7 @@ onMounted(() => {
 
 /* Styling für den Splitter (optional, default-theme bringt schon was mit) */
 .splitpanes.default-theme .splitpanes__splitter {
-  background-color: #ccc;
+  background-color: #000000;
   position: relative;
 }
 .splitpanes.default-theme .splitpanes__splitter:before {
