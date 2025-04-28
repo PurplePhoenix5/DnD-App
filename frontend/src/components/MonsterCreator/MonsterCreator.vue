@@ -94,6 +94,10 @@ function handleMonsterFieldUpdate({ path, value }) {
         const defaultDie = hdMapping[sizeVal] || 8;
         set(monsterBeingCreated, 'basics.HP.defaultDie', defaultDie); 
     }
+    if (path === 'skills' || path.startsWith('skills[')) { // Wenn das Array selbst oder ein Element geändert wird
+        recalculatePassives = true;
+        recalculateAllSaveDefaults(); // Auch Saves neu berechnen, falls Skills Proficiency teilen (unwahrscheinlich, aber sicher)
+    }
     if (path.startsWith('basics.stats.')) { 
         recalculateSaves=true; 
         recalculatePassives=true; 

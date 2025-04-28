@@ -8,7 +8,7 @@ import SavesConfig from './Saving Throws/SavingThrowsConfig.vue';
 import SpeedsConfig from './Speeds/SpeedsConfig.vue';
 import SkillsConfig from './Skills/SkillsConfig.vue';
 import SensesConfig from './Senses/SensesConfig.vue';
-import ResistImmunConfig from './ResistancesImmunities/ResistancesAndImmunities.vue';
+import ResistancesAndImmunitiesConfig from './Resistances & Immunities/ResistancesAndImmunitiesConfig.vue';
 import InventoryConfig from './Inventory/InventoryConfig.vue';
 
 const props = defineProps({
@@ -30,7 +30,7 @@ const panels = ref([
   { id: 'speeds', title: 'Speeds', icon: 'mdi-run-fast', path: 'speeds', component: SpeedsConfig  },
   { id: 'skills', title: 'Skills', icon: 'mdi-star-check-outline', path: 'skills', component: SkillsConfig },
   { id: 'senses', title: 'Senses', icon: 'mdi-eye-outline', path: 'senses', component: SensesConfig },
-  { id: 'resistances', title: 'Resistances & Immunities', icon: 'mdi-shield-check-outline', path: 'resistImmun', component: ResistImmunConfig },
+  { id: 'resistances', title: 'Resistances & Immunities', icon: 'mdi-shield-check-outline', path: 'resistImmun', component: ResistancesAndImmunitiesConfig },
   { id: 'inventory', title: 'Inventory', icon: 'mdi-treasure-chest-outline', path: 'inventory', component: InventoryConfig }, 
   { id: 'traits', title: 'Traits', icon: 'mdi-puzzle-outline' },
   { id: 'spellcaszing', title: 'Spellcasting', icon: 'mdi-magic-staff' },
