@@ -7,6 +7,9 @@ import BasicsConfig from './Basics/BasicsConfig.vue';
 import SavesConfig from './Saving Throws/SavingThrowsConfig.vue';
 import SpeedsConfig from './Speeds/SpeedsConfig.vue';
 import SkillsConfig from './Skills/SkillsConfig.vue';
+import SensesConfig from './Senses/SensesConfig.vue';
+import ResistImmunConfig from './ResistancesImmunities/ResistancesAndImmunities.vue';
+import InventoryConfig from './Inventory/InventoryConfig.vue';
 
 const props = defineProps({
     monsterData: { type: Object, required: true },
@@ -26,9 +29,9 @@ const panels = ref([
   { id: 'saves', title: 'Saving Throws', icon: 'mdi-shield-half-full', path: 'saves', component: SavesConfig },
   { id: 'speeds', title: 'Speeds', icon: 'mdi-run-fast', path: 'speeds', component: SpeedsConfig  },
   { id: 'skills', title: 'Skills', icon: 'mdi-star-check-outline', path: 'skills', component: SkillsConfig },
-  { id: 'senses', title: 'Senses', icon: 'mdi-eye-outline' },
-  { id: 'resistances', title: 'Resistances & Immunities', icon: 'mdi-shield-check-outline' },
-  { id: 'inventory', title: 'Inventory', icon: 'mdi-treasure-chest-outline' }, 
+  { id: 'senses', title: 'Senses', icon: 'mdi-eye-outline', path: 'senses', component: SensesConfig },
+  { id: 'resistances', title: 'Resistances & Immunities', icon: 'mdi-shield-check-outline', path: 'resistImmun', component: ResistImmunConfig },
+  { id: 'inventory', title: 'Inventory', icon: 'mdi-treasure-chest-outline', path: 'inventory', component: InventoryConfig }, 
   { id: 'traits', title: 'Traits', icon: 'mdi-puzzle-outline' },
   { id: 'spellcaszing', title: 'Spellcasting', icon: 'mdi-magic-staff' },
   { id: 'actions', title: 'Actions', icon: 'mdi-sword' },
@@ -49,6 +52,21 @@ const getDataForPanel = (panel) => {
     if (panel.path === 'skills') {
          return get(props.monsterData, 'skills', []); // Default leeres Array
     }
+    if (panel.path === 'senses') {
+         return get(props.monsterData, 'senses', {});
+    }
+    if (panel.path === 'resistImmun') {
+         return {
+             resistances: get(props.monsterData, 'resistances', []),
+             immunities: get(props.monsterData, 'immunities', []),
+             vulnerabilities: get(props.monsterData, 'vulnerabilities', []),
+             conditionImmunities: get(props.monsterData, 'conditionImmunities', [])
+         };
+    }
+     if (panel.path === 'inventory') {
+          // Gib den String direkt zurück, nicht in ein Objekt packen
+         return get(props.monsterData, 'inventory', '');
+     }
     // Standard: Hole den Wert über den Pfad
     return get(props.monsterData, panel.path, {}); // Gib leeres Objekt als Default zurück
 };
@@ -87,6 +105,21 @@ const getDataForPanel = (panel) => {
         <SkillsConfig v-else-if="panel.id === 'skills'"
                       :modelValue="getDataForPanel(panel)"
                       :basicsData="getDataForPanel({ path: 'basics' })" 
+                      :is-enabled="isEnabled"
+                      @update:field="handleFieldUpdate($event)" />
+                      <SensesConfig v-else-if="panel.id === 'senses'"
+                      :modelValue="getDataForPanel(panel)"
+                      :basicsData="getDataForPanel({ path: 'basics' })" 
+                      :skillsData="getDataForPanel({ path: 'skills' })" 
+                      :allSkillsInfo="allSkillsData" 
+                      :is-enabled="isEnabled"
+                      @update:field="handleFieldUpdate($event)" />
+        <ResistImmunConfig v-else-if="panel.id === 'resistances'"
+                      :modelValue="getDataForPanel(panel)"
+                      :is-enabled="isEnabled"
+                      @update:field="handleFieldUpdate($event)" />
+        <InventoryConfig v-else-if="panel.id === 'inventory'"
+                      :modelValue="getDataForPanel(panel)"
                       :is-enabled="isEnabled"
                       @update:field="handleFieldUpdate($event)" />
         <p v-else class="text-disabled pa-4">

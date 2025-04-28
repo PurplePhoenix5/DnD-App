@@ -168,6 +168,3 @@ export function calculateSkillBonus(monsterBasics, skillInfo, skillsData = {}) {
        // return statModifier(score);
   }
   
-  // bonusForConditionalDamage existiert im neuen Template nicht direkt.
-  // Der Schaden wird pro Eintrag im 'damage'-Array definiert.
-  // Falls benötigt, müsste man einen spezifischen Eintrag im damage-Array übergeben.
