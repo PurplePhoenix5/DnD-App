@@ -1,7 +1,6 @@
 <!-- frontend/src/components/MonsterCreator/Senses/SensesConfig.vue -->
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { VNumberInput } from 'vuetify/labs/VNumberInput'; // Wieder entfernen! VNumberInput ist global
 import { cloneDeep, set, get } from 'lodash';
 import { calculateSkillBonus, statModifier, renderBonus } from '../../../utils/mathRendering.js'; // Pfad prüfen!
 
