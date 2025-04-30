@@ -129,7 +129,43 @@
             "type": "flying"
         }
     ],
-    "spellcasting": {},
+    "spellcasting": {
+        "atWill": [
+            {
+                "name": "Acid Arrow",
+                "note": ""
+            }
+        ],
+        "bonus": {
+            "defaultValue": 8,
+            "overrideValue": null
+        },
+        "dc": {
+            "defaultValue": 16,
+            "overrideValue": null
+        },
+        "hasAttackrolls": true,
+        "once": [
+            {
+                "name": "Acid Splash",
+                "note": ""
+            }
+        ],
+        "requiresSComponents": true,
+        "stat": "CHA",
+        "thrice": [
+            {
+                "name": "Alarm",
+                "note": ""
+            }
+        ],
+        "twice": [
+            {
+                "name": "Acid Splash",
+                "note": ""
+            }
+        ]
+    },
     "traits": [
         {
             "description": "TraitTemplateTest1",

@@ -113,75 +113,67 @@ const displayedBonus = computed(() => isBonusOverride.value ? bonusOverrideValue
 
 // Recalculate Default DC/Bonus
 function recalculateSpellDefaults() {
+    console.log("SpellcastingConfig: Attempting to recalculate spell defaults...");
     // Stelle sicher, dass basicsData, stats, PB und castingStat verfügbar sind
     const stats = props.basicsData?.stats;
     const pb = props.basicsData?.PB; // Kann 0 sein, aber sollte number sein
-    const castingStat = props.modelValue?.stat;
+    const castingStat = props.modelValue?.stat; // Casting stat from modelValue
 
-    if (!stats || typeof pb !== 'number' || !castingStat || !stats[castingStat]) {
-         console.log("SpellcastingConfig: Skipping default calculation - data not ready or invalid.", { stats: stats, PB: pb, stat: castingStat });
-        return; // Daten nicht bereit oder ungültig
+    // Prüfe, ob wir genug Daten für die Berechnung haben
+    if (!stats || typeof pb !== 'number' || !castingStat || stats[castingStat] === undefined) {
+        console.warn("SpellcastingConfig: Cannot calculate spell defaults due to missing required data.", { stats: stats, PB: pb, castingStat: castingStat, modelValue: props.modelValue });
+        return; // Abbrechen, wenn die Daten nicht vorhanden sind
     }
+    // ===================================================
 
-    const modifier = statModifier(stats[castingStat]); // Verwende importierte Funktion
+    console.log(`SpellcastingConfig: Calculating defaults for Stat: ${castingStat}, PB: ${pb}, Score: ${stats[castingStat]}`);
 
-    // Standardformeln für Spellcasting
+    const modifier = statModifier(stats[castingStat]);
+
     const newDefaultDc = 8 + pb + modifier;
-    const newDefaultBonus = pb + modifier; // Attack Bonus ist einfach PB + Mod
+    const newDefaultBonus = pb + modifier;
 
-    // Nur aktualisieren, wenn Override NICHT aktiv ist und der Wert sich geändert hat
-    let dcChanged = false;
-    let bonusChanged = false;
+    // Check if defaults need updating AND overrides are not active
     const currentDc = props.modelValue.dc || {};
     const currentBonus = props.modelValue.bonus || {};
 
+    const defaultsNeedUpdate =
+        (currentDc.overrideValue === null && currentDc.defaultValue !== newDefaultDc) ||
+        (currentBonus.overrideValue === null && currentBonus.defaultValue !== newDefaultBonus);
 
-    if (currentDc.overrideValue === null && currentDc.defaultValue !== newDefaultDc) {
-        emitUpdate('dc', { ...currentDc, defaultValue: newDefaultDc });
-        dcChanged = true;
+
+    if (defaultsNeedUpdate) {
+        console.log(`SpellcastingConfig: Updating defaults from ${currentDc.defaultValue}/${currentBonus.defaultValue} to ${newDefaultDc}/${newDefaultBonus}`);
+        // Prepare updated dc and bonus objects - only update defaultValue if override is null
+        const updatedDc = currentDc.overrideValue === null ? { ...currentDc, defaultValue: newDefaultDc } : currentDc;
+        const updatedBonus = currentBonus.overrideValue === null ? { ...currentBonus, defaultValue: newDefaultBonus } : currentBonus;
+
+        // Emittiere das gesamte spellcasting-Objekt mit aktualisierten Defaults
+        // Nur wenn sich etwas geändert hat und Overrides nicht aktiv sind
+        emit('update:field', {
+            key: 'spellcasting',
+            value: {
+                ...props.modelValue, 
+                dc: updatedDc,
+                bonus: updatedBonus
+                // Behalte alle anderen Properties bei
+            }
+        });
+    } else {
+        console.log("SpellcastingConfig: Defaults are up-to-date or override is active. No emission needed.");
     }
-    // Wenn DC-Default geupdated wurde, brauchen wir kein separates Bonus-Update,
-    // da emitUpdate das ganze Objekt sendet.
-    // Wenn sich nur der Bonus-Default geändert hat und DC nicht, müssen wir separat senden.
-    // Einfacher: Immer emitUpdate für das ganze Objekt, wenn sich Defaults ändern sollen
-    // und Overrides nicht aktiv sind.
-     const updatedDc = currentDc.overrideValue === null ? { ...currentDc, defaultValue: newDefaultDc } : currentDc;
-     const updatedBonus = currentBonus.overrideValue === null ? { ...currentBonus, defaultValue: newDefaultBonus } : currentBonus;
-
-     // Prüfe, ob sich die relevanten Default-Werte tatsächlich geändert haben
-     const defaultsNeedUpdate =
-         (currentDc.overrideValue === null && currentDc.defaultValue !== newDefaultDc) ||
-         (currentBonus.overrideValue === null && currentBonus.defaultValue !== newDefaultBonus);
-
-
-     if (defaultsNeedUpdate) {
-         console.log(`SpellcastingConfig: Updating spell defaults to DC ${newDefaultDc}, Bonus ${newDefaultBonus}`);
-          // Emittiere das gesamte spellcasting-Objekt mit aktualisierten Defaults
-          emit('update:field', {
-               key: 'spellcasting',
-               value: {
-                    ...props.modelValue,
-                    dc: updatedDc,
-                    bonus: updatedBonus
-                    // Behalte alle anderen Properties bei
-               }
-          });
-     } else {
-         console.log("SpellcastingConfig: Defaults match or override is active. No update needed.");
-     }
-
-
 }
 
 // Watcher für Default DC/Bonus Neuberechnung
 watch([
-    () => props.basicsData?.stats,
-    () => props.basicsData?.PB,
-    () => props.modelValue?.stat // Reagiere auf Änderung des Casting Stats
-], () => {
-    // Prüfe, ob alle nötigen Daten vorhanden sind, bevor neu berechnet wird
-    recalculateSpellDefaults();
+    () => props.basicsData?.stats, // Watching the stats object itself
+    () => props.basicsData?.PB,      // Watching PB
+    () => props.modelValue?.stat   // Watching the casting stat string
+], (newValues, oldValues) => {
+     console.log("SpellcastingConfig: Watcher triggered for defaults.", { newValues, oldValues });
+    recalculateSpellDefaults(); // VERSUCHE, neu zu berechnen
 }, { deep: true, immediate: true }); // immediate: true, um beim Laden initiale Werte zu setzen
+
 
 // Watcher für Override State Refs (aktualisieren sich, wenn modelValue sich ändert)
 // Diese Watcher stellen sicher, dass die lokalen isXOverride Refs mit dem modelValue synchron bleiben
@@ -320,6 +312,7 @@ onMounted(async () => {
                 <v-number-input
                     label="Spell Save DC"
                     :model-value="displayedDc"
+                    :min="0"
                     @update:model-value="dcOverrideValue = $event"
                     density="compact" variant="outlined"
                     :readonly="!isDcOverride"
@@ -343,6 +336,7 @@ onMounted(async () => {
                 <v-number-input
                     label="Spell Attack Bonus"
                     :model-value="displayedBonus"
+                    :min="0"
                     @update:model-value="bonusOverrideValue = $event"
                     density="compact" variant="outlined"
                     :readonly="!isBonusOverride"
@@ -361,33 +355,37 @@ onMounted(async () => {
                    </template>
                 </v-number-input>
             </v-col>
-            <v-col cols="12" md="1">
-                <v-tooltip location="top" text="uses spells with Attack Rolls">
+            <v-col cols="12" md="1" class="d-flex align-center justify-center"> <!-- Zentriere Icons/Switches -->
+                <v-tooltip location="top" text="Uses spells with Attack Rolls">
                     <template v-slot:activator="{ props: tooltipProps }">
-                        <v-switch
-                            v-bind="tooltipProps"
-                            label=""
-                            inset density="compact" color="primary"
-                            :model-value="modelValue.hasAttackrolls"
-                            @update:model-value="emitUpdate('hasAttackrolls', $event)"
-                            :disabled="!isEnabled"
-                            hide-details
-                        />
+                         <div class="d-flex align-center" v-bind="tooltipProps"> <!-- Flex Container für Icon und Switch -->
+                              <v-icon icon="mdi-sword" size="small" class="mr-1"></v-icon> <!-- Attack Icon -->
+                              <v-switch
+                                  label="" 
+                                  inset density="compact" color="primary"
+                                  :model-value="modelValue.hasAttackrolls"
+                                  @update:model-value="emitUpdate('hasAttackrolls', $event)"
+                                  :disabled="!isEnabled"
+                                  hide-details
+                              />
+                         </div>
                     </template>
                 </v-tooltip>
             </v-col>
-            <v-col cols="12" md="1">
-                <v-tooltip location="top" text="uses Material Components">
+            <v-col cols="12" md="1" class="d-flex align-center justify-center"> <!-- Zentriere Icons/Switches -->
+                <v-tooltip location="top" text="Requires Material Components">
                     <template v-slot:activator="{ props: tooltipProps }">
-                        <v-switch
-                            v-bind="tooltipProps"
-                            label=""
-                            inset density="compact" color="primary"
-                            :model-value="modelValue.requiresSComponents"
-                            @update:model-value="emitUpdate('requiresSComponents', $event)"
-                            :disabled="!isEnabled"
-                            hide-details
-                        />
+                         <div class="d-flex align-center" v-bind="tooltipProps"> <!-- Flex Container für Icon und Switch -->
+                             <v-icon icon="mdi-flask-outline" size="small" class="mr-1"></v-icon> <!-- Components Icon -->
+                             <v-switch
+                                 label="" 
+                                 inset density="compact" color="primary"
+                                 :model-value="modelValue.requiresSComponents"
+                                 @update:model-value="emitUpdate('requiresSComponents', $event)"
+                                 :disabled="!isEnabled"
+                                 hide-details
+                             />
+                         </div>
                     </template>
                 </v-tooltip>
             </v-col>
@@ -467,7 +465,7 @@ onMounted(async () => {
                          <div class="d-flex flex-wrap ga-1 mt-2"> <!-- ga-1 für Abstand zwischen Chips -->
                             <v-chip
                                 v-for="(spellEntry, spellIndex) in modelValue[freq.id]"
-                                :key="`${freq.id}-${spellIndex}-${spellEntry.name}`" 
+                                :key="`${freq.id}-${spellIndex}-${spellEntry.name}`"
                                 closable
                                 @click:close="handleRemoveSpell(freq.id, spellIndex)"
                                 :disabled="!isEnabled"
@@ -475,7 +473,6 @@ onMounted(async () => {
                                 color="primary"
                                 variant="outlined"
                             >
-                                <!-- Hier könntest du Level anzeigen, wenn es im Schema wäre -->
                                 <div>
                                      {{ spellEntry.name }}
                                      <div v-if="spellEntry.note" class="text-caption">{{ spellEntry.note }}</div>
@@ -502,7 +499,6 @@ onMounted(async () => {
 }
 
 /* Styles für linksbündigen Number Input und Append/Prepend Platz */
-/* Anpassen, falls nötig, je nachdem wie viele Buttons im Append/Prepend sind */
 :deep(.left-aligned-input .v-field__input) {
   text-align: left !important;
 }
@@ -518,10 +514,17 @@ onMounted(async () => {
 }
 
 /* Styling für Switch Labels, um sie näher an die Switches zu bringen */
-/* Eventuell im globalen Stilblatt besser aufgehoben */
-/*
-.v-switch label {
-    margin-inline-start: 4px;
+/* Labels wurden jetzt entfernt, dieser Stil wird ggf. nicht mehr benötigt, */
+/* aber .v-switch container kann nützlich sein */
+.v-switch label { /* Dieser Stil könnte entfernt werden, wenn Labels weg sind */
+    margin-inline-start: 0px !important; /* Wichtiger: Platz für Icon davor schaffen */
 }
-*/
+
+/* Neues Styling für den Flex-Container um Icon und Switch */
+.v-col.d-flex.align-center > .d-flex.align-center {
+    /* Stellt sicher, dass der innere flex container die verfügbare Breite nutzt, falls nötig */
+    width: 100%;
+    /* Zentrierung wurde zur Spalte hinzugefügt, aber hier könnte man weiter justieren */
+}
+
 </style>
