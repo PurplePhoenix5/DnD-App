@@ -5,36 +5,36 @@
         "savingThrow": []
     },
     "basics": {
-        "AC": 20,
-        "ACType": "Hide Armor",
-        "CR": 5,
+        "AC": 10,
+        "ACType": "",
+        "CR": 2,
         "HP": {
-            "HDAmount": 5,
-            "HPmodifier": 5,
+            "HDAmount": 1,
+            "HPmodifier": 0,
             "defaultDie": 8,
             "overrideDie": null
         },
         "Initiative": {
-            "initDefaultValue": 5,
+            "initDefaultValue": 0,
             "initExpertise": false,
             "initOverrideValue": null,
             "initProficiency": false
         },
-        "PB": 3,
-        "alignment": "Neutral",
-        "id": "defaulttest_cr5",
-        "languages": "Common, Dwarvish, Elvish, Giant, Gnomish",
-        "name": "DefaultTest",
+        "PB": 2,
+        "alignment": "unaligned",
+        "id": "test_neu_cr2",
+        "languages": "",
+        "name": "test neu",
         "size": "Medium",
         "stats": {
-            "CHA": 20,
-            "CON": 20,
-            "DEX": 20,
-            "INT": 20,
-            "STR": 20,
-            "WIS": 20
+            "CHA": 10,
+            "CON": 10,
+            "DEX": 10,
+            "INT": 10,
+            "STR": 10,
+            "WIS": 10
         },
-        "type": "Dragon"
+        "type": "Humanoid"
     },
     "bonusAction": {
         "attackRoll": [],
@@ -42,18 +42,9 @@
         "savingThrow": []
     },
     "complete": true,
-    "conditionImmunities": [
-        "Petrified",
-        "Paralyzed",
-        "Invisible",
-        "Incapacitated",
-        "Grappled"
-    ],
-    "immunities": [
-        "Cold",
-        "Fire"
-    ],
-    "inventory": "test",
+    "conditionImmunities": [],
+    "immunities": [],
+    "inventory": "",
     "lairActions": [],
     "legendaryActions": {
         "LegendaryResistanceUses": 0,
@@ -64,39 +55,35 @@
     },
     "multiattacks": "",
     "reactions": [],
-    "resistances": [
-        "Acid",
-        "All",
-        "Cold"
-    ],
+    "resistances": [],
     "saves": {
         "CHA": {
-            "defaultValue": 5,
+            "defaultValue": 0,
             "overrideValue": null,
             "proficient": false
         },
         "CON": {
-            "defaultValue": 5,
+            "defaultValue": 0,
             "overrideValue": null,
             "proficient": false
         },
         "DEX": {
-            "defaultValue": 5,
+            "defaultValue": 0,
             "overrideValue": null,
             "proficient": false
         },
         "INT": {
-            "defaultValue": 5,
+            "defaultValue": 0,
             "overrideValue": null,
             "proficient": false
         },
         "STR": {
-            "defaultValue": 5,
+            "defaultValue": 0,
             "overrideValue": null,
             "proficient": false
         },
         "WIS": {
-            "defaultValue": 5,
+            "defaultValue": 0,
             "overrideValue": null,
             "proficient": false
         }
@@ -122,34 +109,9 @@
             "note": "",
             "speed": 30,
             "type": "walk"
-        },
-        {
-            "note": "hovering",
-            "speed": 30,
-            "type": "flying"
         }
     ],
     "spellcasting": {},
-    "traits": [
-        {
-            "description": "TraitTemplateTest1",
-            "limitedUse": {
-                "count": 1,
-                "rate": "day"
-            },
-            "name": "TraitTemplateTest1"
-        },
-        {
-            "description": "TraitTemplateTest2",
-            "limitedUse": {
-                "count": 2,
-                "rate": "day"
-            },
-            "name": "TraitTemplateTest2"
-        }
-    ],
-    "vulnerabilities": [
-        "Force",
-        "Bludgeoning"
-    ]
+    "traits": [],
+    "vulnerabilities": []
 }

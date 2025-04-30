@@ -1,0 +1,8 @@
+{
+    "description": "TraitTemplateTest1",
+    "limitedUse": {
+        "count": 1,
+        "rate": "day"
+    },
+    "name": "TraitTemplateTest1"
+}

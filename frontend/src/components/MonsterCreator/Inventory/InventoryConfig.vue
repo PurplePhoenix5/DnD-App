@@ -18,7 +18,7 @@ const inventoryText = computed({
 <template>
     <div>
         <v-textarea
-            label="Inventory, Gear, Armor, Loot..."
+            label="Inventory, Gear, Armor, Loot... (Markdown: **Bold** and _Italic_)"
             v-model="inventoryText"
             variant="outlined"
             rows="4" 

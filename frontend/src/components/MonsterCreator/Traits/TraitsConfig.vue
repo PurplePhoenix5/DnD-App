@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'; // Remove watch import
+import { ref, onMounted, computed, watch } from 'vue'; // 'watch' wird jetzt für selectedTemplate benötigt, also wieder importieren
 import { cloneDeep, set } from 'lodash';
 import { loadDnDData } from '../../../utils/dndDataService.js';
 import { VTextarea } from 'vuetify/components/VTextarea';
@@ -11,7 +11,7 @@ import { VExpansionPanels, VExpansionPanel, VExpansionPanelTitle, VExpansionPane
 import { VDivider } from 'vuetify/components/VDivider';
 import { VRow, VCol } from 'vuetify/components/VGrid';
 import { VList, VListItem, VListItemTitle } from 'vuetify/components/VList';
-import { VMenu } from 'vuetify/components/VMenu'; // Add VMenu import
+import { VMenu } from 'vuetify/components/VMenu';
 
 const props = defineProps({
   modelValue: { type: Array, required: true },
@@ -21,110 +21,95 @@ const props = defineProps({
 const emit = defineEmits(['update:field']);
 
 // --- Lade Daten für Templates und Reset Types ---
-const traitTemplates = ref([]); // Format: [{ id: '...', name: '...' }]
+const traitTemplates = ref([]);
 const resetTypes = ref([]);
 const isLoadingData = ref(true);
 
 function emitUpdate(newTraitsArray) {
-    // Stellen Sie sicher, dass Sie immer ein Array emitten, auch wenn es leer ist
     emit('update:field', { key: 'traits', value: newTraitsArray || [] });
 }
 
 function createEmptyTraitObject() {
-    // Stelle sicher, dass limitedUse Objekt immer da ist, auch wenn count 0 ist
     return { "name": "", "limitedUse": { "count": 0, "rate": "day" }, "description": "" };
 }
 
 function updateTraitField(index, field, value) {
-    // Benutzen Sie cloneDeep, um eine unabhängige Kopie zu erstellen
     const newTraits = cloneDeep(props.modelValue);
     if (newTraits[index]) {
-        // Verwenden Sie lodash.set für tiefere Pfade wie 'limitedUse.count'
         set(newTraits[index], field, value);
         emitUpdate(newTraits);
     }
 }
 
-async function addTrait(templateId) {
-    let newTraitData;
+function addNewEmptyTrait() {
+    if (!props.isEnabled) return;
 
-    if (templateId) { // Wenn ein Template ausgewählt wurde (templateId ist nicht null)
-        try {
-            const response = await fetch(`http://localhost:8080/api/templates/trait/${templateId}`);
-            if (!response.ok) throw new Error('Failed to load template');
-            const templateData = await response.json();
+    const newTraits = cloneDeep(props.modelValue);
+    const newTraitData = createEmptyTraitObject();
+     if (!newTraitData.name) {
+          newTraitData.name = `New Trait ${newTraits.length + 1}`;
+     }
 
-            // --- NEU: Prüfe ob Trait mit diesem Namen bereits existiert ---
-            // Annahme: templateData hat ein 'name' Feld
-            if (templateData.name) {
-                 const existingTrait = props.modelValue.find(t => t.name?.trim() === templateData.name?.trim());
-                 if (existingTrait) {
-                     // Zeige Bestätigungsdialog
-                     const confirmAddAnyway = confirm(`A trait named "${templateData.name}" already exists in this monster. Do you want to add another one from the template?`);
-                     if (!confirmAddAnyway) {
-                         // Wenn Benutzer abbricht, tue nichts und setze den Select zurück
-                         // Der v-select wird automatisch zurückgesetzt, da @update:model-value verwendet wird
-                         return;
-                     }
-                 }
-            }
-             // --- Ende NEU ---
-
-
-            // Verwende Template-Daten (ohne die Template-ID, falls vorhanden)
-            // Sicherstellen, dass limitedUse existiert, falls es im Template fehlt
-            newTraitData = {
-                ...templateData,
-                id: undefined, // Entferne Template-ID
-                limitedUse: { // Stelle sicher, limitedUse Struktur existiert
-                    count: templateData.limitedUse?.count ?? 0, // Standard 0, falls nicht im Template
-                    rate: templateData.limitedUse?.rate ?? 'day' // Standard 'day', falls nicht im Template
-                }
-            };
-
-        } catch (error) {
-            console.error("Error loading trait template:", error);
-            alert("Could not load the selected template.");
-             // Auch hier ggf. Select zurücksetzen, obwohl Fehler aufgetreten ist
-             // Ist aber weniger kritisch als bei Abbruch durch User
-            return; // Breche ab, wenn Template nicht geladen werden kann
-        }
-    } else { // templateId ist null -> Add Empty Trait
-        newTraitData = createEmptyTraitObject();
-         // Optional: Standardname für ein leeres Trait
-         if (!newTraitData.name) {
-              newTraitData.name = `New Trait ${props.modelValue.length + 1}`;
-         }
-    }
-
-    // KORREKT: Erstelle neues Array mit alten Elementen und dem neuen Trait
-    const newTraits = [...props.modelValue, newTraitData];
+    newTraits.push(newTraitData);
     emitUpdate(newTraits);
+}
 
-    // Optional: Setze den v-select nach Auswahl zurück,
-    // indem Sie null als neues modelValue emittieren.
-    // Da Sie @update:model-value verwenden und kein v-model binden,
-    // handhabt Vuetify den Reset in diesem Fall normalerweise selbst.
-    // Wenn es nicht automatisch zurückgesetzt wird, müssten Sie ein
-    // eigenes `selectedTemplate` ref einführen und dieses beim v-select binden.
-    // Für diese Implementierung ist es wahrscheinlich nicht nötig.
+async function addTraitFromTemplate(templateId) {
+    if (!props.isEnabled || !templateId) return;
+
+    try {
+        const response = await fetch(`http://localhost:8080/api/templates/trait/${templateId}`);
+        if (!response.ok) {
+             const errorText = await response.text();
+             throw new Error(`Failed to load template (Status: ${response.status}). Response: ${errorText}`);
+        }
+        const templateData = await response.json();
+
+        if (templateData.name) {
+             const existingTrait = props.modelValue.find(t => t.name?.trim() === templateData.name?.trim());
+             if (existingTrait) {
+                 const confirmAddAnyway = confirm(`A trait named "${templateData.name}" already exists in this monster. Do you want to add another one from the template?`);
+                 if (!confirmAddAnyway) {
+                     return;
+                 }
+             }
+        }
+
+        const newTraitData = {
+            ...templateData,
+            id: undefined,
+             limitedUse: {
+                 count: templateData.limitedUse?.count ?? 0,
+                 rate: templateData.limitedUse?.rate ?? 'day'
+            },
+            description: templateData.description ?? ''
+        };
+
+        const newTraits = [...props.modelValue, newTraitData];
+        emitUpdate(newTraits);
+
+    } catch (error) {
+        console.error("Error loading trait template:", error);
+        alert(`Could not load the selected template: ${error.message}`);
+    } finally {
+         // Setze den Select nach Auswahl oder Fehler zurück
+         selectedTemplate.value = null;
+    }
 }
 
 
 function removeTrait(index) {
-    // Erlaube das Löschen des letzten Traits
+    if (!props.isEnabled) return;
     const newTraits = props.modelValue.filter((_, i) => i !== index);
     emitUpdate(newTraits);
-    // Das Template zeigt automatisch die "No traits added yet" Meldung an, wenn das Array leer ist.
 }
 
 function moveTrait(index, direction) {
-    // KORREKT: Kopiere das Array
+    if (!props.isEnabled) return;
     const newTraits = [...props.modelValue];
     const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= newTraits.length) return; // Ungültiger Index
+    if (newIndex < 0 || newIndex >= newTraits.length) return;
 
-    // Tausche Elemente mit Array Destructuring
     [newTraits[index], newTraits[newIndex]] = [newTraits[newIndex], newTraits[index]];
 
     emitUpdate(newTraits);
@@ -132,51 +117,40 @@ function moveTrait(index, direction) {
 
 async function fetchTraitTemplates() {
     try {
-        // Die API List-Route (GET /api/templates/trait) gibt die Summary zurück
         const response = await fetch('http://localhost:8080/api/templates/trait');
         if (!response.ok) throw new Error('Failed to fetch templates');
-        return await response.json(); // Sollte ein Array von { id, name } zurückgeben
+        return await response.json();
     } catch (error) {
         console.error("Error fetching trait templates:", error);
-        return []; // Leeres Array bei Fehler
+        return [];
     }
 }
 
-// Die saveTraitAsTemplate und deleteTraitTemplate Funktionen sahen korrekt aus.
-// Stelle sicher, dass die ID-Generierung genau mit dem Backend übereinstimmt.
 async function saveTraitAsTemplate(index) {
+    if (!props.isEnabled) return;
     const trait = props.modelValue[index];
     if (!trait || !trait.name?.trim()) {
         alert("Trait needs a name to be saved as a template.");
         return;
     }
 
-    // Erstelle ID genau wie im Backend
      let templateId = trait.name;
-     // Prüfe sicher auf limitedUse Objekt und count Eigenschaft
      if (trait.limitedUse && typeof trait.limitedUse.count === 'number' && trait.limitedUse.count > 0) {
          templateId += "_uses" + trait.limitedUse.count;
      }
-     // Sanitisiere ID
      templateId = templateId.toLowerCase();
-     // Ersetze nicht-alphanumerische Zeichen (außer Unterstrich) durch Unterstrich
      templateId = templateId.replace(/[^a-z0-9]+/g, '_');
-     // Entferne führende/nachgestellte Unterstriche
      templateId = templateId.replace(/^_+|_+$/g, '');
-     // Entferne doppelte Unterstriche, falls vorhanden
      templateId = templateId.replace(/__+/g, '_');
 
 
-    // Daten für POST (sollte die Trait-Struktur sein, ohne frontend-spezifische IDs etc.)
-    // Stelle sicher, dass limitedUse Objekt komplett gesendet wird
     const templateData = {
         name: trait.name,
         limitedUse: {
             count: trait.limitedUse?.count ?? 0,
-            rate: trait.limitedUse?.rate ?? 'day' // Sende Default, falls nicht gesetzt
+            rate: trait.limitedUse?.rate ?? 'day'
         },
-        description: trait.description ?? '' // Sende leeren String, falls nicht gesetzt
-        // Füge hier keine ID hinzu, die generiert das Backend
+        description: trait.description ?? ''
     };
 
 
@@ -184,7 +158,7 @@ async function saveTraitAsTemplate(index) {
         const response = await fetch('http://localhost:8080/api/templates/trait', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(templateData) // Sende die vorbereiteten Daten
+            body: JSON.stringify(templateData)
         });
         if (response.status === 409) {
             alert(`Error: A template with the generated ID "${templateId}" already exists (Name: "${trait.name}", Uses: ${trait.limitedUse?.count ?? 0}).`);
@@ -192,10 +166,8 @@ async function saveTraitAsTemplate(index) {
              const errorData = await response.json().catch(()=>({}));
             throw new Error(errorData.error || `HTTP error ${response.status}`);
         } else {
-             // Response body enthält das gespeicherte Template inkl. ID
              const savedTemplate = await response.json();
              alert(`Template "${savedTemplate.name}" (ID: ${savedTemplate.id}) saved successfully!`);
-             // Lade Template-Liste neu, um die Add/Delete-Listen zu aktualisieren
              traitTemplates.value = await fetchTraitTemplates();
         }
     } catch (error) {
@@ -205,11 +177,11 @@ async function saveTraitAsTemplate(index) {
 }
 
 async function deleteTraitTemplate(templateId) {
+    if (!props.isEnabled) return;
     if (!templateId) {
          alert("No template ID provided for deletion.");
          return;
     }
-    // Finde den Namen für die Bestätigung, falls möglich
     const templateToDelete = traitTemplates.value.find(t => t.id === templateId);
     const templateName = templateToDelete ? `"${templateToDelete.name}" (ID: ${templateId})` : `ID: ${templateId}`;
 
@@ -225,9 +197,7 @@ async function deleteTraitTemplate(templateId) {
              const errorData = await response.json().catch(()=>({}));
             throw new Error(errorData.error || `HTTP error ${response.status}`);
          }
-         // Bei Erfolg 204 No Content, daher keine JSON-Antwort erwartet
          alert(`Template ${templateName} deleted successfully!`);
-         // Lade Template-Liste neu
          traitTemplates.value = await fetchTraitTemplates();
 
      } catch (error) {
@@ -238,33 +208,36 @@ async function deleteTraitTemplate(templateId) {
 
 
 onMounted(async () => {
-    isLoadingData.value = true; // Setze Ladezustand auf true beim Start
+    isLoadingData.value = true;
     try {
-         // Lade Templates und Reset Types parallel
         const [templates, resets] = await Promise.all([
             fetchTraitTemplates(),
             loadDnDData('resetTypes.json')
         ]);
         traitTemplates.value = templates || [];
-        resetTypes.value = resets || []; // Stelle sicher, dass es ein Array ist
+        resetTypes.value = resets || [];
     } catch (error) {
          console.error("Error loading initial data for TraitsConfig:", error);
-         // Handle errors (z.B. Fehlermeldung anzeigen)
-         resetTypes.value = []; // Setze auf leeres Array bei Fehler
-         traitTemplates.value = []; // Setze auf leeres Array bei Fehler
+         resetTypes.value = [];
+         traitTemplates.value = [];
     } finally {
-        isLoadingData.value = false; // Setze Ladezustand auf false
+        isLoadingData.value = false;
     }
 });
 
-
-// Computed Property für das Add-Select
+// Nur Templates für das Select
 const templateOptions = computed(() => {
-    const options = traitTemplates.value.map(t => ({ title: t.name, value: t.id }));
-    // Füge leeres Template als erste Option hinzu
-    // value: null ist korrekt und wird von addTrait(null) verarbeitet
-    options.unshift({ title: '--- Add Empty Trait ---', value: null });
-    return options;
+    return traitTemplates.value.map(t => ({ title: t.name, value: t.id }));
+});
+
+// Lokaler Ref für v-model des Selects und Watcher
+const selectedTemplate = ref(null);
+
+watch(selectedTemplate, (newValue) => {
+    if (newValue !== null) {
+        addTraitFromTemplate(newValue);
+        // selectedTemplate wird jetzt in addTraitFromTemplate().finally gesetzt
+    }
 });
 
 </script>
@@ -273,7 +246,7 @@ const templateOptions = computed(() => {
     <div :class="{'disabled-content': !isEnabled}">
         <div v-if="isLoadingData" class="pa-4 text-center text-disabled">Loading data...</div>
         <div v-else-if="modelValue.length === 0" class="pa-4 text-center text-disabled">
-            No traits added yet. Use the "Add Trait" button below.
+            No traits added yet. Use the "Add Empty Trait" button below.
         </div>
         <v-expansion-panels v-else variant="accordion" multiple>
             <v-expansion-panel v-for="(trait, index) in modelValue" :key="index" elevation="1">
@@ -291,7 +264,6 @@ const templateOptions = computed(() => {
                              <v-text-field label="Name" :model-value="trait.name" @update:model-value="updateTraitField(index, 'name', $event)" density="compact" variant="outlined" clearable :disabled="!isEnabled"/>
                         </v-col>
                         <v-col cols="12" md="2">
-                            <!-- Stellen Sie sicher, dass Uses immer ein Integer >= 0 ist -->
                             <v-number-input
                                 label="Uses"
                                 :model-value="trait.limitedUse?.count"
@@ -313,13 +285,15 @@ const templateOptions = computed(() => {
                                 density="compact" variant="outlined"
                                 clearable
                                 :disabled="!isEnabled || (trait.limitedUse?.count ?? 0) === 0"
+                                item-title="title"  
+                                item-value="value" 
                             />
                         </v-col>
 
                         <!-- Zeile 2 & 3: Description -->
                          <v-col cols="12">
                              <v-textarea
-                                label="Description (Markdown or HTML allowed)"
+                                label="Description (Markdown: **Bold** and _Italic_)"
                                 :model-value="trait.description"
                                 @update:model-value="updateTraitField(index, 'description', $event)"
                                 density="compact" variant="outlined"
@@ -330,21 +304,17 @@ const templateOptions = computed(() => {
 
                         <!-- Zeile 4: Buttons -->
                         <v-col cols="12" md="8">
-                            <!-- Erlaube das Löschen, auch wenn es das letzte Trait ist -->
                             <v-btn @click="removeTrait(index)" color="error" variant="outlined" :disabled="!isEnabled" block>Delete Trait</v-btn>
                         </v-col>
                          <v-col cols="12" md="2">
-                             <!-- Deaktiviere Speichern, wenn Name leer ist -->
                             <v-btn @click="saveTraitAsTemplate(index)" color="secondary" variant="outlined" :disabled="!isEnabled || !trait.name?.trim()" block>Save Template</v-btn>
                         </v-col>
                          <v-col cols="12" md="2">
                              <v-menu>
                                  <template v-slot:activator="{ props: menuProps }">
-                                     <!-- Deaktiviere "Delete Template" Button, wenn keine Templates geladen sind -->
                                       <v-btn color="secondary" variant="outlined" :disabled="!isEnabled || traitTemplates.length === 0" block v-bind="menuProps">Delete Template</v-btn>
                                  </template>
                                  <v-list density="compact">
-                                     <!-- Zeige Liste der geladenen Templates -->
                                      <v-list-item
                                          v-for="template in traitTemplates"
                                          :key="template.id"
@@ -363,26 +333,36 @@ const templateOptions = computed(() => {
             </v-expansion-panel>
         </v-expansion-panels>
 
-         <!-- Add Trait Button/Select -->
-         <v-select
-           label="Add Trait"
-           :items="templateOptions"
-           @update:model-value="addTrait($event)"
-           density="compact" variant="outlined"
-           :disabled="!isEnabled || isLoadingData"
-           hide-details
-           class="mt-4"
-           no-data-text="No templates found"
-           clearable
-           placeholder="Select template or add empty"
-           :model-value="null"
-         >
-             <template v-slot:item="{ props: itemProps, item }">
-                <v-list-item v-bind="itemProps" :title="item.title"></v-list-item>
-                <!-- Trennlinie nach "Add Empty" -->
-                <v-divider v-if="item.value === null"></v-divider>
-            </template>
-         </v-select>
+         <!-- NEUE UI für Add Button und Add Template Select -->
+         <v-row dense class="mt-4">
+             <v-col cols="12" md="6">
+                 <v-btn
+                     block
+                     color="primary"
+                     variant="outlined"
+                     @click="addNewEmptyTrait"
+                     :disabled="!isEnabled"
+                 >
+                     Add Empty Trait
+                 </v-btn>
+             </v-col>
+             <v-col cols="12" md="6">
+                 <v-select
+                   label="Add Trait from Template"
+                   :items="templateOptions"
+                   v-model="selectedTemplate"
+                   density="compact" variant="outlined"
+                   :disabled="!isEnabled || isLoadingData || templateOptions.length === 0"
+                   hide-details
+                   no-data-text="No templates available"
+                   clearable
+                   placeholder="Select a template"
+                 >
+                 </v-select>
+             </v-col>
+         </v-row>
+         <!-- ENDE NEUE UI -->
+
     </div>
 </template>
 
