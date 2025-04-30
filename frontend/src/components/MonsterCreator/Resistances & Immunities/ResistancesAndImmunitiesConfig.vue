@@ -27,13 +27,12 @@ onMounted(async () => {
 
 // --- Computed Properties für v-model ---
 // Verwenden eine Funktion, um Wiederholungen zu vermeiden
-function createListComputed(key) {
+function createListComputed(key) { // key ist 'resistances', 'immunities', etc.
     return computed({
         get: () => props.modelValue?.[key] ?? [],
         set: (value) => {
-             // Stelle sicher, dass es immer ein Array ist
             const newValue = Array.isArray(value) ? value : (value ? [value] : []);
-            emit('update:field', { key: `resistImmun.${key}`, value: newValue });
+            emit('update:field', { key: key, value: newValue });
         }
     });
 }

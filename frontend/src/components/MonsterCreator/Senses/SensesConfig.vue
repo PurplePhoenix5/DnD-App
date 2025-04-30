@@ -91,7 +91,7 @@ function togglePIOverride() {
     <v-row dense>
       <!-- Zeile 1 -->
       <v-col cols="12" md="2">
-        <v-number-input label="Darkvision" v-model="darkvision" :min="0" :step="5" suffix="ft." density="compact" variant="outlined" control-variant="stacked" :reverse="false" inset class="left-aligned-input" :disabled="!isEnabled" />
+        <v-number-input label="Darkvision" v-model="darkvision" :min="0" :step="5" suffix="ft." density="compact" variant="outlined" control-variant="stacked" :reverse="false" inset  class="left-aligned-input" :disabled="!isEnabled" />
       </v-col>
       <v-col cols="12" md="2">
         <v-number-input label="Blindsight" v-model="blindsight" :min="0" :step="5" suffix="ft." density="compact" variant="outlined" control-variant="stacked" :reverse="false" inset class="left-aligned-input" :disabled="!isEnabled" />
@@ -111,8 +111,6 @@ function togglePIOverride() {
             density="compact" variant="outlined"
             :readonly="!isPPOverride"
             :class="{'input-is-default': !isPPOverride}"
-            :hint="isPPOverride ? 'Manual override' : `Default: ${ppDefaultValue}`"
-            persistent-hint clearable
             control-variant="stacked" :reverse="false" inset
             class="left-aligned-input" :disabled="!isEnabled"
         >
@@ -134,8 +132,6 @@ function togglePIOverride() {
             density="compact" variant="outlined"
             :readonly="!isPIOverride"
             :class="{'input-is-default': !isPIOverride}"
-            :hint="isPIOverride ? 'Manual override' : `Default: ${piDefaultValue}`"
-            persistent-hint clearable
             control-variant="stacked" :reverse="false" inset
             class="left-aligned-input" :disabled="!isEnabled"
         >
@@ -161,7 +157,7 @@ function togglePIOverride() {
 /* Styles für linksbündigen Input und Suffix */
 :deep(.left-aligned-input .v-field__input) {
   text-align: left !important;
-  padding-right: 60px !important; /* Platz für Suffix UND Buttons */
+  padding-right: 5px !important; /* Platz für Suffix UND Buttons */
 }
 :deep(.left-aligned-input .v-field__append-inner) {
     align-items: center;
@@ -173,7 +169,7 @@ function togglePIOverride() {
 :deep(.v-number-input .v-field__suffix) {
     padding-inline-start: 2px !important; padding-inline-end: 2px !important; opacity: 0.8;
     /* Positioniere Suffix relativ zum append-inner Slot (Buttons) */
-    position: relative; right: 30px; /* Wert an Button-Breite anpassen */
+    position: relative; right: 15px; /* Wert an Button-Breite anpassen */
 }
 .input-is-default :deep(.v-field__input) {
   color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)) !important;

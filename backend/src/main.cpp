@@ -291,12 +291,155 @@ int main() {
         }
     });
 
-    // --- Routen für Templates (Platzhalter) ---
-    CROW_ROUTE(app, "/api/templates/<string>")([](const std::string& type){ return crow::response(501, "Not Implemented"); }); // List
-    CROW_ROUTE(app, "/api/templates/<string>/<string>")([](const std::string& type, const std::string& id){ return crow::response(501, "Not Implemented"); }); // Get One
-    CROW_ROUTE(app, "/api/templates/<string>").methods("POST"_method)([](const crow::request& req, const std::string& type){ return crow::response(501, "Not Implemented"); }); // Create
-    CROW_ROUTE(app, "/api/templates/<string>/<string>").methods("PUT"_method)([](const crow::request& req, const std::string& type, const std::string& id){ return crow::response(501, "Not Implemented"); }); // Update
-    CROW_ROUTE(app, "/api/templates/<string>/<string>").methods("DELETE"_method)([](const std::string& type, const std::string& id){ return crow::response(501, "Not Implemented"); }); // Delete
+    // --- Routen für Trait Templates ---
+
+    // GET /api/templates/trait (Liste aller Trait-Templates)
+    CROW_ROUTE(app, "/api/templates/trait").methods("GET"_method)
+        ([&]() {
+        json template_list = json::array();
+        std::filesystem::path trait_template_dir = std::filesystem::path(templates_base_dir) / "trait";
+        try {
+            // Stelle sicher, dass das Verzeichnis existiert
+            if (!std::filesystem::exists(trait_template_dir) || !std::filesystem::is_directory(trait_template_dir)) {
+                std::filesystem::create_directories(trait_template_dir); // Erstelle es, wenn es fehlt
+                // Gib leere Liste zurück, wenn es gerade erst erstellt wurde
+                 crow::response res(template_list.dump());
+                 res.set_header("Content-Type", "application/json");
+                 return res;
+            }
+
+            for (const auto& entry : std::filesystem::directory_iterator(trait_template_dir)) {
+                if (entry.is_regular_file() && entry.path().extension() == ".json") {
+                    std::ifstream file(entry.path());
+                    if (file.is_open()) {
+                        try {
+                            json data;
+                            file >> data;
+                            // Füge ID und Name zur Liste hinzu (ID ist Dateiname)
+                            json item;
+                            item["id"] = entry.path().stem().string();
+                            item["name"] = data.value("name", "Unknown Template");
+                            template_list.push_back(item);
+                        } catch (const std::exception& e) {
+                            std::cerr << "Fehler beim Verarbeiten von Trait-Template " << entry.path() << ": " << e.what() << std::endl;
+                        }
+                    }
+                }
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Fehler beim Auflisten von Trait-Templates: " << e.what() << std::endl;
+            return crow::response(500, "{\"error\": \"Serverfehler beim Auflisten der Trait-Templates.\"}");
+        }
+        crow::response res(template_list.dump());
+        res.set_header("Content-Type", "application/json");
+        return res;
+    });
+
+    // GET /api/templates/trait/{templateId} (Einzelnes Template holen)
+    CROW_ROUTE(app, "/api/templates/trait/<string>")
+        ([&](const std::string& template_id_from_url) {
+        // Validierung des template_id (ähnlich wie bei DnDData, aber ohne .json Endung)
+        if (template_id_from_url.empty() || template_id_from_url.find("..") != std::string::npos || template_id_from_url.find('/') != std::string::npos || template_id_from_url.find('\\') != std::string::npos) {
+            return crow::response(400, "{\"error\": \"Invalid characters in template ID.\"}");
+        }
+
+        std::filesystem::path file_path = std::filesystem::path(templates_base_dir) / "trait" / (template_id_from_url + ".json");
+        try {
+             file_path = std::filesystem::absolute(file_path).lexically_normal();
+             // Optional: Sicherheitscheck gegen Verzeichnis verlassen
+
+             if (!std::filesystem::exists(file_path) || !std::filesystem::is_regular_file(file_path)) {
+                return crow::response(404, "{\"error\": \"Trait template not found.\"}");
+             }
+              std::ifstream file(file_path);
+             if (!file.is_open()) { return crow::response(500, "{\"error\": \"Could not open template file.\"}"); }
+
+             json template_data;
+             file >> template_data;
+             crow::response res(template_data.dump());
+             res.set_header("Content-Type", "application/json");
+             return res;
+
+        } catch (const std::exception& e) {
+            std::cerr << "Fehler beim Laden von Trait-Template " << template_id_from_url << ": " << e.what() << std::endl;
+            return crow::response(500, "{\"error\": \"Internal server error loading trait template.\"}");
+        }
+    });
+
+    // POST /api/templates/trait (Neues Template speichern)
+    CROW_ROUTE(app, "/api/templates/trait").methods("POST"_method)
+        ([&](const crow::request& req) {
+        json incoming_data;
+        try { incoming_data = json::parse(req.body); } catch (...) { return crow::response(400, "{\"error\": \"Invalid JSON body.\"}"); }
+
+        // Validierung: Braucht mindestens 'name'
+        if (!incoming_data.contains("name") || !incoming_data["name"].is_string() || incoming_data["name"].get<std::string>().empty()) {
+            return crow::response(400, "{\"error\": \"Missing or empty 'name' field for template.\"}");
+        }
+
+        // Erstelle ID aus Name (+ Uses, falls vorhanden)
+        std::string template_name = incoming_data["name"];
+        std::string template_id = template_name;
+        if (incoming_data.contains("limitedUse") && incoming_data["limitedUse"].is_object() && incoming_data["limitedUse"].contains("count")) {
+             template_id += "_uses" + std::to_string(incoming_data["limitedUse"]["count"].get<int>());
+        }
+        std::transform(template_id.begin(), template_id.end(), template_id.begin(), ::tolower);
+        std::replace_if(template_id.begin(), template_id.end(), [](char c){ return !std::isalnum(c); }, '_');
+
+        std::filesystem::path file_path = std::filesystem::path(templates_base_dir) / "trait" / (template_id + ".json");
+        try {
+             file_path = std::filesystem::absolute(file_path).lexically_normal();
+             // Optional: Sicherheitscheck
+
+             // Prüfen, ob Template mit dieser ID schon existiert
+             if (std::filesystem::exists(file_path)) {
+                 return crow::response(409, "{\"error\": \"A trait template with this ID already exists.\"}"); // 409 Conflict
+             }
+
+              // Stelle sicher, dass das Verzeichnis existiert
+             std::filesystem::create_directories(file_path.parent_path());
+
+             std::ofstream output_file(file_path);
+             if (!output_file.is_open()) { return crow::response(500, "{\"error\": \"Could not save template file.\"}"); }
+             output_file << incoming_data.dump(4); // Schreibe die empfangenen Daten
+             output_file.close();
+
+             json response_data = incoming_data; // Sende gespeicherte Daten zurück
+             response_data["id"] = template_id;  // Füge die generierte ID hinzu
+             crow::response res(201, response_data.dump()); // 201 Created
+             res.set_header("Content-Type", "application/json");
+             return res;
+
+        } catch (const std::exception& e) {
+             std::cerr << "Fehler beim Speichern von Trait-Template " << template_id << ": " << e.what() << std::endl;
+             return crow::response(500, "{\"error\": \"Internal server error saving trait template.\"}");
+        }
+    });
+
+    // DELETE /api/templates/trait/{templateId}
+     CROW_ROUTE(app, "/api/templates/trait/<string>").methods("DELETE"_method)
+        ([&](const std::string& template_id_from_url) {
+        // Validierung des template_id (wie bei GET)
+         if (template_id_from_url.empty() || template_id_from_url.find("..") != std::string::npos || template_id_from_url.find('/') != std::string::npos || template_id_from_url.find('\\') != std::string::npos) { return crow::response(400, "..."); }
+
+         std::filesystem::path file_path = std::filesystem::path(templates_base_dir) / "trait" / (template_id_from_url + ".json");
+         try {
+             file_path = std::filesystem::absolute(file_path).lexically_normal();
+             // Optional: Sicherheitscheck
+
+             if (!std::filesystem::exists(file_path) || !std::filesystem::is_regular_file(file_path)) {
+                 return crow::response(404, "{\"error\": \"Trait template not found.\"}");
+             }
+             if (std::filesystem::remove(file_path)) {
+                 return crow::response(204); // No Content
+             } else {
+                 return crow::response(500, "{\"error\": \"Could not delete template file.\"}");
+             }
+         } catch (const std::exception& e) {
+             std::cerr << "Fehler beim Löschen von Trait-Template " << template_id_from_url << ": " << e.what() << std::endl;
+             return crow::response(500, "{\"error\": \"Internal server error deleting trait template.\"}");
+         }
+    });
 
 
     // --- POST /api/encounters (Erstellen/Aktualisieren) ---

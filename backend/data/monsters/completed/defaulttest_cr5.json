@@ -42,9 +42,18 @@
         "savingThrow": []
     },
     "complete": true,
-    "conditionImmunities": [],
-    "immunities": [],
-    "inventory": "",
+    "conditionImmunities": [
+        "Petrified",
+        "Paralyzed",
+        "Invisible",
+        "Incapacitated",
+        "Grappled"
+    ],
+    "immunities": [
+        "Cold",
+        "Fire"
+    ],
+    "inventory": "test",
     "lairActions": [],
     "legendaryActions": {
         "LegendaryResistanceUses": 0,
@@ -55,7 +64,11 @@
     },
     "multiattacks": "",
     "reactions": [],
-    "resistances": [],
+    "resistances": [
+        "Acid",
+        "All",
+        "Cold"
+    ],
     "saves": {
         "CHA": {
             "defaultValue": 5,
@@ -118,5 +131,8 @@
     ],
     "spellcasting": {},
     "traits": [],
-    "vulnerabilities": []
+    "vulnerabilities": [
+        "Force",
+        "Bludgeoning"
+    ]
 }

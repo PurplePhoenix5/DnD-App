@@ -10,6 +10,7 @@ import SkillsConfig from './Skills/SkillsConfig.vue';
 import SensesConfig from './Senses/SensesConfig.vue';
 import ResistancesAndImmunitiesConfig from './Resistances & Immunities/ResistancesAndImmunitiesConfig.vue';
 import InventoryConfig from './Inventory/InventoryConfig.vue';
+import TraitsConfig from './Traits/TraitsConfig.vue';
 
 const props = defineProps({
     monsterData: { type: Object, required: true },
@@ -32,7 +33,7 @@ const panels = ref([
   { id: 'senses', title: 'Senses', icon: 'mdi-eye-outline', path: 'senses', component: SensesConfig },
   { id: 'resistances', title: 'Resistances & Immunities', icon: 'mdi-shield-check-outline', path: 'resistImmun', component: ResistancesAndImmunitiesConfig },
   { id: 'inventory', title: 'Inventory', icon: 'mdi-treasure-chest-outline', path: 'inventory', component: InventoryConfig }, 
-  { id: 'traits', title: 'Traits', icon: 'mdi-puzzle-outline' },
+  { id: 'traits', title: 'Traits', icon: 'mdi-puzzle-outline', path: 'traits', component: TraitsConfig },
   { id: 'spellcaszing', title: 'Spellcasting', icon: 'mdi-magic-staff' },
   { id: 'actions', title: 'Actions', icon: 'mdi-sword' },
   { id: 'multiattack', title: 'Multi Attack', icon: 'mdi-plus-circle-multiple-outline' }, 
@@ -67,6 +68,9 @@ const getDataForPanel = (panel) => {
           // Gib den String direkt zurück, nicht in ein Objekt packen
          return get(props.monsterData, 'inventory', '');
      }
+     if (panel.path === 'traits') {
+         return get(props.monsterData, 'traits', []);
+    }
     // Standard: Hole den Wert über den Pfad
     return get(props.monsterData, panel.path, {}); // Gib leeres Objekt als Default zurück
 };
@@ -95,7 +99,9 @@ const getDataForPanel = (panel) => {
            :is="panel.component"
            :modelValue="getDataForPanel(panel)"
            :basicsData="getDataForPanel({ path: 'basics' })"
-           :is-enabled="isEnabled"
+           :skillsData="getDataForPanel({ path: 'skills'})" 
+           :allSkillsInfo="allSkillsData"                   
+           :is-enabled="panel.id === 'basics' || isEnabled"
            @update:field="handleFieldUpdate($event)"
         />
         <SpeedsConfig v-else-if="panel.id === 'speeds'"
@@ -122,6 +128,10 @@ const getDataForPanel = (panel) => {
                       :modelValue="getDataForPanel(panel)"
                       :is-enabled="isEnabled"
                       @update:field="handleFieldUpdate($event)" />
+        <TraitsConfig v-else-if="panel.id === 'traits'"
+                      :modelValue="getDataForPanel(panel)"
+                      :is-enabled="isEnabled"
+                      @update:field="handleFieldUpdate($event)" />              
         <p v-else class="text-disabled pa-4">
           Configuration for {{ panel.title }} not implemented yet.
         </p>
