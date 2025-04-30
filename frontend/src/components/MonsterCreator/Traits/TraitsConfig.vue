@@ -25,6 +25,10 @@ const traitTemplates = ref([]); // Format: [{ id: '...', name: '...' }]
 const resetTypes = ref([]);
 const isLoadingData = ref(true);
 
+function createEmptyTraitObject() {
+    return { name: '', limitedUse: { count: 0, rate: 'day' }, description: '' };
+}
+
 onMounted(async () => {
     const [templates, resets] = await Promise.all([
         fetchTraitTemplates(), // Eigene Funktion für Templates
@@ -33,6 +37,11 @@ onMounted(async () => {
     traitTemplates.value = templates || [];
     resetTypes.value = resets || [];
     isLoadingData.value = false;
+
+    if (props.modelValue.length === 0) {
+        console.log("TraitsConfig: Initializing with one empty trait.");
+        emitUpdate([createEmptyTraitObject()]); // Sende Update mit einem leeren Trait
+    }
 });
 
 async function fetchTraitTemplates() {
@@ -76,8 +85,8 @@ async function addTrait(templateId) {
             return; // Breche ab, wenn Template nicht geladen werden kann
         }
     } else {
-        // Füge leeres Template hinzu
-         newTraitData.name = "New Trait"; // Gib einen Standardnamen
+        newTraitData = createEmptyTraitObject();
+        newTraitData.name = `New Trait ${props.modelValue.length + 1}`;
     }
 
 
@@ -87,8 +96,14 @@ async function addTrait(templateId) {
 }
 
 function removeTrait(index) {
+    // Verhindere das Löschen der letzten Zeile (jetzt über Array-Länge)
+    if (props.modelValue.length <= 1) {
+        alert("At least one trait must remain.");
+        return;
+    }
     const newTraits = cloneDeep(props.modelValue);
-    newTraits.splice(index, 1);
+    const removedSkill = newTraits.splice(index, 1);
+    // if (removedSkill && removedSkill[0]) { ... overrideStates ... } // Kein Override für Traits
     updateTraitArray(newTraits);
 }
 
@@ -218,7 +233,7 @@ const templateOptions = computed(() => {
 
                         <!-- Zeile 4: Buttons -->
                         <v-col cols="12" md="8">
-                            <v-btn @click="removeTrait(index)" color="error" variant="outlined" :disabled="!isEnabled" block>Delete Trait</v-btn>
+                            <v-btn @click="removeTrait(index)" color="error" variant="outlined" :disabled="!isEnabled || modelValue.length <= 1" block>Delete Trait</v-btn>
                         </v-col>
                          <v-col cols="12" md="2">
                             <v-btn @click="saveTraitAsTemplate(index)" color="secondary" variant="outlined" :disabled="!isEnabled || !trait.name" block>Save Template</v-btn>
@@ -244,7 +259,7 @@ const templateOptions = computed(() => {
          <v-select
            label="Add Trait"
            :items="templateOptions"
-           @update:model-value="addTrait($event); $event = null" 
+           @update:model-value="addTrait($event)"
            density="compact" variant="outlined"
            :disabled="!isEnabled || isLoadingData"
            hide-details
