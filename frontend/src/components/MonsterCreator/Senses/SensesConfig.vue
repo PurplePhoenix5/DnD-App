@@ -6,9 +6,9 @@ import { calculateSkillBonus, statModifier, renderBonus } from '../../../utils/m
 
 const props = defineProps({
   modelValue: { type: Object, required: true }, // Erhält das 'senses'-Objekt
-  basicsData: { type: Object, required: true }, // Für Stats/PB
-  skillsData: { type: Array, required: true }, // Das Array monsterBeingCreated.skills
-  allSkillsInfo: { type: Object, required: true }, // Geladene skills.json Daten
+  basicsData: { type: Object, default: () => ({}) }, // Für Stats/PB
+  skillsData: { type: Array, default: () => ([]) }, // Das Array monsterBeingCreated.skills
+  allSkillsInfo: { type: Object, default: () => ({}) }, // Geladene skills.json Daten (Auch hier Default!)
   isEnabled: { type: Boolean, default: false }
 });
 const emit = defineEmits(['update:field']);

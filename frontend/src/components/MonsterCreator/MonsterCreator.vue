@@ -98,6 +98,10 @@ function handleMonsterFieldUpdate({ path, value }) {
         recalculatePassives = true;
         recalculateAllSaveDefaults(); // Auch Saves neu berechnen, falls Skills Proficiency teilen (unwahrscheinlich, aber sicher)
     }
+    if (path === 'traits') {
+        console.log("MonsterCreator: Explicitly assigning new traits array");
+        monsterBeingCreated.traits = [...value];
+    }
     if (path.startsWith('basics.stats.')) { 
         recalculateSaves=true; 
         recalculatePassives=true; 
@@ -468,6 +472,7 @@ onMounted(async () => {
                    <MonsterConfigurator
                        :monster-data="monsterBeingCreated"
                        :is-enabled="isConfigurationEnabled"
+                       :all-skills-info="skillsDataGlobal"
                        @update-monster-field="handleMonsterFieldUpdate"
                    />
                    <!-- Speicher-Button wurde in den Loader verschoben -->

@@ -7,7 +7,8 @@ import { calculateSkillBonus, renderBonus } from '../../../utils/mathRendering.j
 
 const props = defineProps({
   modelValue: { type: Array, required: true }, // Erhält das 'skills'-Array
-  basicsData: { type: Object, required: true }, // Brauchen Stats und PB
+  // Ändere required: true zu default
+  basicsData: { type: Object, default: () => ({}) }, // Brauchen Stats und PB
   isEnabled: { type: Boolean, default: false }
 });
 const emit = defineEmits(['update:field']);
@@ -28,6 +29,7 @@ function initializeOverrideStates(skillsArray) {
     });
     overrideStates.value = newStates;
 }
+
 watch(() => props.modelValue, (newSkills) => {
     initializeOverrideStates(newSkills);
 }, { deep: true, immediate: true });
@@ -153,7 +155,7 @@ function toggleSkillOverride(index) {
 // -----------------------------------
 
 // --- Watcher zum Neuberechnen der Defaults ---
-watch([() => props.basicsData.stats, () => props.basicsData.PB, allSkillsData],
+watch([() => props.basicsData?.stats, () => props.basicsData?.PB, allSkillsData],
     () => {
          if (!props.modelValue || !props.basicsData || Object.keys(allSkillsData.value).length === 0) return; // Warte auf Daten
 

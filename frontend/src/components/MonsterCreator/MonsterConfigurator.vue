@@ -1,4 +1,3 @@
-<!-- frontend/src/components/MonsterCreator/MonsterConfigurator.vue -->
 <script setup>
 import { ref } from 'vue';
 import { get } from 'lodash'; // Importiere get von lodash
@@ -11,16 +10,27 @@ import SensesConfig from './Senses/SensesConfig.vue';
 import ResistancesAndImmunitiesConfig from './Resistances & Immunities/ResistancesAndImmunitiesConfig.vue';
 import InventoryConfig from './Inventory/InventoryConfig.vue';
 import TraitsConfig from './Traits/TraitsConfig.vue';
+// Füge Imports für weitere Komponenten hinzu, sobald verfügbar
+// import SpellcastingConfig from './Spellcasting/SpellcastingConfig.vue';
+// import ActionsConfig from './Actions/ActionsConfig.vue';
+// etc.
+
 
 const props = defineProps({
     monsterData: { type: Object, required: true },
-    isEnabled: { type: Boolean, default: false }
+    isEnabled: { type: Boolean, default: false },
+    allSkillsInfo: { type: Object, default: () => ({}) } 
 });
 
 const emit = defineEmits(['update-monster-field']);
 
 function handleFieldUpdate(payload) { // payload ist { key, value }
-  console.log('MonsterConfigurator: Relaying update:', payload);  
+  console.log('MonsterConfigurator: Relaying update:', payload);
+  // key ist hier bereits der Pfad, da die Child-Komponenten das so emitten (z.B. 'basics.name' oder 'traits')
+  // Wenn eine Child-Komponente nur einen Teilpfad emittet (z.B. 'name' in BasicsConfig),
+  // müsste hier die Logik aus MonsterCreator's handleMonsterFieldUpdate wiederholt werden
+  // um den vollen Pfad zu konstruieren ('basics.name').
+  // Annahme basierend auf MonsterCreator: key ist bereits der volle Pfad ('traits')
   emit('update-monster-field', { path: payload.key, value: payload.value });
 }
 
@@ -32,30 +42,22 @@ const panels = ref([
   { id: 'skills', title: 'Skills', icon: 'mdi-star-check-outline', path: 'skills', component: SkillsConfig },
   { id: 'senses', title: 'Senses', icon: 'mdi-eye-outline', path: 'senses', component: SensesConfig },
   { id: 'resistances', title: 'Resistances & Immunities', icon: 'mdi-shield-check-outline', path: 'resistImmun', component: ResistancesAndImmunitiesConfig },
-  { id: 'inventory', title: 'Inventory', icon: 'mdi-treasure-chest-outline', path: 'inventory', component: InventoryConfig }, 
+  { id: 'inventory', title: 'Inventory', icon: 'mdi-treasure-chest-outline', path: 'inventory', component: InventoryConfig },
   { id: 'traits', title: 'Traits', icon: 'mdi-puzzle-outline', path: 'traits', component: TraitsConfig },
-  { id: 'spellcaszing', title: 'Spellcasting', icon: 'mdi-magic-staff' },
-  { id: 'actions', title: 'Actions', icon: 'mdi-sword' },
-  { id: 'multiattack', title: 'Multi Attack', icon: 'mdi-plus-circle-multiple-outline' }, 
-  { id: 'bonusactions', title: 'Bonus Actions', icon: 'mdi-sword-cross' },
-  { id: 'reactions', title: 'Reactions', icon: 'mdi-reply' },
-  { id: 'legendary', title: 'Legendary Actions', icon: 'mdi-crown-outline' },
-  { id: 'lair', title: 'Lair Actions', icon: 'mdi-castle' },
+  { id: 'spellcasting', title: 'Spellcasting', icon: 'mdi-magic-staff' /* component: SpellcastingConfig, path: 'spellcasting' */ },
+  { id: 'actions', title: 'Actions', icon: 'mdi-sword' /* component: ActionsConfig, path: 'actions' */ },
+  { id: 'multiattack', title: 'Multi Attack', icon: 'mdi-plus-circle-multiple-outline' /* component: MultiattackConfig, path: 'multiattacks' */ },
+  { id: 'bonusactions', title: 'Bonus Actions', icon: 'mdi-sword-cross' /* component: BonusActionsConfig, path: 'bonusAction' */ },
+  { id: 'reactions', title: 'Reactions', icon: 'mdi-reply' /* component: ReactionsConfig, path: 'reactions' */ },
+  { id: 'legendary', title: 'Legendary Actions', icon: 'mdi-crown-outline' /* component: LegendaryActionsConfig, path: 'legendaryActions' */ },
+  { id: 'lair', title: 'Lair Actions', icon: 'mdi-castle' /* component: LairActionsConfig, path: 'lairActions' */ },
 ]);
 
 // Verwende lodash.get, um die Daten sicher zu extrahieren
 const getDataForPanel = (panel) => {
-    if (!panel.path) return {}; // Fallback für Panels ohne Pfad
-    if (panel.path === 'basics') {
-         // Gib das gesamte basics-Objekt zurück
-         return props.monsterData.basics ?? {}; // Fallback auf leeres Objekt
-    }
-    if (panel.path === 'skills') {
-         return get(props.monsterData, 'skills', []); // Default leeres Array
-    }
-    if (panel.path === 'senses') {
-         return get(props.monsterData, 'senses', {});
-    }
+    if (!panel.path) return undefined; // Rückgabewert sollte undefined oder passender Default sein
+
+    // Spezielle Pfade, die mehrere Top-Level-Properties kombinieren
     if (panel.path === 'resistImmun') {
          return {
              resistances: get(props.monsterData, 'resistances', []),
@@ -64,74 +66,86 @@ const getDataForPanel = (panel) => {
              conditionImmunities: get(props.monsterData, 'conditionImmunities', [])
          };
     }
-     if (panel.path === 'inventory') {
-          // Gib den String direkt zurück, nicht in ein Objekt packen
-         return get(props.monsterData, 'inventory', '');
-     }
-     if (panel.path === 'traits') {
-         return get(props.monsterData, 'traits', []);
-    }
+
     // Standard: Hole den Wert über den Pfad
-    return get(props.monsterData, panel.path, {}); // Gib leeres Objekt als Default zurück
+    // Gebe undefined zurück, falls der Pfad nicht existiert.
+    // Die Child-Komponente sollte mit modelValue=undefined und passenden Defaults umgehen können.
+    return get(props.monsterData, panel.path, undefined);
+};
+
+// Funktion zur sicheren Übergabe von Defaults, falls getDataForPanel undefined zurückgibt
+const getModelValueForComponent = (panel) => {
+    const data = getDataForPanel(panel);
+    // Provide defaults based on the expected type for each component
+    if (panel.path === 'basics') return data ?? {}; // Basics erwartet Objekt
+    if (panel.path === 'saves') return data ?? {}; // Saves erwartet Objekt
+    if (panel.path === 'speeds') return data ?? []; // Speeds erwartet Array
+    if (panel.path === 'skills') return data ?? []; // Skills erwartet Array
+    if (panel.path === 'senses') return data ?? {}; // Senses erwartet Objekt
+    // resistImmun liefert bereits ein Objekt mit Defaults
+    if (panel.path === 'resistImmun') return data;
+    if (panel.path === 'inventory') return data ?? ''; // Inventory erwartet String
+    if (panel.path === 'traits') return data ?? []; // Traits erwartet Array
+    // Füge weitere Typen hinzu, falls nötig
+    return data; // Standardmäßig unmodifiziert zurückgeben
 };
 
 </script>
 
 <template>
-  <v-expansion-panels variant="popout" multiple #default #v-model="openPanels">
-    <v-expansion-panel 
+  <v-expansion-panels variant="popout" multiple>
+    <v-expansion-panel
       v-for="panel in panels"
       :key="panel.id"
       :value="panel.id"
       elevation="1"
-      #default
-      :disabled="panel.id !== 'basics' && !isEnabled"
-    >
+      :disabled="panel.id !== 'basics' && !isEnabled && !panel.component && panel.id !== 'speeds' && panel.id !== 'skills' && panel.id !== 'senses' && panel.id !== 'resistances' && panel.id !== 'inventory' && panel.id !== 'traits'"
+      >
       <v-expansion-panel-title>
         <v-icon :icon="panel.icon" start class="mr-2"></v-icon>
         {{ panel.title }}
       </v-expansion-panel-title>
 
       <v-expansion-panel-text eager>
-        <!-- Ansatz mit dynamischer Komponente (oder v-if wie zuvor) -->
-        <component
-           v-if="panel.component"
-           :is="panel.component"
-           :modelValue="getDataForPanel(panel)"
-           :basicsData="getDataForPanel({ path: 'basics' })"
-           :skillsData="getDataForPanel({ path: 'skills'})" 
-           :allSkillsInfo="allSkillsData"                   
-           :is-enabled="panel.id === 'basics' || isEnabled"
-           @update:field="handleFieldUpdate($event)"
-        />
+        <!-- Verwende v-if für jeden spezifischen Fall -->
+        <BasicsConfig v-if="panel.id === 'basics'"
+                      :modelValue="getModelValueForComponent(panel)"
+                      :is-enabled="isEnabled"
+                      @update:field="handleFieldUpdate($event)" />
+        <SavesConfig v-else-if="panel.id === 'saves'"
+                     :modelValue="getModelValueForComponent(panel)"
+                     :is-enabled="isEnabled"
+                     @update:field="handleFieldUpdate($event)" />
         <SpeedsConfig v-else-if="panel.id === 'speeds'"
-                      :modelValue="getDataForPanel(panel)"
+                      :modelValue="getModelValueForComponent(panel)"
                       :is-enabled="isEnabled"
                       @update:field="handleFieldUpdate($event)" />
+        <!-- SkillsConfig braucht basicsData -> füge ?? {} hinzu -->
         <SkillsConfig v-else-if="panel.id === 'skills'"
-                      :modelValue="getDataForPanel(panel)"
-                      :basicsData="getDataForPanel({ path: 'basics' })" 
+                      :modelValue="getModelValueForComponent(panel)"
+                      :basicsData="getDataForPanel({ path: 'basics' }) ?? {}" 
                       :is-enabled="isEnabled"
                       @update:field="handleFieldUpdate($event)" />
-                      <SensesConfig v-else-if="panel.id === 'senses'"
-                      :modelValue="getDataForPanel(panel)"
-                      :basicsData="getDataForPanel({ path: 'basics' })" 
-                      :skillsData="getDataForPanel({ path: 'skills' })" 
-                      :allSkillsInfo="allSkillsData" 
+        <!-- SensesConfig braucht basicsData, skillsData, allSkillsInfo -->
+        <SensesConfig v-else-if="panel.id === 'senses'"
+                      :modelValue="getModelValueForComponent(panel)"
+                      :basicsData="getDataForPanel({ path: 'basics' }) ?? {}" 
+                      :skillsData="getModelValueForComponent({ path: 'skills' }) ?? []" 
+                      :allSkillsInfo="allSkillsInfo" 
                       :is-enabled="isEnabled"
                       @update:field="handleFieldUpdate($event)" />
         <ResistImmunConfig v-else-if="panel.id === 'resistances'"
-                      :modelValue="getDataForPanel(panel)"
+                      :modelValue="getModelValueForComponent(panel)"
                       :is-enabled="isEnabled"
                       @update:field="handleFieldUpdate($event)" />
         <InventoryConfig v-else-if="panel.id === 'inventory'"
-                      :modelValue="getDataForPanel(panel)"
+                      :modelValue="getModelValueForComponent(panel)"
                       :is-enabled="isEnabled"
                       @update:field="handleFieldUpdate($event)" />
         <TraitsConfig v-else-if="panel.id === 'traits'"
-                      :modelValue="getDataForPanel(panel)"
+                      :modelValue="getModelValueForComponent(panel)"
                       :is-enabled="isEnabled"
-                      @update:field="handleFieldUpdate($event)" />              
+                      @update:field="handleFieldUpdate($event)" />
         <p v-else class="text-disabled pa-4">
           Configuration for {{ panel.title }} not implemented yet.
         </p>
@@ -144,11 +158,35 @@ const getDataForPanel = (panel) => {
 </template>
 
 <style scoped>
-.v-expansion-panel-text {
-  /* Optional: Füge etwas Padding hinzu, wenn der Inhalt direkt im Text ist */
-  /* padding: 16px; */
+/* Bestehendes Styling */
+.splitpanes.default-theme {
+  /* height: calc(100vh - 200px);  */ /* Höhe im style-Attribut von Splitpanes gesetzt */
 }
-.v-expansion-panel-title {
-   font-weight: 500; /* Etwas fetter Titel */
+.splitpanes.default-theme .splitpanes__splitter {
+  background-color: #000000;
+  position: relative;
+}
+.splitpanes.default-theme .splitpanes__splitter:before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  transition: opacity 0.4s;
+  background-color: rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  z-index: 1;
+}
+.splitpanes.default-theme .splitpanes__splitter:hover:before {
+  opacity: 1;
+}
+.splitpanes--vertical > .splitpanes__splitter:before {
+  left: -1px;
+  right: -1px;
+  height: 100%;
+}
+.splitpanes--horizontal > .splitpanes__splitter:before {
+  top: -1px;
+  bottom: -1px;
+  width: 100%;
 }
 </style>
