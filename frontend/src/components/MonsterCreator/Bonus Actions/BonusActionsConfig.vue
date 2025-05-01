@@ -1,28 +1,26 @@
 <!-- frontend/src/components/MonsterCreator/Bonus Actions/BonusActionsConfig.vue -->
 <script setup>
-import ActionConfigBase from '../Actions/ActionConfigBase.vue'; // Passe Pfad an falls nötig
+import ActionConfigBase from '../Actions/ActionConfigBase.vue'; // Korrekter Pfad
 
 const props = defineProps({
-    modelValue: { type: Array, required: true }, // Erhält monsterData.bonusAction (als Array)
-     basicsData: { type: Object, required: true }, // Für Save DC Berechnung
+    modelValue: { type: Object, required: true }, // Erhält das flache Array monsterData.bonusAction
+    basicsData: { type: Object, required: true },
     isEnabled: { type: Boolean, default: false }
 });
 
-const emit = defineEmits(['update:field']); // Emittiert { key: 'bonusAction', value: [...] }
+const emit = defineEmits(['update:field']); // Leitet das Event weiter
+
+function handleBaseUpdate(payload) { // payload ist { key: 'bonusAction', value: [...] }
+    emit('update:field', payload); // Leite direkt weiter
+}
 
 </script>
-
 <template>
     <ActionConfigBase
         :modelValue="modelValue"
         actionGroupType="bonusAction"
-         :basicsData="basicsData"
+        :basicsData="basicsData"
         :isEnabled="isEnabled"
-        @update:field="emit('update:field', $event)"
+        @update:field="handleBaseUpdate" 
     />
 </template>
-
-<style scoped>
-/* Hier können spezifische Styles für BonusActionsConfig stehen, falls nötig */
-/* Oft ist die Basis-Komponente ausreichend */
-</style>

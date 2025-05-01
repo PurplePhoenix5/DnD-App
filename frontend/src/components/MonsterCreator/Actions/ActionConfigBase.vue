@@ -19,7 +19,7 @@ import { VList, VListItem, VListItemTitle } from 'vuetify/components/VList'; // 
 import { VDivider } from 'vuetify/components/VDivider'; // Für Trenner
 
 const props = defineProps({
-  modelValue: { type: Array, required: true }, // Array von Action-Objekten (AttackRoll, SavingThrow, Other gemischt)
+  modelValue: { type: Object, required: true }, // Array von Action-Objekten (AttackRoll, SavingThrow, Other gemischt)
   actionGroupType: { type: String, required: true, validator: val => ['actions', 'bonusAction'].includes(val) }, // 'actions' oder 'bonusAction'
   basicsData: { type: Object, required: true }, // Für Save DC Berechnung (braucht Stats, PB)
   isEnabled: { type: Boolean, default: false }
@@ -30,7 +30,7 @@ const emit = defineEmits(['update:field']);
 // --- State für Datenladen ---
 const isLoadingData = ref(true);
 const attackRanges = ref([]);
-const diceOptions = ref([]); // Für Die Size Select
+const diceOptions = ref({}); // Für Die Size Select
 const damageTypes = ref([]); // Für Damage Type Select
 const rechargeOptions = ref([]);
 const resetTypes = ref([]); // Für Reset Type Select
@@ -71,49 +71,16 @@ watch(selectedTemplate, (newValue) => {
     }
 });
 
-function groupActionsByType(flatActionsArray) {
-    // Stelle sicher, dass die Struktur existiert
-    const grouped = {
-        attackRoll: [],
-        savingThrow: [],
-        other: []
-        // Füge hier weitere Typen hinzu, falls das Schema erweitert wird
-    };
-    (flatActionsArray || []).forEach(action => {
-        // Kopiere das Action-Objekt und entferne die temporäre 'type' Eigenschaft
-        const actionCopy = cloneDeep(action);
-        const type = actionCopy.type; // Hole den Typ
-
-        if (type && grouped[type]) {
-            // Optional: Entferne die type-Eigenschaft, bevor sie zum Gruppenobjekt hinzugefügt wird,
-            // falls das Backend-Schema diese Eigenschaft auf dieser Ebene nicht erwartet.
-            // Laut Ihrem Schema-Ausschnitt haben attackRoll/savingThrow/other
-            // Objekte in den Arrays *keine* type-Eigenschaft.
-            delete actionCopy.type;
-
-            grouped[type].push(actionCopy);
-        } else {
-            console.warn("Action object missing or has invalid type, skipping:", action);
-        }
-    });
-    // console.log("Grouped actions for emission:", grouped);
-    return grouped;
-}
-
 // --- Helpers ---
 // Emittiert das gesamte Array (modelValue) an den Parent
 function emitUpdate(newFlatActionsArray) {
-    // Transformiere das flache Array zurück in die Objektstruktur
     const newGroupedActions = groupActionsByType(newFlatActionsArray);
-
-    // Emittiere die Objektstruktur mit dem korrekten Schlüssel ('actions' oder 'bonusAction')
-    // Der Pfad ist nur der Top-Level-Schlüssel
     emit('update:field', { key: props.actionGroupType, value: newGroupedActions });
 }
 
 // Aktualisiert ein Feld eines spezifischen Actions-Objekts im Array
 function updateActionField(index, field, value) {
-    const newActions = cloneDeep(props.modelValue);
+    const newActions = cloneDeep(flatActionsArray.value); 
     if (newActions[index]) {
         set(newActions[index], field, value);
         // Spezielle Behandlung für Uses/Reset/Recharge Abhängigkeit
@@ -134,7 +101,7 @@ function updateActionField(index, field, value) {
 
 // Fügt ein Feld zu einem verschachtelten Array (z.B. action.damage) hinzu
 function addNestedArrayItem(index, arrayField, item) {
-    const newActions = cloneDeep(props.modelValue);
+    const newActions = cloneDeep(flatActionsArray.value);
     if (newActions[index]) {
         let currentArray = get(newActions[index], arrayField, []);
         // Stellen Sie sicher, dass es ein Array ist
@@ -151,7 +118,7 @@ function addNestedArrayItem(index, arrayField, item) {
 
 // Entfernt ein Element aus einem verschachtelten Array (z.B. action.damage)
 function removeNestedArrayItem(actionIndex, arrayField, itemIndex) {
-     const newActions = cloneDeep(props.modelValue);
+    const newActions = cloneDeep(flatActionsArray.value);
      if (newActions[actionIndex]) {
         let currentArray = get(newActions[actionIndex], arrayField, []);
           if (Array.isArray(currentArray) && itemIndex >= 0 && itemIndex < currentArray.length) {
@@ -199,18 +166,38 @@ const mappedDiceOptions = computed(() => {
     }));
 });
 
+const flatActionsArray = computed(() => {
+    const flatArray = [];
+    const actionObj = props.modelValue || {}; // Fallback auf leeres Objekt
+    (actionObj.attackRoll || []).forEach(a => flatArray.push({ ...a, type: 'attackRoll' }));
+    (actionObj.savingThrow || []).forEach(a => flatArray.push({ ...a, type: 'savingThrow' }));
+    (actionObj.other || []).forEach(a => flatArray.push({ ...a, type: 'other' }));
+    // Füge hier ggf. Logik hinzu, um eine stabile Reihenfolge zu gewährleisten, falls nötig
+    // z.B. durch Sortieren nach einem hinzugefügten 'order'-Index oder dem Namen.
+    // Aktuell ist die Reihenfolge attackRoll -> savingThrow -> other.
+    return flatArray;
+});
+
+function groupActionsByType(flatArray) {
+    const grouped = { attackRoll: [], savingThrow: [], other: [] };
+    (flatArray || []).forEach(action => {
+        const actionCopy = cloneDeep(action);
+        const type = actionCopy.type;
+        if (type && grouped[type]) {
+            delete actionCopy.type; // Entferne temporären Typ vor dem Speichern im Objekt
+            grouped[type].push(actionCopy);
+        }
+    });
+    return grouped;
+}
+
 // --- Add Action Bar Logik ---
 
 // Fügt ein neues leeres Action-Objekt hinzu
 function addEmptyAction(type) {
     if (!props.isEnabled || !type) return;
-
-    // === KORRIGIERT ===
-    // Arbeite mit einer Kopie des FLACHEN modelValue Arrays
-    const newActions = cloneDeep(props.modelValue);
-    // ==================
-
-    let newActionData = { type: type, name: 'New Action' }; // Basis mit Typ und Standardname
+    const newActions = cloneDeep(flatActionsArray.value); // Kopiere flaches Array
+    let newActionData = { type: type, name: `New ${type}` };
 
     // Fülle spezifische Default-Werte basierend auf dem Typ
     if (type === 'attackRoll') {
@@ -253,12 +240,8 @@ function addEmptyAction(type) {
         };
     }
 
-    // === KORRIGIERT ===
-    // Füge das neue Action-Objekt zum FLACHEN Array hinzu
     newActions.push(newActionData);
-    // Emittiere das aktualisierte FLATE Array (emitUpdate wandelt es um)
     emitUpdate(newActions);
-    // ==================
 }
 
 // Fügt eine Action von einem Template hinzu
@@ -275,16 +258,12 @@ async function addActionFromTemplate(type, templateId) {
          const templateData = await response.json();
 
          // Füge den Typ hinzu und entferne Template-ID
-         const newActionData = {
-              ...templateData,
-              type: type, // Wichtig: Den Typ festlegen!
-              id: undefined // Template-ID entfernen
-             // Weitere Anpassungen/Defaults können hier erfolgen, falls nötig
-         };
+         const newActionData = { ...templateData, type: type, id: undefined };
+         
 
          // Optional: Prüfen, ob Action mit diesem Namen bereits existiert
          if (newActionData.name) {
-             const existingAction = props.modelValue.find(a => a.name?.trim() === newActionData.name?.trim() && a.type === type);
+             const existingAction = flatActionsArray.value.find(a => a.name?.trim() === newActionData.name?.trim() && a.type === type);
              if (existingAction) {
                  const confirmAddAnyway = confirm(`An ${type} action named "${newActionData.name}" already exists. Do you want to add it again from the template?`);
                  if (!confirmAddAnyway) {
@@ -293,15 +272,8 @@ async function addActionFromTemplate(type, templateId) {
              }
          }
 
-         // === KORRIGIERT ===
-         // Arbeite mit einer Kopie des FLACHEN modelValue Arrays
-         const newActions = cloneDeep(props.modelValue);
-         // Füge das neue Action-Objekt zum FLACHEN Array hinzu
-         newActions.push(newActionData);
-         // Emittiere das aktualisierte FLATE Array (emitUpdate wandelt es um)
+         const newActions = [...flatActionsArray.value, newActionData]; 
          emitUpdate(newActions);
-         // ==================
-
 
      } catch (error) {
          console.error("Error loading action template:", error);
@@ -337,7 +309,7 @@ function removeAction(index) {
 
     // === KORRIGIERT ===
     // Arbeite mit einer Kopie des FLACHEN modelValue Arrays
-    const newActions = cloneDeep(props.modelValue);
+    const newActions = flatActionsArray.value.filter((_, i) => i !== index);
     // Entferne das Element aus dem FLACHEN Array
     newActions.splice(index, 1);
     // Emittiere das aktualisierte FLATE Array (emitUpdate wandelt es um)
@@ -525,6 +497,14 @@ function toggleSaveDcOverride(actionIndex) {
     // ==================
 }
 
+function moveAction(index, direction) {
+    if (!props.isEnabled) return;
+    const newActions = [...flatActionsArray.value]; // Kopiere flaches Array
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= newActions.length) return;
+    [newActions[index], newActions[newIndex]] = [newActions[newIndex], newActions[index]];
+    emitUpdate(newActions); // Sende neu geordnetes flaches Array
+}
 
 </script>
 
@@ -532,7 +512,7 @@ function toggleSaveDcOverride(actionIndex) {
     <div :class="{'disabled-content': !isEnabled}">
         <div v-if="isLoadingData" class="pa-4 text-center text-disabled">Loading data...</div>
         <!-- Zeige die Meldung, wenn das Array leer ist -->
-        <div v-else-if="modelValue.length === 0" class="pa-4 text-center text-disabled">
+        <div v-else-if="!flatActionsArray || flatActionsArray.length === 0" class="pa-4 text-center text-disabled">
             No {{ actionGroupType === 'actions' ? 'actions' : 'bonus actions' }} added yet. Use the buttons below.
         </div>
         <v-expansion-panels v-else variant="accordion" multiple>

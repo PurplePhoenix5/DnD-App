@@ -60,10 +60,9 @@ const name = computed({
   set: (value) => updateField('name', value)
 });
 const cr = computed({
-  get: () => props.modelValue.CR, // Liest den numerischen CR-Wert
+  get: () => props.modelValue.CR, // Passe den Pfad hier an
   set: (value) => {
-    const numericCR = typeof value === 'number' ? value : null;
-    updateField('CR', numericCR);
+    updateField('CR', value); 
   }
 });
 const size = computed({

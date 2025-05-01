@@ -13,7 +13,6 @@ import TraitsConfig from './Traits/TraitsConfig.vue';
 import SpellcastingConfig from './Spellcasting/SpellcastingConfig.vue';
 import ActionsConfig from './Actions/ActionsConfig.vue';
 import BonusActionsConfig from './Bonus Actions/BonusActionsConfig.vue';
-import ActionConfigBase from './Actions/ActionConfigBase.vue';
 
 const props = defineProps({
     monsterData: { type: Object, required: true },
@@ -62,11 +61,10 @@ const getDataForPanel = (panel) => {
          };
     }
     if (panel.path === 'actions' || panel.path === 'bonusAction') {
-         // Gehe davon aus, dass es bereits ein Array im monsterData ist
-         return get(props.monsterData, panel.path, []); // Default zu leerem Array
+         return get(props.monsterData, panel.path, []); 
     }
 
-    return get(props.monsterData, panel.path, undefined);
+    return get(props.monsterData, panel.path, {});
 };
 
 // Funktion zur sicheren Übergabe von Defaults
