@@ -7,6 +7,8 @@
 #include <exception>  // Für std::exception
 #include <cmath>      // Für std::floor
 #include <iomanip>    // Für std::setw (im dump für pretty print)
+#include <algorithm>  // Für std::transform, std::replace_if
+#include <cctype>     // Für ::tolower, ::isalnum
 
 // Crow Header
 #include "crow.h"
@@ -15,7 +17,6 @@
 
 // Deine CorsMiddleware (wie gehabt)
 struct CorsMiddleware {
-    // ... (Middleware Code wie zuvor) ...
      struct context {};
     void before_handle(crow::request& req, crow::response& res, context& /*ctx*/) {
 
@@ -36,20 +37,227 @@ struct CorsMiddleware {
 
 using json = nlohmann::json;
 
-// --- Hilfsfunktion zum Laden eines Monster-Statblocks ---
+// --- Konstanten für Verzeichnisse ---
+const std::string encounters_base_dir = "../data/encounters";
+const std::string monsters_base_dir = "../data/monsters";
+const std::string dnddata_base_dir = "../data/DnDData";
+const std::string templates_base_dir = "../data/templates";
+const std::vector<std::string> valid_template_types = {"trait", "attackRoll", "savingThrow", "other"}; // Liste der erlaubten Template-Typen
+
+// --- Simpler In-Memory Cache für DnDData ---
+std::map<std::string, json> dndDataCache;
+// --- Ende Cache ---
+
+// --- Hilfsfunktionen für Template-Handling ---
+
+// Überprüft und normalisiert einen Template-Typ-String
+bool is_valid_template_type(const std::string& type) {
+    return std::find(valid_template_types.begin(), valid_template_types.end(), type) != valid_template_types.end();
+}
+
+// Generiert einen sicheren Dateipfad für ein Template
+std::filesystem::path get_template_filepath(const std::string& type, const std::string& id) {
+    // Grundlegende ID-Validierung
+    if (id.empty() || id.find("..") != std::string::npos || id.find('/') != std::string::npos || id.find('\\') != std::string::npos) {
+        throw std::runtime_error("Invalid characters in template ID.");
+    }
+     if (!is_valid_template_type(type)) {
+         throw std::runtime_error("Invalid template type.");
+     }
+
+    std::filesystem::path file_path = std::filesystem::path(templates_base_dir) / type / (id + ".json");
+    return std::filesystem::absolute(file_path).lexically_normal();
+}
+
+// Listet Templates eines Typs auf (gibt nur ID und Name zurück)
+json list_templates_by_type(const std::string& type) {
+    if (!is_valid_template_type(type)) {
+         return json::array(); // Ungültiger Typ -> leeres Array
+     }
+    json template_list = json::array();
+    std::filesystem::path template_dir = std::filesystem::path(templates_base_dir) / type;
+
+    try {
+        // Stelle sicher, dass das Verzeichnis existiert
+        if (!std::filesystem::exists(template_dir) || !std::filesystem::is_directory(template_dir)) {
+            std::filesystem::create_directories(template_dir); // Erstelle es, wenn es fehlt
+            return template_list; // Gib leere Liste zurück, wenn es gerade erst erstellt wurde
+        }
+
+        for (const auto& entry : std::filesystem::directory_iterator(template_dir)) {
+            if (entry.is_regular_file() && entry.path().extension() == ".json") {
+                std::ifstream file(entry.path());
+                if (file.is_open()) {
+                    try {
+                        json data;
+                        file >> data;
+                        json item;
+                        item["id"] = entry.path().stem().string();
+                        // Sicherer Zugriff auf den Namen, Fallback wenn fehlt
+                        item["name"] = data.value("name", "Unknown Template");
+                        template_list.push_back(item);
+                    } catch (const std::exception& e) {
+                        std::cerr << "Fehler beim Verarbeiten von Template " << entry.path() << ": " << e.what() << std::endl;
+                    }
+                }
+            }
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Fehler beim Auflisten von Templates (" << type << "): " << e.what() << std::endl;
+        // Fehler beim Auflisten sollte 500 sein, wird vom Handler behandelt
+        throw; // Exception weiterwerfen
+    }
+    return template_list;
+}
+
+// Lädt ein spezifisches Template
+json get_template_by_type(const std::string& type, const std::string& id) {
+    try {
+         std::filesystem::path file_path = get_template_filepath(type, id);
+
+         if (!std::filesystem::exists(file_path) || !std::filesystem::is_regular_file(file_path)) {
+            throw std::runtime_error("Template not found."); // Eigene Meldung für 404
+         }
+          std::ifstream file(file_path);
+         if (!file.is_open()) { throw std::runtime_error("Could not open template file."); }
+
+         json template_data;
+         file >> template_data;
+         return template_data;
+
+    } catch (const json::parse_error& e) {
+        std::cerr << "Fehler beim Parsen von Template " << type << "/" << id << ": " << e.what() << std::endl;
+        throw std::runtime_error("Error reading template content."); // Eigene Meldung für 500
+    } catch (const std::runtime_error& e) {
+        // Propagiert Fehler von get_template_filepath oder "Template not found"
+        throw;
+    } catch (const std::exception& e) {
+        std::cerr << "Fehler beim Laden von Template " << type << "/" << id << ": " << e.what() << std::endl;
+        throw std::runtime_error("Internal server error loading template."); // Generische 500 Meldung
+    }
+}
+
+// Speichert ein Template (generiert ID aus Inhalt)
+json save_template_by_type(const std::string& type, const json& incoming_data) {
+    if (!is_valid_template_type(type)) {
+        throw std::runtime_error("Invalid template type for saving.");
+    }
+
+     // Validierung: Braucht mindestens 'name'
+     if (!incoming_data.contains("name") || !incoming_data["name"].is_string() || incoming_data["name"].get<std::string>().empty()) {
+         throw std::runtime_error("Missing or empty 'name' field for template.");
+     }
+
+    // Erstelle ID aus Name (+ Uses für Trait, oder andere Kriterien für Actions?)
+    // Für Actions nehmen wir einfach Name und Typ als Basis für die ID
+    std::string base_id = incoming_data["name"];
+    if (type == "trait" && incoming_data.contains("limitedUse") && incoming_data["limitedUse"].is_object() && incoming_data["limitedUse"].contains("count")) {
+        base_id += "_uses" + std::to_string(incoming_data["limitedUse"]["count"].get<int>());
+    } else if (type == "savingThrow" && incoming_data.contains("saveStat") && incoming_data["saveStat"].is_string()) {
+        base_id += "_" + incoming_data["saveStat"].get<std::string>();
+    }
+    // Fügen Sie hier Logik für andere Action-Typen hinzu, falls nötig, um IDs eindeutiger zu machen
+
+    // Sanitisiere ID
+    std::string template_id = base_id;
+    std::transform(template_id.begin(), template_id.end(), template_id.begin(), ::tolower);
+    std::replace_if(template_id.begin(), template_id.end(), [](char c){ return !std::isalnum(c) && c != '_'; }, '_'); // Erlaubt Unterstrich
+    template_id.erase(std::unique(template_id.begin(), template_id.end(), [](char a, char b){ return a == '_' && b == '_'; }), template_id.end()); // Entfernt doppelte Unterstriche
+    template_id.erase(0, template_id.find_first_not_of('_')); // Entfernt führende Unterstriche
+    template_id.erase(template_id.find_last_not_of('_') + 1); // Entfernt nachgestellte Unterstriche
+
+
+    std::filesystem::path file_path;
+    try {
+        file_path = get_template_filepath(type, template_id); // Nutze generierte ID im Pfad
+
+        // Prüfen, ob Template mit dieser ID schon existiert
+        if (std::filesystem::exists(file_path)) {
+            throw std::runtime_error("A template with this ID already exists."); // Eigene Meldung für 409
+        }
+
+        // Stelle sicher, dass das Verzeichnis existiert
+        std::filesystem::create_directories(file_path.parent_path());
+
+        std::ofstream output_file(file_path);
+        if (!output_file.is_open()) { throw std::runtime_error("Could not save template file."); }
+        output_file << incoming_data.dump(4); // Schreibe die empfangenen Daten
+        output_file.close();
+
+        json response_data = incoming_data;
+        response_data["id"] = template_id; // Füge die generierte ID zur Antwort hinzu
+        return response_data; // Rückgabe der gespeicherten Daten + ID
+
+    } catch (const std::runtime_error& e) {
+         // Propagiert Fehler von get_template_filepath oder "Template already exists" oder "Could not save"
+        throw;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Fehler beim Speichern von Template (" << type << ", ID: " << template_id << "): " << e.what() << std::endl;
+        throw std::runtime_error("Internal server error saving template.");
+    }
+}
+
+// Löscht ein spezifisches Template
+void delete_template_by_type(const std::string& type, const std::string& id) {
+    try {
+         std::filesystem::path file_path = get_template_filepath(type, id);
+
+         if (!std::filesystem::exists(file_path)) {
+             // Prüfe hier nicht auf is_regular_file, um eine spezifischere 404 Meldung zu geben,
+             // wenn der Pfad existiert, aber kein File ist.
+             throw std::runtime_error("Template not found for deletion."); // Eigene Meldung für 404
+         }
+         if (!std::filesystem::is_regular_file(file_path)) {
+              throw std::runtime_error("Path exists but is not a regular file."); // Eigene Meldung für 404
+         }
+
+         if (std::filesystem::remove(file_path)) {
+             // Erfolg, 204 No Content
+         } else {
+              throw std::runtime_error("Could not delete template file."); // Eigene Meldung für 500
+         }
+     } catch (const std::runtime_error& e) {
+         // Propagiert Fehler von get_template_filepath oder "Template not found" oder "Could not delete"
+        throw;
+     }
+    catch (const std::exception& e) {
+        std::cerr << "Fehler beim Löschen von Template (" << type << ", ID: " << id << "): " << e.what() << std::endl;
+        throw std::runtime_error("Internal server error deleting template.");
+    }
+}
+
+// --- Hilfsfunktion zum Laden eines Monster-Statblocks (kann bleiben) ---
 // Gibt ein leeres JSON-Objekt zurück, wenn Laden fehlschlägt oder Felder fehlen
 json load_monster_statblock(const std::string& monster_id) {
-    const std::string monsters_base_dir = "../data/monsters";
+    // ... (bestehende Implementierung) ...
+     const std::string monsters_base_dir = "../data/monsters"; // Hinweis: base_dir ist im main, hier als Konstante kopiert
+
     std::filesystem::path monster_file_path;
 
     try {
-        monster_file_path = std::filesystem::path(monsters_base_dir) / (monster_id + ".json");
-        monster_file_path = std::filesystem::absolute(monster_file_path).lexically_normal();
-
-        if (!std::filesystem::exists(monster_file_path) || !std::filesystem::is_regular_file(monster_file_path)) {
-            std::cerr << "Fehler: Monster-Datei nicht gefunden oder keine Datei: " << monster_file_path << std::endl;
-            return nullptr; // Signalisiert Fehler (oder leeres Objekt)
+        // Suche in beiden Ordnern
+        std::vector<std::string> potential_subdirs = {"completed", "uncompleted"};
+        bool file_found = false;
+        for(const auto& subdir : potential_subdirs) {
+             std::filesystem::path current_path;
+             try {
+                current_path = std::filesystem::absolute(std::filesystem::path(monsters_base_dir) / subdir / (monster_id + ".json")).lexically_normal();
+                if (std::filesystem::exists(current_path) && std::filesystem::is_regular_file(current_path)) {
+                    monster_file_path = current_path;
+                    file_found = true;
+                    break;
+                }
+             } catch(const std::exception& e) {
+                  std::cerr << "Fehler beim Suchen nach Monster " << monster_id << " in " << subdir << ": " << e.what() << std::endl;
+             }
         }
+
+         if (!file_found) {
+             std::cerr << "Monster " << monster_id << " nicht in completed oder uncompleted gefunden." << std::endl;
+             return nullptr; // Signalisiert Fehler (oder 404)
+         }
+
 
         std::ifstream monster_file(monster_file_path);
         if (!monster_file.is_open()) {
@@ -69,22 +277,18 @@ json load_monster_statblock(const std::string& monster_id) {
         return nullptr;
     }
 }
+// --- Ende Hilfsfunktion Monster Laden ---
 
 
 int main() {
     crow::App<CorsMiddleware> app;
-    const std::string encounters_base_dir = "../data/encounters";
-    const std::string monsters_base_dir = "../data/monsters";
-    const std::string dnddata_base_dir = "../data/DnDData";
-    const std::string templates_base_dir = "../data/templates";
+    // Konstanten für Verzeichnisse sind jetzt global definiert
 
-    // --- Simpler In-Memory Cache für DnDData ---
-    // Verhindert das ständige Lesen kleiner Dateien vom Laufwerk
-    std::map<std::string, json> dndDataCache;
-    // --- Ende Cache ---
+    // --- Simpler In-Memory Cache für DnDData (kann bleiben) ---
+    // std::map<std::string, json> dndDataCache ist global
 
-    // --- GET /api/status ---
-    CROW_ROUTE(app, "/api/status")([]() { /* ... wie zuvor ... */
+    // --- GET /api/status (kann bleiben) ---
+    CROW_ROUTE(app, "/api/status")([]() {
         json response;
         response["status"] = "OK";
         response["message"] = "DnD Backend ist bereit!";
@@ -94,8 +298,9 @@ int main() {
      });
 
     // --- GET /api/encounters ---
-    CROW_ROUTE(app, "/api/encounters")([&]() { // Capture base_dir
-        json encounter_list = json::array();
+    CROW_ROUTE(app, "/api/encounters")([&]() {
+        // ... (bestehende Implementierung) ...
+         json encounter_list = json::array();
         try {
             for (const auto& entry : std::filesystem::directory_iterator(encounters_base_dir)) {
                 if (entry.is_regular_file() && entry.path().extension() == ".json") {
@@ -123,9 +328,9 @@ int main() {
     });
 
     // --- GET /api/encounters/{id} ---
-    // Gibt jetzt die *angereicherte* Version zurück, damit Combat Tracker sie hat
      CROW_ROUTE(app, "/api/encounters/<string>")
         ([&](const crow::request& /*req*/, const std::string& encounter_id) {
+        // ... (bestehende Implementierung) ...
         std::filesystem::path encounter_file_path;
         try {
             encounter_file_path = std::filesystem::path(encounters_base_dir) / (encounter_id + ".json");
@@ -140,7 +345,6 @@ int main() {
                  return crow::response(500, "{\"error\": \"Encounter-Datei konnte nicht geöffnet werden.\"}");
             }
 
-            // Lese die *gespeicherte* Encounter-Datei (die bereits die angereicherten Infos enthält)
             json encounter_data;
             file >> encounter_data;
 
@@ -157,14 +361,12 @@ int main() {
         }
     });
 
-     // --- GET /api/monsters/summary ---
+     // --- GET /api/monsters/summary (kann bleiben) ---
      CROW_ROUTE(app, "/api/monsters/summary")([&]() {
-        json monster_summary_list = json::array();
-        // === Geändert: Verwende recursive_directory_iterator ===
+        // ... (bestehende Implementierung) ...
+         json monster_summary_list = json::array();
         try {
-             // Iteriere rekursiv durch monsters_base_dir und Unterordner
              for (const auto& entry : std::filesystem::recursive_directory_iterator(monsters_base_dir)) {
-                 // Verarbeite nur .json Dateien (ignoriere Ordner)
                  if (entry.is_regular_file() && entry.path().extension() == ".json") {
                      std::ifstream file(entry.path());
                      if (file.is_open()) {
@@ -172,9 +374,7 @@ int main() {
                              json data;
                              file >> data;
                              json summary_item;
-                             // Verwende den Dateinamen ohne Endung als ID
                              summary_item["id"] = entry.path().stem().string();
-                             // Extrahiere Daten sicher
                              summary_item["name"] = data.value("basics", json::object()).value("name", "Unknown");
                              summary_item["cr"] = data.value("basics", json::object()).value("CR", 0.0);
                              summary_item["size"] = data.value("basics", json::object()).value("size", "Medium");
@@ -191,15 +391,15 @@ int main() {
             std::cerr << "Fehler beim Auflisten der Monster in " << monsters_base_dir << ": " << e.what() << std::endl;
             return crow::response(500, "{\"error\": \"Serverfehler beim Auflisten der Monster.\"}");
         }
-        // ====================================================
         crow::response res(monster_summary_list.dump());
         res.set_header("Content-Type", "application/json");
         return res;
     });
 
-    // --- GET /api/spells ---
-    CROW_ROUTE(app, "/api/spells")([&]() { // Capture base_dirs if needed, though not directly used here
-        const std::string spells_file_path_str = "../data/spells/spells.json"; // Pfad zur Datei
+    // --- GET /api/spells (kann bleiben) ---
+    CROW_ROUTE(app, "/api/spells")([&]() {
+        // ... (bestehende Implementierung) ...
+         const std::string spells_file_path_str = "../data/spells/spells.json";
         std::filesystem::path spells_file_path;
 
         try {
@@ -216,12 +416,10 @@ int main() {
                     return crow::response(500, "{\"error\": \"Could not open spell data file.\"}");
             }
 
-            // Lese den gesamten Dateiinhalt in einen String
             std::stringstream buffer;
             buffer << spells_file.rdbuf();
             std::string spells_content = buffer.str();
 
-            // Sende den rohen JSON-String zurück
             crow::response res(200, spells_content);
             res.set_header("Content-Type", "application/json");
             return res;
@@ -232,27 +430,30 @@ int main() {
         }
     });
 
-    // --- GET /api/dnddata/{filename} ---
+    // --- GET /api/dnddata/{filename} (kann bleiben) ---
     CROW_ROUTE(app, "/api/dnddata/<string>")
         ([&](const std::string& requested_filename) {
+        // ... (bestehende Implementierung) ...
+         if (requested_filename.empty()) { return crow::response(400, "{\"error\": \"Filename is required.\"}"); }
+        if (requested_filename.find("..") != std::string::npos) { return crow::response(400, "{\"error\": \"Invalid filename.\"islava"); } // Geändert: isValid statt islava
+        if (requested_filename.length() <= 5 || requested_filename.substr(requested_filename.length() - 5) != ".json") { return crow::response(400, "{\"error\": \"Filename must end with .json\"}"); }
 
-        // === VALIDIERUNG (wie zuvor) ===
-        if (requested_filename.empty()) { /* ... */ return crow::response(400, "..."); }
-        if (requested_filename.find("..") != std::string::npos) { return crow::response(400, "{\"error\": \"Invalid filename.\"}"); }
-        if (requested_filename.length() <= 5 || requested_filename.substr(requested_filename.length() - 5) != ".json") { /* ... */ return crow::response(400, "..."); }
-        // === ENDE VALIDIERUNG ===
 
         const std::string filename = requested_filename;
 
-
-        // --- Optional: Cache Check ---
         if (dndDataCache.count(filename)) {
             crow::response res(dndDataCache[filename].dump());
             res.set_header("Content-Type", "application/json");
-            res.add_header("X-Data-Source", "Cache"); // Zum Debuggen
+            res.add_header("X-Data-Source", "Cache");
             return res;
         }
-        // --- Ende Cache Check ---
+
+        if (loadingPromises.count(filename)) { // Prüfe map mit .count() statt struct mit .find()
+             // Wenn ein Promise läuft, gib 202 Accepted oder warte kurz (Warten komplex)
+             // Einfacher: Frontend soll mit Ladeanzeige warten
+             return crow::response(202, "{\"status\": \"Loading\", \"message\": \"Data is currently being loaded.\"}");
+        }
+
 
         std::filesystem::path file_path;
         try {
@@ -271,15 +472,13 @@ int main() {
             }
 
             json data_content;
-            data_file >> data_content; // Direkt als JSON parsen
+            data_file >> data_content;
 
-            // --- Optional: Zum Cache hinzufügen ---
-            dndDataCache[filename] = data_content;
-            // --- Ende Cache Add ---
+            dndDataCache[filename] = data_content; // Speichere im Cache
 
             crow::response res(data_content.dump());
             res.set_header("Content-Type", "application/json");
-            res.add_header("X-Data-Source", "File"); // Zum Debuggen
+            res.add_header("X-Data-Source", "File");
             return res;
 
         } catch (const json::parse_error& e) {
@@ -291,464 +490,232 @@ int main() {
         }
     });
 
-    // --- Routen für Trait Templates ---
 
-    // GET /api/templates/trait (Liste aller Trait-Templates)
-    CROW_ROUTE(app, "/api/templates/trait").methods("GET"_method)
-        ([&]() {
-        json template_list = json::array();
-        std::filesystem::path trait_template_dir = std::filesystem::path(templates_base_dir) / "trait";
-        try {
-            // Stelle sicher, dass das Verzeichnis existiert
-            if (!std::filesystem::exists(trait_template_dir) || !std::filesystem::is_directory(trait_template_dir)) {
-                std::filesystem::create_directories(trait_template_dir); // Erstelle es, wenn es fehlt
-                // Gib leere Liste zurück, wenn es gerade erst erstellt wurde
-                 crow::response res(template_list.dump());
-                 res.set_header("Content-Type", "application/json");
-                 return res;
-            }
+    // --- NEUE Routen für ALLE Template-Typen (Trait, AttackRoll, SavingThrow, Other) ---
 
-            for (const auto& entry : std::filesystem::directory_iterator(trait_template_dir)) {
-                if (entry.is_regular_file() && entry.path().extension() == ".json") {
-                    std::ifstream file(entry.path());
-                    if (file.is_open()) {
-                        try {
-                            json data;
-                            file >> data;
-                            // Füge ID und Name zur Liste hinzu (ID ist Dateiname)
-                            json item;
-                            item["id"] = entry.path().stem().string();
-                            item["name"] = data.value("name", "Unknown Template");
-                            template_list.push_back(item);
-                        } catch (const std::exception& e) {
-                            std::cerr << "Fehler beim Verarbeiten von Trait-Template " << entry.path() << ": " << e.what() << std::endl;
-                        }
-                    }
-                }
-            }
-        } catch (const std::exception& e) {
-            std::cerr << "Fehler beim Auflisten von Trait-Templates: " << e.what() << std::endl;
-            return crow::response(500, "{\"error\": \"Serverfehler beim Auflisten der Trait-Templates.\"}");
-        }
-        crow::response res(template_list.dump());
-        res.set_header("Content-Type", "application/json");
-        return res;
-    });
-
-    // GET /api/templates/trait/{templateId} (Einzelnes Template holen)
-    CROW_ROUTE(app, "/api/templates/trait/<string>")
-        ([&](const std::string& template_id_from_url) {
-        // Validierung des template_id (ähnlich wie bei DnDData, aber ohne .json Endung)
-        if (template_id_from_url.empty() || template_id_from_url.find("..") != std::string::npos || template_id_from_url.find('/') != std::string::npos || template_id_from_url.find('\\') != std::string::npos) {
-            return crow::response(400, "{\"error\": \"Invalid characters in template ID.\"}");
-        }
-
-        std::filesystem::path file_path = std::filesystem::path(templates_base_dir) / "trait" / (template_id_from_url + ".json");
-        try {
-             file_path = std::filesystem::absolute(file_path).lexically_normal();
-             // Optional: Sicherheitscheck gegen Verzeichnis verlassen
-
-             if (!std::filesystem::exists(file_path) || !std::filesystem::is_regular_file(file_path)) {
-                return crow::response(404, "{\"error\": \"Trait template not found.\"}");
-             }
-              std::ifstream file(file_path);
-             if (!file.is_open()) { return crow::response(500, "{\"error\": \"Could not open template file.\"}"); }
-
-             json template_data;
-             file >> template_data;
-             crow::response res(template_data.dump());
-             res.set_header("Content-Type", "application/json");
-             return res;
-
-        } catch (const std::exception& e) {
-            std::cerr << "Fehler beim Laden von Trait-Template " << template_id_from_url << ": " << e.what() << std::endl;
-            return crow::response(500, "{\"error\": \"Internal server error loading trait template.\"}");
-        }
-    });
-
-    // POST /api/templates/trait (Neues Template speichern)
-    CROW_ROUTE(app, "/api/templates/trait").methods("POST"_method)
-        ([&](const crow::request& req) {
-        json incoming_data;
-        try { incoming_data = json::parse(req.body); } catch (...) { return crow::response(400, "{\"error\": \"Invalid JSON body.\"}"); }
-
-        // Validierung: Braucht mindestens 'name'
-        if (!incoming_data.contains("name") || !incoming_data["name"].is_string() || incoming_data["name"].get<std::string>().empty()) {
-            return crow::response(400, "{\"error\": \"Missing or empty 'name' field for template.\"}");
-        }
-
-        // Erstelle ID aus Name (+ Uses, falls vorhanden)
-        std::string template_name = incoming_data["name"];
-        std::string template_id = template_name;
-        if (incoming_data.contains("limitedUse") && incoming_data["limitedUse"].is_object() && incoming_data["limitedUse"].contains("count")) {
-             template_id += "_uses" + std::to_string(incoming_data["limitedUse"]["count"].get<int>());
-        }
-        std::transform(template_id.begin(), template_id.end(), template_id.begin(), ::tolower);
-        std::replace_if(template_id.begin(), template_id.end(), [](char c){ return !std::isalnum(c); }, '_');
-
-        std::filesystem::path file_path = std::filesystem::path(templates_base_dir) / "trait" / (template_id + ".json");
-        try {
-             file_path = std::filesystem::absolute(file_path).lexically_normal();
-             // Optional: Sicherheitscheck
-
-             // Prüfen, ob Template mit dieser ID schon existiert
-             if (std::filesystem::exists(file_path)) {
-                 return crow::response(409, "{\"error\": \"A trait template with this ID already exists.\"}"); // 409 Conflict
-             }
-
-              // Stelle sicher, dass das Verzeichnis existiert
-             std::filesystem::create_directories(file_path.parent_path());
-
-             std::ofstream output_file(file_path);
-             if (!output_file.is_open()) { return crow::response(500, "{\"error\": \"Could not save template file.\"}"); }
-             output_file << incoming_data.dump(4); // Schreibe die empfangenen Daten
-             output_file.close();
-
-             json response_data = incoming_data; // Sende gespeicherte Daten zurück
-             response_data["id"] = template_id;  // Füge die generierte ID hinzu
-             crow::response res(201, response_data.dump()); // 201 Created
-             res.set_header("Content-Type", "application/json");
-             return res;
-
-        } catch (const std::exception& e) {
-             std::cerr << "Fehler beim Speichern von Trait-Template " << template_id << ": " << e.what() << std::endl;
-             return crow::response(500, "{\"error\": \"Internal server error saving trait template.\"}");
-        }
-    });
-
-    // DELETE /api/templates/trait/{templateId}
-     CROW_ROUTE(app, "/api/templates/trait/<string>").methods("DELETE"_method)
-        ([&](const std::string& template_id_from_url) {
-        // Validierung des template_id (wie bei GET)
-         if (template_id_from_url.empty() || template_id_from_url.find("..") != std::string::npos || template_id_from_url.find('/') != std::string::npos || template_id_from_url.find('\\') != std::string::npos) { return crow::response(400, "..."); }
-
-         std::filesystem::path file_path = std::filesystem::path(templates_base_dir) / "trait" / (template_id_from_url + ".json");
-         try {
-             file_path = std::filesystem::absolute(file_path).lexically_normal();
-             // Optional: Sicherheitscheck
-
-             if (!std::filesystem::exists(file_path) || !std::filesystem::is_regular_file(file_path)) {
-                 return crow::response(404, "{\"error\": \"Trait template not found.\"}");
-             }
-             if (std::filesystem::remove(file_path)) {
-                 return crow::response(204); // No Content
-             } else {
-                 return crow::response(500, "{\"error\": \"Could not delete template file.\"}");
-             }
-         } catch (const std::exception& e) {
-             std::cerr << "Fehler beim Löschen von Trait-Template " << template_id_from_url << ": " << e.what() << std::endl;
-             return crow::response(500, "{\"error\": \"Internal server error deleting trait template.\"}");
+    // GET /api/templates/{type} (Liste aller Templates eines Typs)
+    CROW_ROUTE(app, "/api/templates/<string>").methods("GET"_method)
+        ([&](const std::string& type) {
+        if (!is_valid_template_type(type)) {
+             return crow::response(400, "{\"error\": \"Invalid template type.\"}");
          }
-    });
-
-
-    // --- POST /api/encounters (Erstellen/Aktualisieren) ---
-    CROW_ROUTE(app, "/api/encounters").methods("POST"_method)
-        ([&](const crow::request& req){ // Capture base_dirs
-        json incoming_data;
         try {
-            incoming_data = json::parse(req.body);
-        } catch (const json::parse_error& e) {
-            std::cerr << "Fehler beim Parsen des Request Body: " << e.what() << std::endl;
-            return crow::response(400, "{\"error\": \"Ungültiges JSON im Request Body.\"}");
-        }
-
-        // 1. Daten validieren/extrahieren (Beispielhaft)
-        if (!incoming_data.contains("name") || !incoming_data["name"].is_string() ||
-            !incoming_data.contains("monsters") || !incoming_data["monsters"].is_array()) {
-            return crow::response(400, "{\"error\": \"Fehlende oder ungültige Felder 'name' oder 'monsters'.\"}");
-        }
-
-        std::string encounter_id = incoming_data.value("id", ""); // ID aus Request oder leer
-        std::string encounter_name = incoming_data["name"];
-        bool is_new_encounter = encounter_id.empty();
-
-        // Wenn keine ID vorhanden, generiere eine aus dem Namen (oder Timestamp)
-        if (is_new_encounter) {
-            encounter_id = encounter_name;
-            // Einfache ID-Generierung: Kleinbuchstaben, ersetze Leerzeichen/Sonderzeichen durch '_'
-            std::transform(encounter_id.begin(), encounter_id.end(), encounter_id.begin(), ::tolower);
-            std::replace_if(encounter_id.begin(), encounter_id.end(), [](char c){ return !std::isalnum(c); }, '_');
-            // Optional: Prüfen, ob die generierte ID schon existiert und ggf. Suffix hinzufügen
-             std::cout << "Generierte neue Encounter-ID: " << encounter_id << std::endl;
-        }
-
-        // 2. Ziel-Dateipfad erstellen
-        std::filesystem::path target_file_path;
-         try {
-             target_file_path = std::filesystem::path(encounters_base_dir) / (encounter_id + ".json");
-             target_file_path = std::filesystem::absolute(target_file_path).lexically_normal();
-         } catch (const std::exception& e) {
-             std::cerr << "Fehler beim Erstellen des Zielpfads für Encounter '" << encounter_id << "': " << e.what() << std::endl;
-             return crow::response(500, "{\"error\": \"Interner Fehler beim Erstellen des Dateipfads.\"}");
-         }
-
-         // Prüfe, ob Datei schon existiert, um Statuscode 200 oder 201 zu setzen
-         bool file_existed = std::filesystem::exists(target_file_path);
-
-
-        // 3. Finale JSON-Struktur aufbauen (mit Anreicherung)
-        json final_encounter_data;
-        final_encounter_data["id"] = encounter_id;
-        final_encounter_data["name"] = encounter_name;
-        final_encounter_data["description"] = incoming_data.value("description", "");
-        final_encounter_data["party"] = incoming_data.value("party", json::object({{"playerCount", 4}, {"averageLevel", 1}})); // Default Party
-        final_encounter_data["calculatedDifficulty"] = incoming_data.value("calculatedDifficulty", "Unknown");
-
-        // Monster anreichern
-        final_encounter_data["monsters"] = json::array();
-        try {
-            for (const auto& monster_ref : incoming_data["monsters"]) {
-                if (!monster_ref.contains("monsterId") || !monster_ref.contains("count")) {
-                     std::cerr << "Warnung: Ungültiger Monstereintrag im Request übersprungen." << std::endl;
-                     continue;
-                }
-                std::string m_id = monster_ref["monsterId"];
-                int m_count = monster_ref["count"];
-
-                json monster_full_data = load_monster_statblock(m_id);
-                if (monster_full_data == nullptr) {
-                    // Konnte Monster nicht laden, entscheide, wie damit umgegangen wird
-                    // Option A: Fehler werfen und Speichern abbrechen
-                     json error_resp;
-                     error_resp["error"] = "Referenziertes Monster nicht gefunden oder konnte nicht geladen werden.";
-                     error_resp["monsterId"] = m_id;
-                     return crow::response(400, error_resp.dump()); // 400 Bad Request, da Input fehlerhaft
-                    // Option B: Monster überspringen (führt evtl. zu inkonsistenten Encountern)
-                    // std::cerr << "Warnung: Monster " << m_id << " konnte nicht geladen werden, wird im Encounter übersprungen." << std::endl;
-                    // continue;
-                }
-
-                // Benötigte Felder extrahieren
-                int ac = monster_full_data.value("AC", 10);
-                double cr = monster_full_data.value("CR", 0.0); // CR kann double sein (1/8 etc.)
-
-                // HP berechnen (Durchschnitt)
-                json hp_obj = monster_full_data.value("HP", json::object({{"HD", 1}, {"type", 8}, {"modifier", 0}}));
-                int hd = hp_obj.value("HD", 1);
-                int type = hp_obj.value("type", 8);
-                int modifier = hp_obj.value("modifier", 0);
-                int avg_hp = std::max(1, static_cast<int>(std::floor(hd * (static_cast<double>(type) / 2.0 + 0.5)) + modifier)); // Durchschnitt berechnen
-
-                // Initiative Bonus berechnen
-                json stats_obj = monster_full_data.value("stats", json::object({{"DEX", 10}}));
-                int dex = stats_obj.value("DEX", 10);
-                int init_bonus = static_cast<int>(std::floor((dex - 10) / 2.0));
-
-                // Angereicherten Eintrag erstellen
-                json enriched_monster;
-                enriched_monster["monsterId"] = m_id;
-                enriched_monster["count"] = m_count;
-                enriched_monster["name"] = monster_full_data.value("name", m_id); // Name aus Statblock
-                enriched_monster["AC"] = ac;
-                enriched_monster["CR"] = cr;
-                enriched_monster["averageHp"] = avg_hp;
-                enriched_monster["initiativeBonus"] = init_bonus;
-                // Füge keine vollen Statblocks hinzu! Nur die extrahierten Werte.
-
-                final_encounter_data["monsters"].push_back(enriched_monster);
-            }
-        } catch (const std::exception& e) {
-             std::cerr << "Fehler beim Anreichern der Monsterdaten: " << e.what() << std::endl;
-             return crow::response(500, "{\"error\": \"Interner Fehler beim Verarbeiten der Monsterdaten.\"}");
-        }
-
-
-        // 4. In Datei schreiben
-        try {
-            std::ofstream output_file(target_file_path);
-            if (!output_file.is_open()) {
-                 std::cerr << "Fehler: Zieldatei konnte nicht zum Schreiben geöffnet werden: " << target_file_path << std::endl;
-                 return crow::response(500, "{\"error\": \"Encounter konnte nicht gespeichert werden (Dateizugriff).\"}");
-            }
-            // Schreibe JSON pretty-printed (Einrückung 4 Leerzeichen)
-            output_file << final_encounter_data.dump(4);
-            output_file.close(); // Schließen, um sicherzustellen, dass alles geschrieben wurde
-             std::cout << "Encounter erfolgreich gespeichert: " << target_file_path << std::endl;
-
-        } catch (const std::exception& e) {
-             std::cerr << "Fehler beim Schreiben der Encounter-Datei " << target_file_path << ": " << e.what() << std::endl;
-             return crow::response(500, "{\"error\": \"Interner Fehler beim Speichern des Encounters.\"}");
-        }
-
-        // 5. Erfolgsantwort senden
-        int status_code = file_existed ? 200 : 201; // OK oder Created
-        crow::response res(status_code, final_encounter_data.dump()); // Gib die gespeicherten Daten zurück
-        res.set_header("Content-Type", "application/json");
-        return res;
-    });
-
-    CROW_ROUTE(app, "/api/monsters/<string>").methods("PUT"_method)
-        ([&](const crow::request& req, const std::string& monster_id_from_url){ // Capture base_dirs
-        json incoming_data;
-        try {
-            incoming_data = json::parse(req.body);
-        } catch (const json::parse_error& e) {
-            std::cerr << "Fehler beim Parsen des Request Body (PUT Monster): " << e.what() << std::endl;
-            return crow::response(400, "{\"error\": \"Ungültiges JSON im Request Body.\"}");
-        }
-
-        if (!incoming_data.contains("basics") || !incoming_data["basics"].is_object()) {
-            return crow::response(400, "{\"error\": \"Missing or invalid 'basics' object.\"}");
-        }
-        const json& basics_data = incoming_data["basics"];
-        if (!basics_data.contains("name") || !basics_data["name"].is_string() || basics_data["name"].get<std::string>().empty()) {
-            return crow::response(400, "{\"error\": \"Missing or empty 'basics.name' field.\"}");
-        }
-        if (!basics_data.contains("CR") || !basics_data["CR"].is_number()) {
-            return crow::response(400, "{\"error\": \"Missing or invalid 'basics.CR' field (must be a number).\"}");
-        }
-
-        // === NEU: Bestimme Zielordner basierend auf 'complete'-Flag ===
-        bool is_complete = incoming_data.value("complete", false);
-        std::string target_sub_dir = is_complete ? "completed" : "uncompleted";
-        std::string opposite_sub_dir = is_complete ? "uncompleted" : "completed"; 
-
-        std::filesystem::path target_dir_path = std::filesystem::path(monsters_base_dir) / target_sub_dir;
-        std::filesystem::path target_file_path;
-        std::filesystem::path old_file_path; 
-        // ===============================================================
-
-         try {
-             // Stelle sicher, dass die Zielverzeichnisse existieren
-             std::filesystem::create_directories(target_dir_path);
-             std::filesystem::create_directories(std::filesystem::path(monsters_base_dir) / opposite_sub_dir);
-
-             target_file_path = target_dir_path / (monster_id_from_url + ".json");
-             target_file_path = std::filesystem::absolute(target_file_path).lexically_normal();
-
-             old_file_path = std::filesystem::path(monsters_base_dir) / opposite_sub_dir / (monster_id_from_url + ".json");
-             old_file_path = std::filesystem::absolute(old_file_path).lexically_normal();
-
-
-         } catch (const std::exception& e) { /* ... Fehlerbehandlung ... */ }
-
-         // Prüfe, ob Datei im *anderen* Ordner existiert (für Statuscode und Löschen)
-         bool file_existed_in_other_dir = std::filesystem::exists(old_file_path);
-         // Prüfe, ob Datei im *Ziel*-Ordner existiert (für Statuscode)
-         bool file_existed_in_target_dir = std::filesystem::exists(target_file_path);
-         bool created_new = !file_existed_in_target_dir && !file_existed_in_other_dir;
-
-        // Datei zum Schreiben öffnen (überschreibt/erstellt im Zielordner)
-        try {
-            std::ofstream output_file(target_file_path);
-            if (!output_file.is_open()) { /* ... Fehler ... */ }
-            output_file << incoming_data.dump(4); // Schreibe die empfangenen Daten
-            output_file.close();
-
-            // === NEU: Lösche alte Datei, falls sie im anderen Ordner existierte ===
-            if (file_existed_in_other_dir) {
-                try {
-                     if(std::filesystem::remove(old_file_path)) {
-                          std::cout << "Alte Monsterdatei gelöscht: " << old_file_path << std::endl;
-                     } else {
-                          std::cerr << "Warnung: Konnte alte Monsterdatei nicht löschen: " << old_file_path << std::endl;
-                     }
-                } catch(const std::exception& e) {
-                     std::cerr << "Warnung: Fehler beim Löschen der alten Monsterdatei " << old_file_path << ": " << e.what() << std::endl;
-                }
-            }
-            // ================================================================
-
-            std::cout << "Monster erfolgreich gespeichert/aktualisiert: " << target_file_path << std::endl;
-
-        } catch (const std::exception& e) { /* ... Fehlerbehandlung ... */ }
-
-        // Statuscode: 201 für komplett neu, 200 für Update/Verschieben
-        int status_code = created_new ? 201 : 200;
-
-        // Erfolgsantwort senden
-        crow::response res(status_code, incoming_data.dump());
-        res.set_header("Content-Type", "application/json");
-        return res;
-    });
-  
-
-    CROW_ROUTE(app, "/api/monsters/<string>").methods("GET"_method)
-        ([&](const std::string& monster_id){
-         std::vector<std::string> potential_dirs = {"completed", "uncompleted"};
-         std::filesystem::path found_path;
-         bool file_found = false;
-
-         for(const auto& subdir : potential_dirs) {
-             std::filesystem::path current_path;
-             try {
-                current_path = std::filesystem::absolute(std::filesystem::path(monsters_base_dir) / subdir / (monster_id + ".json")).lexically_normal();
-                if (std::filesystem::exists(current_path) && std::filesystem::is_regular_file(current_path)) {
-                    found_path = current_path;
-                    file_found = true;
-                    break; // Datei gefunden, Schleife beenden
-                }
-             } catch(const std::exception& e) {
-                  std::cerr << "Fehler beim Suchen nach " << current_path << ": " << e.what() << std::endl;
-                  // Suche weiter im nächsten Ordner
-             }
-         }
-
-         if (!file_found) {
-             std::cerr << "GET /api/monsters: Monster nicht gefunden in beiden Ordnern: " << monster_id << std::endl;
-             return crow::response(404, "{\"error\": \"Monster not found.\"}");
-         }
-
-        try {
-            std::ifstream monster_file(found_path);
-            if (!monster_file.is_open()) {
-                 std::cerr << "GET /api/monsters: Datei nicht lesbar: " << found_path << std::endl;
-                 return crow::response(500, "{\"error\": \"Could not read monster file.\"}");
-            }
-            std::stringstream buffer;
-            buffer << monster_file.rdbuf();
-            std::string monster_content = buffer.str();
-            crow::response res(200, monster_content);
+            json template_list = list_templates_by_type(type);
+            crow::response res(template_list.dump());
             res.set_header("Content-Type", "application/json");
             return res;
         } catch (const std::exception& e) {
-            std::cerr << "Fehler beim Laden von Monster " << monster_id << " (" << found_path << "): " << e.what() << std::endl;
-            return crow::response(500, "{\"error\": \"Internal server error loading monster details.\"}");
+            return crow::response(500, "{\"error\": \"Serverfehler beim Auflisten der Templates: " + std::string(e.what()) + "\"}");
         }
     });
 
+    // GET /api/templates/{type}/{templateId} (Einzelnes Template holen)
+    CROW_ROUTE(app, "/api/templates/<string>/<string>").methods("GET"_method)
+        ([&](const std::string& type, const std::string& template_id) {
+        if (!is_valid_template_type(type)) {
+             return crow::response(400, "{\"error\": \"Invalid template type.\"}");
+         }
+        try {
+             json template_data = get_template_by_type(type, template_id);
+             crow::response res(template_data.dump());
+             res.set_header("Content-Type", "application/json");
+             return res;
+        } catch (const std::runtime_error& e) {
+            if (std::string(e.what()).find("Template not found") != std::string::npos) {
+                 return crow::response(404, "{\"error\": \"" + std::string(e.what()) + "\"}");
+            }
+             if (std::string(e.what()).find("Invalid characters") != std::string::npos) {
+                 return crow::response(400, "{\"error\": \"" + std::string(e.what()) + "\"}");
+            }
+            return crow::response(500, "{\"error\": \"" + std::string(e.what()) + "\"}");
+        } catch (const std::exception& e) {
+            return crow::response(500, "{\"error\": \"Internal server error: " + std::string(e.what()) + "\"}");
+        }
+    });
 
-    // --- DELETE /api/encounters/{encounterId} (NEU) ---
+    // POST /api/templates/{type} (Neues Template speichern)
+     CROW_ROUTE(app, "/api/templates/<string>").methods("POST"_method)
+         ([&](const crow::request& req, const std::string& type) {
+         if (!is_valid_template_type(type)) {
+             return crow::response(400, "{\"error\": \"Invalid template type.\"}");
+         }
+         json incoming_data;
+         try { incoming_data = json::parse(req.body); } catch (...) { return crow::response(400, "{\"error\": \"Invalid JSON body.\"}"); }
+
+         try {
+             json saved_template_data = save_template_by_type(type, incoming_data);
+             crow::response res(201, saved_template_data.dump()); // 201 Created
+             res.set_header("Content-Type", "application/json");
+             return res;
+         } catch (const std::runtime_error& e) {
+             if (std::string(e.what()).find("Missing or empty") != std::string::npos) {
+                 return crow::response(400, "{\"error\": \"" + std::string(e.what()) + "\"}");
+             }
+             if (std::string(e.what()).find("exists") != std::string::npos) {
+                  return crow::response(409, "{\"error\": \"" + std::string(e.what()) + "\"}"); // 409 Conflict
+             }
+              // Fehler beim Speichern (Dateizugriff etc.)
+              return crow::response(500, "{\"error\": \"" + std::string(e.what()) + "\"}");
+
+         } catch (const std::exception& e) {
+             return crow::response(500, "{\"error\": \"Internal server error: " + std::string(e.what()) + "\"}");
+         }
+     });
+
+
+    // DELETE /api/templates/{type}/{templateId}
+     CROW_ROUTE(app, "/api/templates/<string>/<string>").methods("DELETE"_method)
+         ([&](const std::string& type, const std::string& template_id) {
+         if (!is_valid_template_type(type)) {
+             return crow::response(400, "{\"error\": \"Invalid template type.\"}");
+         }
+         try {
+             delete_template_by_type(type, template_id);
+             return crow::response(204); // No Content
+
+         } catch (const std::runtime_error& e) {
+             if (std::string(e.what()).find("Template not found") != std::string::npos || std::string(e.what()).find("Path exists but is not a regular file") != std::string::npos) {
+                  return crow::response(404, "{\"error\": \"" + std::string(e.what()) + "\"}");
+             }
+             if (std::string(e.what()).find("Invalid characters") != std::string::npos) {
+                 return crow::response(400, "{\"error\": \"" + std::string(e.what()) + "\"}");
+            }
+              // Fehler beim Löschen (Dateizugriff etc.)
+              return crow::response(500, "{\"error\": \"" + std::string(e.what()) + "\"}");
+
+         } catch (const std::exception& e) {
+             return crow::response(500, "{\"error\": \"Internal server error: " + std::string(e.what()) + "\"}");
+         }
+     });
+
+    // --- RESTLICHE MONSTER/ENCOUNTER Routen (können bleiben) ---
+
+    CROW_ROUTE(app, "/api/monsters/<string>").methods("PUT"_method)
+        ([&](const crow::request& req, const std::string& monster_id_from_url){
+            // ... (bestehende Implementierung) ...
+             json incoming_data;
+            try { incoming_data = json::parse(req.body); } catch (...) { return crow::response(400, "{\"error\": \"Ungültiges JSON im Request Body.\"}"); }
+
+            if (!incoming_data.contains("basics") || !incoming_data["basics"].is_object()) { return crow::response(400, "{\"error\": \"Missing or invalid 'basics' object.\"}"); }
+            const json& basics_data = incoming_data["basics"];
+            if (!basics_data.contains("name") || !basics_data["name"].is_string() || basics_data["name"].get<std::string>().empty()) { return crow::response(400, "{\"error\": \"Missing or empty 'basics.name' field.\"}"); }
+            if (!basics_data.contains("CR") || !basics_data["CR"].is_number()) { return crow::response(400, "{\"error\": \"Missing or invalid 'basics.CR' field (must be a number).\"}"); }
+
+            bool is_complete = incoming_data.value("complete", false);
+            std::string target_sub_dir = is_complete ? "completed" : "uncompleted";
+            std::string opposite_sub_dir = is_complete ? "uncompleted" : "completed";
+
+            std::filesystem::path target_dir_path = std::filesystem::path(monsters_base_dir) / target_sub_dir;
+            std::filesystem::path target_file_path;
+            std::filesystem::path old_file_path;
+
+             try {
+                 std::filesystem::create_directories(target_dir_path);
+                 std::filesystem::create_directories(std::filesystem::path(monsters_base_dir) / opposite_sub_dir); // Stelle sicher, dass auch der andere Ordner existiert
+
+                 target_file_path = std::filesystem::absolute(target_dir_path / (monster_id_from_url + ".json")).lexically_normal();
+                 old_file_path = std::filesystem::absolute(std::filesystem::path(monsters_base_dir) / opposite_sub_dir / (monster_id_from_url + ".json")).lexically_normal();
+
+             } catch (const std::exception& e) {
+                 std::cerr << "Fehler beim Erstellen/Normalisieren der Monster-Dateipfade für '" << monster_id_from_url << "': " << e.what() << std::endl;
+                 return crow::response(500, "{\"error\": \"Interner Fehler beim Erstellen des Dateipfads.\"}");
+             }
+
+             bool file_existed_in_other_dir = std::filesystem::exists(old_file_path) && std::filesystem::is_regular_file(old_file_path);
+             bool file_existed_in_target_dir = std::filesystem::exists(target_file_path) && std::filesystem::is_regular_file(target_file_path);
+             bool created_new = !file_existed_in_target_dir && !file_existed_in_other_dir; // Neu, wenn in keinem der beiden Ordner existierte
+
+            try {
+                std::ofstream output_file(target_file_path);
+                if (!output_file.is_open()) {
+                     std::cerr << "Fehler: Zieldatei konnte nicht zum Schreiben geöffnet werden: " << target_file_path << std::endl;
+                     return crow::response(500, "{\"error\": \"Monster konnte nicht gespeichert werden (Dateizugriff).\"}");
+                }
+                output_file << incoming_data.dump(4);
+                output_file.close();
+
+                if (file_existed_in_other_dir) {
+                    try {
+                         if(std::filesystem::remove(old_file_path)) {
+                              std::cout << "Alte Monsterdatei gelöscht: " << old_file_path << std::endl;
+                         } else {
+                              // Das ist eine Warnung, kein kritischer Fehler, da die neue Datei gespeichert wurde.
+                              std::cerr << "Warnung: Konnte alte Monsterdatei nicht löschen: " << old_file_path << std::endl;
+                         }
+                    } catch(const std::exception& e) {
+                         std::cerr << "Warnung: Fehler beim Löschen der alten Monsterdatei " << old_file_path << ": " << e.what() << std::endl;
+                    }
+                }
+
+                std::cout << "Monster erfolgreich gespeichert/aktualisiert: " << target_file_path << std::endl;
+
+            } catch (const std::exception& e) {
+                 std::cerr << "Fehler beim Schreiben der Monster-Datei " << target_file_path << ": " << e.what() << std::endl;
+                 return crow::response(500, "{\"error\": \"Interner Fehler beim Speichern des Monsters.\"}");
+            }
+
+            int status_code = created_new ? 201 : 200; // OK oder Created
+
+            crow::response res(status_code, incoming_data.dump()); // Gib die gespeicherten Daten zurück
+            res.set_header("Content-Type", "application/json");
+            return res;
+    });
+
+
+    CROW_ROUTE(app, "/api/monsters/<string>").methods("GET"_method)
+        ([&](const std::string& monster_id){
+        // Diese Route nutzt jetzt load_monster_statblock, die in beiden Ordnern sucht
+        json monster_data = load_monster_statblock(monster_id);
+
+        if (monster_data == nullptr) { // load_monster_statblock gibt nullptr bei Fehler/Nicht gefunden zurück
+            return crow::response(404, "{\"error\": \"Monster not found or could not be loaded.\"}");
+        }
+
+        crow::response res(monster_data.dump());
+        res.set_header("Content-Type", "application/json");
+        return res;
+    });
+
+
     CROW_ROUTE(app, "/api/monsters/<string>").methods("DELETE"_method)
     ([&](const std::string& monster_id) {
      std::filesystem::path path_completed = std::filesystem::absolute(std::filesystem::path(monsters_base_dir) / "completed" / (monster_id + ".json")).lexically_normal();
      std::filesystem::path path_uncompleted = std::filesystem::absolute(std::filesystem::path(monsters_base_dir) / "uncompleted" / (monster_id + ".json")).lexically_normal();
      bool deleted = false;
-     bool tried_completed = false;
-     bool tried_uncompleted = false;
+     bool attempted_delete = false; // Flag, um zu sehen, ob überhaupt ein Löschversuch gestartet wurde
 
      try {
          if (std::filesystem::exists(path_completed) && std::filesystem::is_regular_file(path_completed)) {
-              tried_completed = true;
+              attempted_delete = true;
               if (std::filesystem::remove(path_completed)) {
                   deleted = true;
                   std::cout << "Monster gelöscht: " << path_completed << std::endl;
               } else {
                  std::cerr << "Fehler: Konnte Monsterdatei nicht löschen (completed): " << path_completed << std::endl;
-                  return crow::response(500, "{\"error\": \"Could not delete monster file (completed).\"}");
+                 // Wenn wir hier einen Fehler haben und noch nichts gelöscht wurde, senden wir 500
+                 if (!deleted) return crow::response(500, "{\"error\": \"Could not delete monster file (completed).\"}");
               }
          }
-         // Versuche auch im anderen Ordner zu löschen, falls es verschoben wurde aber noch nicht gespeichert
           if (std::filesystem::exists(path_uncompleted) && std::filesystem::is_regular_file(path_uncompleted)) {
-              tried_uncompleted = true;
+               attempted_delete = true;
               if (std::filesystem::remove(path_uncompleted)) {
                   deleted = true; // Setze deleted auf true, auch wenn es nur hier gefunden wurde
                   std::cout << "Monster gelöscht: " << path_uncompleted << std::endl;
               } else {
                  std::cerr << "Fehler: Konnte Monsterdatei nicht löschen (uncompleted): " << path_uncompleted << std::endl;
-                 // Nur Fehler 500 senden, wenn *nichts* gelöscht werden konnte
-                 if (!deleted) return crow::response(500, "{\"error\": \"Could not delete monster file (uncompleted).\"}");
+                 // Wenn wir hier einen Fehler haben und noch nichts gelöscht wurde, senden wir 500
+                  if (!deleted) return crow::response(500, "{\"error\": \"Could not delete monster file (uncompleted).\"}");
               }
          }
 
          if (deleted) {
               return crow::response(204); // No Content
-         } else if (tried_completed || tried_uncompleted) {
-              // Existierte in keinem der Ordner als Datei (sollte nicht passieren, wenn exists vorher prüft)
+         } else if (attempted_delete) {
+              // Wir haben versucht zu löschen (Datei existierte als Pfad) aber konnten es nicht als Datei behandeln
                return crow::response(404, "{\"error\": \"Monster file found but could not be identified as regular file for deletion.\"}");
          }
           else {
+               // Weder in completed noch in uncompleted gefunden
                return crow::response(404, "{\"error\": \"Monster not found in completed or uncompleted folders.\"}");
          }
 

@@ -9,6 +9,8 @@ import { calculateInitiativeBonus, calculateSkillBonus, statModifier, saveModifi
 
 import MonsterLoader from './MonsterLoader.vue';
 import MonsterConfigurator from './MonsterConfigurator.vue';
+import ActionsConfig from './Actions/ActionsConfig.vue'; // Import Actions
+import BonusActionsConfig from './Bonus Actions/BonusActionsConfig.vue'; // Import Bonus Actions
 // import StatBlockRenderer from '../StatBlockRenderer.vue'; // Pfad prüfen
 
 const emptyMonsterStructure = createEmptyMonster(); 
@@ -51,8 +53,8 @@ function createEmptyMonster() {
         inventory: '',
         traits: [],
         spellcasting: { /* ... wie zuvor ... */ },
-        actions: { attackRoll: [], savingThrow: [], other: [] },
-        bonusAction: { attackRoll: [], savingThrow: [], other: [] },
+        actions: [], // Initialisiere als leeres ARRAY
+        bonusAction: [], // Initialisiere als leeres ARRAY
         multiattacks: '',
         reactions: [],
         legendaryActions: { uses: 0, usesInLair: 0, LegendaryResistanceUses: 0, legendaryResistanceType: '', legendaryAction: [] },
@@ -66,6 +68,15 @@ function handleMonsterFieldUpdate({ path, value }) {
     let targetPath = path;
     if (emptyMonsterStructure.basics && path in emptyMonsterStructure.basics) {
         targetPath = `basics.${path}`;
+    } else if (path === 'actions' || path === 'bonusAction' || path === 'traits') {
+        console.log(`MonsterCreator: Explicitly assigning new array for path: ${path}`);
+         // Stelle sicher, dass monsterBeingCreated diese Property hat
+         if (monsterBeingCreated[path]) {
+              monsterBeingCreated[path] = [...value]; // Nutze Spread für Array-Kopie
+         } else {
+              // Handle Fall, falls die Property noch nicht existiert (sollte nicht passieren bei createEmptyMonster)
+              console.warn(`MonsterCreator: Attempted to update non-existent array path: ${path}`);
+         };
     } else if (emptyMonsterStructure.basics?.HP && path.startsWith('HP.')) {
         targetPath = `basics.${path}`;
     } else if (emptyMonsterStructure.basics?.stats && path.startsWith('stats.')) {
