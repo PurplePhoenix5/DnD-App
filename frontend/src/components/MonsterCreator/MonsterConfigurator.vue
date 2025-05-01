@@ -11,7 +11,9 @@ import ResistancesAndImmunitiesConfig from './Resistances & Immunities/Resistanc
 import InventoryConfig from './Inventory/InventoryConfig.vue';
 import TraitsConfig from './Traits/TraitsConfig.vue';
 import SpellcastingConfig from './Spellcasting/SpellcastingConfig.vue';
-
+import ActionsConfig from './Actions/ActionsConfig.vue';
+import BonusActionsConfig from './Bonus Actions/BonusActionsConfig.vue';
+import ActionConfigBase from './Actions/ActionConfigBase.vue';
 
 const props = defineProps({
     monsterData: { type: Object, required: true },
@@ -38,9 +40,9 @@ const panels = ref([
   { id: 'inventory', title: 'Inventory', icon: 'mdi-treasure-chest-outline', path: 'inventory', component: InventoryConfig },
   { id: 'traits', title: 'Traits', icon: 'mdi-puzzle-outline', path: 'traits', component: TraitsConfig },
   { id: 'spellcasting', title: 'Spellcasting', icon: 'mdi-magic-staff', path: 'spellcasting', component: SpellcastingConfig,  },
-  { id: 'actions', title: 'Actions', icon: 'mdi-sword' /* , component: ActionsConfig, path: 'actions' */ },
+  { id: 'actions', title: 'Actions', icon: 'mdi-sword', path: 'actions', component: ActionsConfig },
   { id: 'multiattack', title: 'Multi Attack', icon: 'mdi-plus-circle-multiple-outline' /* , component: MultiattackConfig, path: 'multiattacks' */ },
-  { id: 'bonusactions', title: 'Bonus Actions', icon: 'mdi-sword-cross' /* , component: BonusActionsConfig, path: 'bonusAction' */ },
+  { id: 'bonusactions', title: 'Bonus Actions', icon: 'mdi-sword-cross', path: 'bonusAction', component: BonusActionsConfig },
   { id: 'reactions', title: 'Reactions', icon: 'mdi-reply' /* , component: ReactionsConfig, path: 'reactions' */ },
   { id: 'legendary', title: 'Legendary Actions', icon: 'mdi-crown-outline' /* , component: LegendaryActionsConfig, path: 'legendaryActions' */ },
   { id: 'lair', title: 'Lair Actions', icon: 'mdi-castle' /* , component: LairActionsConfig, path: 'lairActions' */ },
