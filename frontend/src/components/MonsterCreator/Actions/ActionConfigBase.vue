@@ -3,7 +3,7 @@
 import { ref, onMounted, computed, watch } from 'vue';
 import { cloneDeep, set, get } from 'lodash';
 import { loadDnDData } from '../../../utils/dndDataService.js'; // Für allgemeine DnD Daten
-import { avgRoll, calculateSaveDC } from '../../../utils/mathRendering.js'; // Für Berechnungen
+import { avgRoll, calculateSaveDC, renderBonus } from '../../../utils/mathRendering.js'; // Für Berechnungen
 import { VExpansionPanels, VExpansionPanel, VExpansionPanelTitle, VExpansionPanelText } from 'vuetify/components/VExpansionPanel';
 import { VRow, VCol } from 'vuetify/components/VGrid';
 import { VTextField } from 'vuetify/components/VTextField';
@@ -20,7 +20,7 @@ import { VDivider } from 'vuetify/components/VDivider'; // Für Trenner
 
 const props = defineProps({
   modelValue: { type: Object, required: true }, // Array von Action-Objekten (AttackRoll, SavingThrow, Other gemischt)
-  actionGroupType: { type: String, required: true, validator: val => ['actions', 'bonusAction'].includes(val) }, // 'actions' oder 'bonusAction'
+  actionGroupType: { type: String, required: true}, // 'actions' oder 'bonusAction'
   basicsData: { type: Object, required: true }, // Für Save DC Berechnung (braucht Stats, PB)
   isEnabled: { type: Boolean, default: false }
 });
@@ -41,143 +41,50 @@ const selectedActionType = ref('attackRoll'); // Standardmäßig Attack Roll
 const selectedTemplate = ref(null);
 const actionTemplates = ref([]); // Geladene Templates für den selectedActionType
 
-// --- State für Damage Input Reihen (innerhalb Attack Roll & Saving Throw) ---
-// Lokale Refs für temporäre Damage Input Werte, wenn eine neue Damage Reihe hinzugefügt wird
-// Diese werden auf null/'' gesetzt, nachdem die Reihe zur action.damage Liste hinzugefügt wurde
-const newDamageInput = ref({ count: null, size: null, modifier: null, type: null, averageDamage: null });
+// --- Lifecycle Hook ---
+onMounted(async () => {
+    isLoadingData.value = true;
+    try {
+        // Lade alle benötigten DnD Daten parallel
+        const [ranges, dice, damage, recharge, reset, stats] = await Promise.all([
+            loadDnDData('attackRanges.json'),
+            loadDnDData('dice.json'),
+            loadDnDData('damageTypes.json'),
+            loadDnDData('recharge.json'),
+            loadDnDData('resetTypes.json'),
+            loadDnDData('stats.json')
+        ]);
+        attackRanges.value = ranges || [];
+        diceOptions.value = dice || { diceMapping: {}, dieLookup: {} };
+        damageTypes.value = damage || [];
+        rechargeOptions.value = recharge || [];
+        resetTypes.value = reset || [];
+         // Stats sind ein Objekt { STR:{}, ... }, brauche nur die Keys als Array
+         statsOptions.value = stats ? Object.keys(stats) : [];
 
-
-// --- Watcher für selectedActionType zum Laden von Templates ---
-watch(selectedActionType, async (newType) => {
-    selectedTemplate.value = null; // Select zurücksetzen
-    if (!newType) {
-        actionTemplates.value = [];
-        return;
+    } catch (error) {
+         console.error("Error loading initial data for ActionConfig:", error);
+    } finally {
+        isLoadingData.value = false;
     }
-    console.log(`Fetching templates for type: ${newType}`);
-    actionTemplates.value = await fetchActionTemplates(newType);
-}, { immediate: true }); // Sofort beim Laden der Komponente auslösen
-
-// --- Computed Property für Template Select Items ---
-const templateOptions = computed(() => {
-    return actionTemplates.value.map(t => ({ title: t.name, value: t.id }));
-});
-
-// --- Watcher für selectedTemplate zum Hinzufügen vom Template ---
-watch(selectedTemplate, (newValue) => {
-    if (newValue !== null && selectedActionType.value) {
-        addActionFromTemplate(selectedActionType.value, newValue);
-        // selectedTemplate wird in addActionFromTemplate().finally zurückgesetzt
-    }
-});
-
-// --- Helpers ---
-// Emittiert das gesamte Array (modelValue) an den Parent
-function emitUpdate(newFlatActionsArray) {
-    const newGroupedActions = groupActionsByType(newFlatActionsArray);
-    emit('update:field', { key: props.actionGroupType, value: newGroupedActions });
-}
-
-// Aktualisiert ein Feld eines spezifischen Actions-Objekts im Array
-function updateActionField(index, field, value) {
-    const newActions = cloneDeep(flatActionsArray.value); 
-    if (newActions[index]) {
-        set(newActions[index], field, value);
-        // Spezielle Behandlung für Uses/Reset/Recharge Abhängigkeit
-        if (field === 'uses' || field === 'limitedUse.count' || field === 'limitedUse.rate' || field === 'recharge') {
-            handleUsesRechargeDependency(newActions[index]);
-        }
-         // Spezielle Behandlung für Save Stat Änderung -> DC neuberechnen (nur bei Saving Throw)
-         if (newActions[index].type === 'savingThrow' && field === 'saveStat') {
-             // Berechne neuen Default DC und setze ihn, falls kein Override da ist
-              const calculatedDc = calculateSaveDC(props.basicsData, value); // Nutze basicsData für Berechnung
-              if (newActions[index].safeDC?.overrideValue === null) {
-                   set(newActions[index], 'safeDC.defaultValue', calculatedDc);
-              }
-         }
-        emitUpdate(newActions);
-    }
-}
-
-// Fügt ein Feld zu einem verschachtelten Array (z.B. action.damage) hinzu
-function addNestedArrayItem(index, arrayField, item) {
-    const newActions = cloneDeep(flatActionsArray.value);
-    if (newActions[index]) {
-        let currentArray = get(newActions[index], arrayField, []);
-        // Stellen Sie sicher, dass es ein Array ist
-        if (!Array.isArray(currentArray)) {
-            console.warn(`Field ${arrayField} is not an array on action at index ${index}. Initializing as array.`);
-            set(newActions[index], arrayField, []);
-            currentArray = get(newActions[index], arrayField); // Holen Sie das neu initialisierte Array
-        }
-        currentArray.push(item);
-        set(newActions[index], arrayField, currentArray); // Setze das aktualisierte Array
-        emitUpdate(newActions);
-    }
-}
-
-// Entfernt ein Element aus einem verschachtelten Array (z.B. action.damage)
-function removeNestedArrayItem(actionIndex, arrayField, itemIndex) {
-    const newActions = cloneDeep(flatActionsArray.value);
-     if (newActions[actionIndex]) {
-        let currentArray = get(newActions[actionIndex], arrayField, []);
-          if (Array.isArray(currentArray) && itemIndex >= 0 && itemIndex < currentArray.length) {
-              currentArray.splice(itemIndex, 1);
-             set(newActions[actionIndex], arrayField, currentArray);
-             emitUpdate(newActions);
-          } else {
-              console.warn(`Cannot remove item ${itemIndex} from ${arrayField} on action at index ${actionIndex}. Array invalid or index out of bounds.`);
-          }
-     }
-}
-
-// Behandelt die Abhängigkeit zwischen Uses/Reset und Recharge
-function handleUsesRechargeDependency(action) {
-    // Diese Funktion wird auf einem *spezifischen Action-Objekt* ausgeführt
-    // Passt die Disabled-States in der UI an, nicht die Daten selbst.
-    // Die Logik zum Deaktivieren muss im Template mit Computed Properties oder
-    // Funktionen implementiert werden, die Uses, Reset und Recharge prüfen.
-    // Diese Funktion ist daher eher ein Hinweis, dass die UI-Logik existieren muss.
-    console.log("Handling Uses/Recharge dependency logic for action:", action);
-}
-
-// Funktion zum Berechnen der angezeigten Average Damage + Modifier
-function calculateDisplayedAverageDamage(count, dieSize, modifier) {
-    const numCount = parseInt(count, 10);
-    const numModifier = parseInt(modifier, 10);
-    const dieValue = parseInt(dieSize, 10); // Verwende numerischen Wert aus diceOptions
-
-    if (isNaN(numCount) || numCount <= 0 || isNaN(dieValue) || dieValue <= 0) {
-        return '-'; // Kann nicht berechnet werden
-    }
-
-    const averageRoll = avgRoll(numCount, dieValue); // Nutze mathRendering avgRoll
-    const totalAverage = averageRoll + (isNaN(numModifier) ? 0 : numModifier);
-
-    return totalAverage.toString(); // Zeige als String
-}
-
-// Computed Property für das Mapping der diceOptions (z.B. { title: 'd6', value: 6 })
-const mappedDiceOptions = computed(() => {
-    if (!diceOptions.value || !diceOptions.value.diceMapping) return [];
-    return Object.entries(diceOptions.value.diceMapping)
-        .map(([key, value]) => ({ 
-            title: key,
-            value: value 
-        }))
-        .sort((a, b) => a.value - b.value);
 });
 
 const flatActionsArray = computed(() => {
     const flatArray = [];
-    const actionObj = props.modelValue || {}; // Fallback auf leeres Objekt
-    (actionObj.attackRoll || []).forEach(a => flatArray.push({ ...a, type: 'attackRoll' }));
-    (actionObj.savingThrow || []).forEach(a => flatArray.push({ ...a, type: 'savingThrow' }));
-    (actionObj.other || []).forEach(a => flatArray.push({ ...a, type: 'other' }));
+    const actionObj = props.modelValue || {}; 
+    (actionObj.attackRoll || []).forEach((a, idx) => flatArray.push({ ...a, type: 'attackRoll', originalIndex: idx, originalType: 'attackRoll' }));
+    (actionObj.savingThrow || []).forEach((a, idx) => flatArray.push({ ...a, type: 'savingThrow', originalIndex: idx, originalType: 'savingThrow' }));
+    (actionObj.other || []).forEach((a, idx) => flatArray.push({ ...a, type: 'other', originalIndex: idx, originalType: 'other' }));
     // Füge hier ggf. Logik hinzu, um eine stabile Reihenfolge zu gewährleisten, falls nötig
     // z.B. durch Sortieren nach einem hinzugefügten 'order'-Index oder dem Namen.
     // Aktuell ist die Reihenfolge attackRoll -> savingThrow -> other.
     return flatArray;
+});
+
+// --- Computed Property für Template Select Items ---
+const templateOptions = computed(() => {
+    const options = actionTemplates.value.map(t => ({ title: t.name, value: t.id }));
+    return options;
 });
 
 function groupActionsByType(flatArray) {
@@ -186,22 +93,66 @@ function groupActionsByType(flatArray) {
         const actionCopy = cloneDeep(action);
         const type = actionCopy.type;
         if (type && grouped[type]) {
-            delete actionCopy.type; // Entferne temporären Typ vor dem Speichern im Objekt
+            delete actionCopy.type; // Entferne temporäre Properties
+            delete actionCopy.originalIndex;
+            delete actionCopy.originalType;
             grouped[type].push(actionCopy);
         }
     });
     return grouped;
 }
 
-// --- Add Action Bar Logik ---
+// --- Helpers ---
+function emitUpdate(newFlatActionsArray) {
+    const newGroupedActions = groupActionsByType(newFlatActionsArray);
+    emit('update:field', { key: props.actionGroupType, value: newGroupedActions });
+}
 
-// Fügt ein neues leeres Action-Objekt hinzu
+// --- Update Action Field ---
+function updateActionField(index, field, value) {
+    const newActions = cloneDeep(flatActionsArray.value);
+    if (newActions[index]) {
+        set(newActions[index], field, value);
+        // Recalculate Save DC Default if needed
+        if (newActions[index].type === 'savingThrow' && field === 'saveStat') {
+            const calculatedDc = calculateSaveDC(props.basicsData, value);
+            if (get(newActions[index], 'safeDC.overrideValue') === null) {
+                set(newActions[index], 'safeDC.defaultValue', calculatedDc);
+            }
+        }
+        emitUpdate(newActions);
+    }
+}
+
+// --- Add/Remove Nested ---
+function addNestedArrayItem(index, arrayField, item) {
+    const newActions = cloneDeep(flatActionsArray.value);
+    if (newActions[index]) {
+        let currentArray = get(newActions[index], arrayField, []);
+        if (!Array.isArray(currentArray)) currentArray = [];
+        currentArray.push(item);
+        set(newActions[index], arrayField, currentArray);
+        emitUpdate(newActions);
+    }
+}
+function removeNestedArrayItem(actionIndex, arrayField, itemIndex) {
+    const newActions = cloneDeep(flatActionsArray.value);
+    if (newActions[actionIndex]) {
+        let currentArray = get(newActions[actionIndex], arrayField, []);
+        if (Array.isArray(currentArray) && itemIndex >= 0 && itemIndex < currentArray.length) {
+            currentArray.splice(itemIndex, 1);
+            set(newActions[actionIndex], arrayField, currentArray);
+            emitUpdate(newActions);
+        }
+    }
+}
+
+// --- Add Action Logik ---
 function addEmptyAction(type) {
     if (!props.isEnabled || !type) return;
     const newActions = cloneDeep(flatActionsArray.value); // Kopiere flaches Array
     let newActionData = { type: type, name: `New ${type}` };
 
-    // Fülle spezifische Default-Werte basierend auf dem Typ
     if (type === 'attackRoll') {
         newActionData = {
             ...newActionData,
@@ -245,8 +196,6 @@ function addEmptyAction(type) {
     newActions.push(newActionData);
     emitUpdate(newActions);
 }
-
-// Fügt eine Action von einem Template hinzu
 async function addActionFromTemplate(type, templateId) {
      if (!props.isEnabled || !type || !templateId) return;
 
@@ -285,40 +234,30 @@ async function addActionFromTemplate(type, templateId) {
          selectedTemplate.value = null;
      }
 }
-
-// Hauptfunktion zum Hinzufügen (wird vom Add Button aufgerufen)
 function handleAddAction() {
     if (!props.isEnabled || isLoadingData.value || !selectedActionType.value) return;
-
-    if (selectedTemplate.value) {
-        // Der Watcher für selectedTemplate ruft addActionFromTemplate auf
-        // Wir müssen hier nichts weiter tun, ausser sicherstellen, dass selectedTemplate gesetzt ist
-        // (was es ist, da der Button disabled ist, wenn kein Template gewählt)
-        // Die Logik ist im Watcher.
-         console.log("Add button clicked with template selected. Watcher will handle.");
-
-    } else {
-        // Kein Template ausgewählt, füge leeres Action hinzu
-        console.log(`Add button clicked, adding empty ${selectedActionType.value}`);
-        addEmptyAction(selectedActionType.value);
-    }
+    console.log(`Add button clicked, adding empty ${selectedActionType.value}`);
+    addEmptyAction(selectedActionType.value); // Immer leere Action hinzufügen
 }
 
-// --- Delete / Save / Delete Template Logik pro Action ---
-
+// --- Remove Action ---
 function removeAction(index) {
-    if (!props.isEnabled || index === undefined || index === null || index < 0 || index >= props.modelValue.length) return;
-
-    // === KORRIGIERT ===
-    // Arbeite mit einer Kopie des FLACHEN modelValue Arrays
+    if (!props.isEnabled || index < 0 || index >= flatActionsArray.value.length) return;
     const newActions = flatActionsArray.value.filter((_, i) => i !== index);
-    // Entferne das Element aus dem FLACHEN Array
-    newActions.splice(index, 1);
-    // Emittiere das aktualisierte FLATE Array (emitUpdate wandelt es um)
     emitUpdate(newActions);
-    // ==================
 }
 
+// --- Move Action ---
+function moveAction(index, direction) {
+    if (!props.isEnabled) return;
+    const newActions = [...flatActionsArray.value]; // Kopie!
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= newActions.length) return;
+    [newActions[index], newActions[newIndex]] = [newActions[newIndex], newActions[index]];
+    emitUpdate(newActions);
+}
+
+// --- Template Save/Delete ---
 async function saveActionAsTemplate(action, index) {
     if (!props.isEnabled || !action || !action.name?.trim() || !action.type) {
         alert(`Action needs a name and a valid type (${action?.type}) to be saved as a template.`);
@@ -361,7 +300,6 @@ async function saveActionAsTemplate(action, index) {
          alert(`Error saving template: ${error.message}`);
     }
 }
-
 async function deleteActionTemplate(templateId) {
     if (!props.isEnabled || !templateId || !selectedActionType.value) {
          alert("Cannot delete template: No template selected, no type selected, or disabled.");
@@ -395,8 +333,6 @@ async function deleteActionTemplate(templateId) {
           alert(`Error deleting template: ${error.message}`);
      }
 }
-
-// Funktion zum Holen der Template Liste für einen Typ
 async function fetchActionTemplates(type) {
     if (!type) return [];
     try {
@@ -409,126 +345,115 @@ async function fetchActionTemplates(type) {
     }
 }
 
-// --- Lifecycle Hook ---
-onMounted(async () => {
-    isLoadingData.value = true;
-    try {
-        // Lade alle benötigten DnD Daten parallel
-        const [ranges, dice, damage, recharge, reset, stats] = await Promise.all([
-            loadDnDData('attackRanges.json'),
-            loadDnDData('dice.json'),
-            loadDnDData('damageTypes.json'),
-            loadDnDData('recharge.json'),
-            loadDnDData('resetTypes.json'),
-            loadDnDData('stats.json')
-        ]);
-        attackRanges.value = ranges || [];
-        diceOptions.value = dice || { diceMapping: {}, dieLookup: {} };
-        damageTypes.value = damage || [];
-        rechargeOptions.value = recharge || [];
-        resetTypes.value = reset || [];
-         // Stats sind ein Objekt { STR:{}, ... }, brauche nur die Keys als Array
-         statsOptions.value = stats ? Object.keys(stats) : [];
-
-    } catch (error) {
-         console.error("Error loading initial data for ActionConfig:", error);
-         // Setze alle Optionen auf leere Werte bei Fehler
-         attackRanges.value = []; diceOptions.value = { diceMapping: {}, dieLookup: {} }; damageTypes.value = [];
-         rechargeOptions.value = []; resetTypes.value = []; statsOptions.value = [];
-    } finally {
-        isLoadingData.value = false;
-    }
-
-    // Lade initiale Templates für den Standard-Typ ('attackRoll')
-    // Wird bereits durch den immediate Watcher auf selectedActionType ausgelöst
-});
-
-// --- Lokale Refs & Logik für Uses/Recharge Disabled State (im Template verwendet) ---
-// Da es in ExpansionPanels ist, brauchen wir für jedes Panel eine Logik
-// Diese kann als Funktion im Template aufgerufen werden
+// --- UI Helpers ---
 function isRechargeDisabled(action) {
      // Recharge ist disabled, wenn Uses oder Reset Type gesetzt sind
     return (action.limitedUse?.count !== null && action.limitedUse?.count !== undefined && action.limitedUse.count > 0) ||
            (action.limitedUse?.rate !== null && action.limitedUse?.rate !== undefined && action.limitedUse.rate !== '');
 }
-
 function areUsesResetDisabled(action) {
     // Uses/Reset sind disabled, wenn Recharge gesetzt ist
     return action.recharge !== null && action.recharge !== undefined && action.recharge !== '';
 }
-
-// --- Lokale Refs & Logik für Override Disabled State (im Template verwendet) ---
-// Saving Throw DC hat Override Logik ähnlich wie in SensesConfig
 function isSaveDcOverride(action) {
     return action?.safeDC?.overrideValue !== null && action?.safeDC?.overrideValue !== undefined;
 }
 function toggleSaveDcOverride(actionIndex) {
-     if (!props.isEnabled) return;
-    const action = props.modelValue[actionIndex];
-    // Stelle sicher, dass die Action vom Typ SavingThrow ist und safeDC existiert
-    if (!action || action.type !== 'savingThrow') return;
-
-    const nextState = !isSaveDcOverride(action);
-    // Holen Sie den aktuellen Default-Wert, falls er für die Berechnung benötigt wird
-    const currentDefaultDc = action.safeDC?.defaultValue ?? 0;
-
-    // Wenn aktiviert: Nutze Default DC (neu berechnet basierend auf Stat) oder 0
-    // Berechne den Default neu für den Fall, dass sich der Stat seit der letzten Berechnung geändert hat,
-    // aber der Override aktiv war.
-    const calculatedDefaultDc = calculateSaveDC(props.basicsData, action.saveStat); // Recalculate based on current stat
-    const newValue = nextState ? (calculatedDefaultDc ?? 0) : null; // Wenn aktivieren -> neuer Default, sonst null
-
-    // === KORRIGIERT ===
-    // Erstelle eine Kopie des FLACHEN Arrays
-    const newActions = cloneDeep(props.modelValue);
-     // Stelle sicher, dass safeDC Objekt in der Kopie existiert
-    if (!newActions[actionIndex].safeDC) {
-        newActions[actionIndex].safeDC = { defaultValue: 0, overrideValue: null };
-    }
-    // Setze den neuen overrideValue
-    newActions[actionIndex].safeDC.overrideValue = newValue;
-
-    // Aktualisiere auch defaultValue in der Kopie, WENN Override aktiviert WIRD
-    // Dies stellt sicher, dass der angezeigte Wert korrekt ist, wenn man toggelt
-    if (nextState) {
-         newActions[actionIndex].safeDC.defaultValue = calculatedDefaultDc; // Setze den Default auf den gerade berechneten Wert
-    }
-
-    // Emittiere das aktualisierte FLATE Array (emitUpdate wandelt es um)
-    emitUpdate(newActions);
-    // ==================
-}
-
-function moveAction(index, direction) {
     if (!props.isEnabled) return;
-    const newActions = [...flatActionsArray.value]; // Kopiere flaches Array
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= newActions.length) return;
-    [newActions[index], newActions[newIndex]] = [newActions[newIndex], newActions[index]];
-    emitUpdate(newActions); // Sende neu geordnetes flaches Array
+    const newActions = cloneDeep(flatActionsArray.value);
+    const action = newActions[actionIndex];
+    if (!action || action.type !== 'savingThrow') return;
+    const nextState = !isSaveDcOverride(action);
+    const calculatedDefaultDc = calculateSaveDC(props.basicsData, action.saveStat);
+    const newValue = nextState ? (calculatedDefaultDc ?? 0) : null;
+    if (!action.safeDC) action.safeDC = { defaultValue: 0, overrideValue: null }; // Initialisiere, falls fehlt
+    action.safeDC.overrideValue = newValue;
+    if (nextState) { action.safeDC.defaultValue = calculatedDefaultDc; }
+    emitUpdate(newActions);
 }
+
+// --- Watcher für Template Loading (unverändert) ---
+watch(selectedActionType, async (newType) => {
+    selectedTemplate.value = null; // Select zurücksetzen
+    if (!newType) {
+        actionTemplates.value = [];
+        return;
+    }
+    console.log(`Fetching templates for type: ${newType}`);
+    actionTemplates.value = await fetchActionTemplates(newType);
+}, { immediate: true }); // Sofort beim Laden der Komponente auslösen
+watch(selectedTemplate, (newValue) => {
+    if (newValue !== null && selectedActionType.value) {
+        addActionFromTemplate(selectedActionType.value, newValue);
+        // selectedTemplate wird in addActionFromTemplate().finally zurückgesetzt
+    }
+});
+
+// --- Workaround für Number Input +/- auf null ---
+function handleNumberInputIncrement(index, field) {
+    const currentVal = get(flatActionsArray.value[index], field) ?? 0; // Default auf 0 bei null
+    updateActionField(index, field, currentVal + 1);
+}
+function handleNumberInputDecrement(index, field) {
+    const currentVal = get(flatActionsArray.value[index], field) ?? 0; // Default auf 0 bei null
+    updateActionField(index, field, currentVal - 1);
+}
+function handleNestedNumberInputIncrement(actionIndex, arrayField, itemIndex, field) {
+    const currentVal = get(flatActionsArray.value[actionIndex], `${arrayField}[${itemIndex}].${field}`) ?? 0;
+    updateActionField(actionIndex, `${arrayField}[${itemIndex}].${field}`, currentVal + 1);
+}
+function handleNestedNumberInputDecrement(actionIndex, arrayField, itemIndex, field) {
+    const currentVal = get(flatActionsArray.value[actionIndex], `${arrayField}[${itemIndex}].${field}`) ?? 0;
+    updateActionField(actionIndex, `${arrayField}[${itemIndex}].${field}`, currentVal - 1);
+}
+
+// Funktion zum Berechnen der angezeigten Average Damage + Modifier
+function calculateDisplayedAverageDamage(count, dieSize, modifier) {
+    const numCount = parseInt(count, 10);
+    const numModifier = parseInt(modifier, 10);
+    const dieValue = parseInt(dieSize, 10); // Verwende numerischen Wert aus diceOptions
+
+    if (isNaN(numCount) || numCount <= 0 || isNaN(dieValue) || dieValue <= 0) {
+        return '-'; // Kann nicht berechnet werden
+    }
+
+    const averageRoll = avgRoll(numCount, dieValue); // Nutze mathRendering avgRoll
+    const totalAverage = averageRoll + (isNaN(numModifier) ? 0 : numModifier);
+
+    return totalAverage.toString(); // Zeige als String
+}
+
+// Computed Property für das Mapping der diceOptions (z.B. { title: 'd6', value: 6 })
+const mappedDiceOptions = computed(() => {
+    if (!diceOptions.value || !diceOptions.value.diceMapping) return [];
+    return Object.entries(diceOptions.value.diceMapping)
+        .map(([key, value]) => ({ 
+            title: key,
+            value: value 
+        }))
+        .sort((a, b) => a.value - b.value);
+});
+
 
 </script>
 
 <template>
     <div :class="{'disabled-content': !isEnabled}">
         <div v-if="isLoadingData" class="pa-4 text-center text-disabled">Loading data...</div>
-        <!-- Zeige die Meldung, wenn das Array leer ist -->
+        <!-- Zeige Meldung, wenn flaches Array leer ist -->
         <div v-else-if="!flatActionsArray || flatActionsArray.length === 0" class="pa-4 text-center text-disabled">
             No {{ actionGroupType === 'actions' ? 'actions' : 'bonus actions' }} added yet. Use the buttons below.
         </div>
         <v-expansion-panels v-else variant="accordion" multiple>
-            <!-- Iteriere über das FLACHE Array -->
-            <v-expansion-panel v-for="(action, index) in modelValue" :key="index" elevation="1">
+            <!-- Iteriere über das *flache* Array -->
+            <v-expansion-panel v-for="(action, index) in flatActionsArray" :key="index" elevation="1">
                 <v-expansion-panel-title :disabled="!isEnabled">
-                     <!-- Zeige Action-Namen und Typ -->
                     <span class="flex-grow-1 mr-2">{{ action.name || `${action.type || 'Unknown'} ${actionGroupType === 'actions' ? 'Action' : 'Bonus Action'} ${index + 1}` }}</span>
-                    <!-- Move Buttons -->
                     <v-btn icon="mdi-arrow-up-bold-box-outline" size="x-small" variant="text" @click.stop="moveAction(index, -1)" :disabled="index === 0 || !isEnabled" class="mr-1"/>
-                    <v-btn icon="mdi-arrow-down-bold-box-outline" size="x-small" variant="text" @click.stop="moveAction(index, 1)" :disabled="index === modelValue.length - 1 || !isEnabled"/>
+                    <v-btn icon="mdi-arrow-down-bold-box-outline" size="x-small" variant="text" @click.stop="moveAction(index, 1)" :disabled="index === flatActionsArray.length - 1 || !isEnabled"/>
                 </v-expansion-panel-title>
                 <v-expansion-panel-text>
-                    <!-- === Layouts basierend auf action.type === -->
+                    <!-- Layouts basierend auf action.type -->
 
                     <!-- === Layout Attack Roll === -->
                     <v-row dense v-if="action.type === 'attackRoll'">
