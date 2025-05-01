@@ -1,0 +1,188 @@
+{
+    "actions": {
+        "attackRoll": [],
+        "other": [],
+        "savingThrow": []
+    },
+    "basics": {
+        "AC": 22,
+        "ACType": "Chain Shirt",
+        "CR": 5,
+        "HP": {
+            "HDAmount": 5,
+            "HPmodifier": 5,
+            "defaultDie": 10,
+            "overrideDie": 12
+        },
+        "Initiative": {
+            "initDefaultValue": 4,
+            "initExpertise": false,
+            "initOverrideValue": null,
+            "initProficiency": true
+        },
+        "PB": 3,
+        "alignment": "Chaotic Good",
+        "id": "t_cr5",
+        "languages": "Dwarvish, Elvish",
+        "name": "t",
+        "size": "Large",
+        "stats": {
+            "CHA": 20,
+            "CON": 14,
+            "DEX": 12,
+            "INT": 16,
+            "STR": 10,
+            "WIS": 18
+        },
+        "type": "Humanoid"
+    },
+    "bonusAction": {
+        "attackRoll": [],
+        "other": [],
+        "savingThrow": []
+    },
+    "complete": true,
+    "conditionImmunities": [
+        "Grappled"
+    ],
+    "immunities": [
+        "Fire"
+    ],
+    "inventory": "Test lol ",
+    "lairActions": [],
+    "legendaryActions": {
+        "LegendaryResistanceUses": 0,
+        "legendaryAction": [],
+        "legendaryResistanceType": "",
+        "uses": 0,
+        "usesInLair": 0
+    },
+    "multiattacks": "",
+    "reactions": [],
+    "resistances": [
+        "Acid",
+        "Cold"
+    ],
+    "saves": {
+        "CHA": {
+            "defaultValue": 5,
+            "overrideValue": null,
+            "proficient": false
+        },
+        "CON": {
+            "defaultValue": 5,
+            "overrideValue": null,
+            "proficient": true
+        },
+        "DEX": {
+            "defaultValue": 1,
+            "overrideValue": null,
+            "proficient": false
+        },
+        "INT": {
+            "defaultValue": 3,
+            "overrideValue": null,
+            "proficient": false
+        },
+        "STR": {
+            "defaultValue": 3,
+            "overrideValue": null,
+            "proficient": true
+        },
+        "WIS": {
+            "defaultValue": 7,
+            "overrideValue": null,
+            "proficient": true
+        }
+    },
+    "senses": {
+        "blindsight": 0,
+        "darkvision": 60,
+        "passiveInsight": {
+            "defaultValue": 14,
+            "overrideValue": null
+        },
+        "passivePerception": {
+            "defaultValue": 14,
+            "overrideValue": 17
+        },
+        "sensesNotes": "",
+        "tremorsense": 0,
+        "truesight": 0
+    },
+    "skills": [
+        {
+            "defaultValue": 7,
+            "expertise": true,
+            "overrideValue": null,
+            "proficient": true,
+            "skill": "Acrobatics"
+        }
+    ],
+    "speeds": [
+        {
+            "note": "bb",
+            "speed": 30,
+            "type": "walk"
+        },
+        {
+            "note": "aa",
+            "speed": 30,
+            "type": "flying"
+        }
+    ],
+    "spellcasting": {
+        "atWill": [
+            {
+                "name": "Animal Friendship",
+                "note": "a"
+            }
+        ],
+        "bonus": {
+            "defaultValue": 7,
+            "overrideValue": null
+        },
+        "dc": {
+            "defaultValue": 15,
+            "overrideValue": null
+        },
+        "hasAttackrolls": true,
+        "once": [
+            {
+                "name": "Alter Self",
+                "note": "grfdagarg"
+            }
+        ],
+        "requiresSComponents": true,
+        "stat": "WIS",
+        "thrice": [],
+        "twice": [
+            {
+                "name": "Acid Splash",
+                "note": "likujhgfd"
+            }
+        ]
+    },
+    "traits": [
+        {
+            "description": "TraitTemplateTest2",
+            "limitedUse": {
+                "count": 2,
+                "rate": "day"
+            },
+            "name": "TraitTemplateTest2"
+        },
+        {
+            "description": "TraitTemplateTest1",
+            "limitedUse": {
+                "count": 1,
+                "rate": "day"
+            },
+            "name": "TraitTemplateTest1"
+        }
+    ],
+    "vulnerabilities": [
+        "Force",
+        "Cold"
+    ]
+}

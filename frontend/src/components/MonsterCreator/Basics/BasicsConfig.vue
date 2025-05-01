@@ -34,7 +34,11 @@ onMounted(async () => {
     ]);
 
     if (sizeData) sizes.value = sizeData.creatureSizes || [];
-    if (diceData) diceTypes.value = Object.keys(diceData.diceMapping || {}).map(d => ({ title: d, value: diceData.diceMapping[d] }));
+    if (diceData) {
+         diceTypes.value = Object.entries(diceData.diceMapping) // Gibt [ ['d1', 1], ['d4', 4], ... ] zurück
+             .map(([key, value]) => ({ title: key, value: value })) // Mappe zu [{ title: 'd1', value: 1 }, ...]
+             .sort((a, b) => a.value - b.value); // !!! Sortiere nach der numerischen 'value' Eigenschaft
+    };
     if (typeData) types.value = typeData || [];
     if (alignmentData) alignments.value = alignmentData || [];
     if (langData) languagesList.value = langData.map(l => l.name);
@@ -62,7 +66,8 @@ const name = computed({
 const cr = computed({
   get: () => props.modelValue.CR, // Passe den Pfad hier an
   set: (value) => {
-    updateField('CR', value); 
+    const numericCR = typeof value === 'number' ? value : null;
+    updateField('CR', numericCR);
   }
 });
 const size = computed({
@@ -191,8 +196,18 @@ function toggleInitOverride() {
         <v-col cols="12" md="6">
             <v-text-field label="Name" v-model="name" density="compact" variant="outlined" clearable />
         </v-col>
-        <v-col cols="12" md="2"> 
-             <v-select label="CR" :items="crDataListForSelect" v-model="cr" density="compact" variant="outlined"/>
+        <v-col cols="12" md="2">
+             <!-- === KORRIGIERT: Explizite Bindung statt v-model === -->
+             <v-select
+                 label="CR"
+                 :items="crDataListForSelect"
+                 :model-value="modelValue.CR" 
+                 @update:model-value="updateField('basics.CR', $event === '' || $event === null ? null : Number($event))" 
+                 density="compact" variant="outlined"
+                 item-title="title"  
+                 item-value="value"
+             />
+             <!-- ================================================ -->
         </v-col>
         <v-col cols="12" md="4">
              <!-- Leer für Referenz -->
@@ -207,10 +222,11 @@ function toggleInitOverride() {
                 :label="isHDOverride ? 'HD Size' : 'HD Size'"
                 :items="diceTypes"
                 :model-value="displayedHpType" 
-                @update:model-value="updateField('HP.overrideDie', $event === null ? null : Number($event))"
+                @update:model-value="updateField('HP.overrideDie', $event === null ? null : Number($event))" 
                 density="compact" variant="outlined"
                 :readonly="!isHDOverride" 
                 :class="{'input-is-default': !isHDOverride}" 
+                item-title="title" item-value="value"
              >
                  <!-- Override Toggle Button im Slot -->
                  <template v-slot:append-inner>
@@ -314,7 +330,7 @@ function toggleInitOverride() {
                          <!-- Triple-State Button -->
                          <v-tooltip :text="initiativeButtonTooltip">
                            <template v-slot:activator="{ props: tooltipProps }">
-                              <v-btn v-bind="tooltipProps" :icon="initiativeButtonIcon" variant="text" size="x-small" @click="cycleInitiativeProf" class="mr-1"/>
+                              <v-btn v-bind="tooltipProps" :icon="initiativeButtonIcon" variant="text" size="x-small" @click.stop="cycleInitiativeProf" class="mr-1"/>
                            </template>
                          </v-tooltip>
                          <!-- Override Toggle Button -->
@@ -324,7 +340,7 @@ function toggleInitOverride() {
                                      v-bind="tooltipProps"
                                      :icon="isInitOverride ? 'mdi-lock-open-variant-outline' : 'mdi-lock-outline'"
                                      variant="text" size="x-small"
-                                     @click.stop="toggleInitOverride" 
+                                     @click.stop="toggleInitOverride"
                                  />
                              </template>
                          </v-tooltip>

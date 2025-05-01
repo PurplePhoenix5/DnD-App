@@ -160,10 +160,12 @@ function calculateDisplayedAverageDamage(count, dieSize, modifier) {
 // Computed Property für das Mapping der diceOptions (z.B. { title: 'd6', value: 6 })
 const mappedDiceOptions = computed(() => {
     if (!diceOptions.value || !diceOptions.value.diceMapping) return [];
-    return Object.entries(diceOptions.value.diceMapping).map(([key, value]) => ({
-        title: key, // z.B. 'd6'
-        value: value // z.B. 6 (als Nummer für die Berechnung)
-    }));
+    return Object.entries(diceOptions.value.diceMapping)
+        .map(([key, value]) => ({ 
+            title: key,
+            value: value 
+        }))
+        .sort((a, b) => a.value - b.value);
 });
 
 const flatActionsArray = computed(() => {
