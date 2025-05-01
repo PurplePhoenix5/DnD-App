@@ -71,10 +71,44 @@ watch(selectedTemplate, (newValue) => {
     }
 });
 
+function groupActionsByType(flatActionsArray) {
+    // Stelle sicher, dass die Struktur existiert
+    const grouped = {
+        attackRoll: [],
+        savingThrow: [],
+        other: []
+        // Füge hier weitere Typen hinzu, falls das Schema erweitert wird
+    };
+    (flatActionsArray || []).forEach(action => {
+        // Kopiere das Action-Objekt und entferne die temporäre 'type' Eigenschaft
+        const actionCopy = cloneDeep(action);
+        const type = actionCopy.type; // Hole den Typ
+
+        if (type && grouped[type]) {
+            // Optional: Entferne die type-Eigenschaft, bevor sie zum Gruppenobjekt hinzugefügt wird,
+            // falls das Backend-Schema diese Eigenschaft auf dieser Ebene nicht erwartet.
+            // Laut Ihrem Schema-Ausschnitt haben attackRoll/savingThrow/other
+            // Objekte in den Arrays *keine* type-Eigenschaft.
+            delete actionCopy.type;
+
+            grouped[type].push(actionCopy);
+        } else {
+            console.warn("Action object missing or has invalid type, skipping:", action);
+        }
+    });
+    // console.log("Grouped actions for emission:", grouped);
+    return grouped;
+}
+
 // --- Helpers ---
 // Emittiert das gesamte Array (modelValue) an den Parent
-function emitUpdate(newActionsArray) {
-    emit('update:field', { key: props.actionGroupType, value: newActionsArray || [] });
+function emitUpdate(newFlatActionsArray) {
+    // Transformiere das flache Array zurück in die Objektstruktur
+    const newGroupedActions = groupActionsByType(newFlatActionsArray);
+
+    // Emittiere die Objektstruktur mit dem korrekten Schlüssel ('actions' oder 'bonusAction')
+    // Der Pfad ist nur der Top-Level-Schlüssel
+    emit('update:field', { key: props.actionGroupType, value: newGroupedActions });
 }
 
 // Aktualisiert ein Feld eines spezifischen Actions-Objekts im Array
@@ -102,12 +136,12 @@ function updateActionField(index, field, value) {
 function addNestedArrayItem(index, arrayField, item) {
     const newActions = cloneDeep(props.modelValue);
     if (newActions[index]) {
-        const currentArray = get(newActions[index], arrayField, []);
+        let currentArray = get(newActions[index], arrayField, []);
         // Stellen Sie sicher, dass es ein Array ist
         if (!Array.isArray(currentArray)) {
             console.warn(`Field ${arrayField} is not an array on action at index ${index}. Initializing as array.`);
             set(newActions[index], arrayField, []);
-             currentArray = get(newActions[index], arrayField); // Holen Sie das neu initialisierte Array
+            currentArray = get(newActions[index], arrayField); // Holen Sie das neu initialisierte Array
         }
         currentArray.push(item);
         set(newActions[index], arrayField, currentArray); // Setze das aktualisierte Array
@@ -119,7 +153,7 @@ function addNestedArrayItem(index, arrayField, item) {
 function removeNestedArrayItem(actionIndex, arrayField, itemIndex) {
      const newActions = cloneDeep(props.modelValue);
      if (newActions[actionIndex]) {
-         const currentArray = get(newActions[actionIndex], arrayField, []);
+        let currentArray = get(newActions[actionIndex], arrayField, []);
           if (Array.isArray(currentArray) && itemIndex >= 0 && itemIndex < currentArray.length) {
               currentArray.splice(itemIndex, 1);
              set(newActions[actionIndex], arrayField, currentArray);
@@ -171,7 +205,11 @@ const mappedDiceOptions = computed(() => {
 function addEmptyAction(type) {
     if (!props.isEnabled || !type) return;
 
+    // === KORRIGIERT ===
+    // Arbeite mit einer Kopie des FLACHEN modelValue Arrays
     const newActions = cloneDeep(props.modelValue);
+    // ==================
+
     let newActionData = { type: type, name: 'New Action' }; // Basis mit Typ und Standardname
 
     // Fülle spezifische Default-Werte basierend auf dem Typ
@@ -215,8 +253,12 @@ function addEmptyAction(type) {
         };
     }
 
+    // === KORRIGIERT ===
+    // Füge das neue Action-Objekt zum FLACHEN Array hinzu
     newActions.push(newActionData);
+    // Emittiere das aktualisierte FLATE Array (emitUpdate wandelt es um)
     emitUpdate(newActions);
+    // ==================
 }
 
 // Fügt eine Action von einem Template hinzu
@@ -228,7 +270,7 @@ async function addActionFromTemplate(type, templateId) {
          const response = await fetch(`http://localhost:8080/api/templates/${type}/${templateId}`);
          if (!response.ok) {
              const errorText = await response.text();
-             throw new Error(`Failed to load template (${type}, ID: ${templateId}). Status: ${response.status}. Response: ${errorText}`);
+             throw new Error(`Failed to load template (${type}, ID: ${templateId}). Status: ${response.status}). Response: ${errorText}`);
          }
          const templateData = await response.json();
 
@@ -251,8 +293,15 @@ async function addActionFromTemplate(type, templateId) {
              }
          }
 
-         const newActions = [...props.modelValue, newActionData];
+         // === KORRIGIERT ===
+         // Arbeite mit einer Kopie des FLACHEN modelValue Arrays
+         const newActions = cloneDeep(props.modelValue);
+         // Füge das neue Action-Objekt zum FLACHEN Array hinzu
+         newActions.push(newActionData);
+         // Emittiere das aktualisierte FLATE Array (emitUpdate wandelt es um)
          emitUpdate(newActions);
+         // ==================
+
 
      } catch (error) {
          console.error("Error loading action template:", error);
@@ -286,8 +335,14 @@ function handleAddAction() {
 function removeAction(index) {
     if (!props.isEnabled || index === undefined || index === null || index < 0 || index >= props.modelValue.length) return;
 
-    const newActions = props.modelValue.filter((_, i) => i !== index);
+    // === KORRIGIERT ===
+    // Arbeite mit einer Kopie des FLACHEN modelValue Arrays
+    const newActions = cloneDeep(props.modelValue);
+    // Entferne das Element aus dem FLACHEN Array
+    newActions.splice(index, 1);
+    // Emittiere das aktualisierte FLATE Array (emitUpdate wandelt es um)
     emitUpdate(newActions);
+    // ==================
 }
 
 async function saveActionAsTemplate(action, index) {
@@ -431,30 +486,43 @@ function areUsesResetDisabled(action) {
 // --- Lokale Refs & Logik für Override Disabled State (im Template verwendet) ---
 // Saving Throw DC hat Override Logik ähnlich wie in SensesConfig
 function isSaveDcOverride(action) {
-    return action.safeDC?.overrideValue !== null && action.safeDC?.overrideValue !== undefined;
+    return action?.safeDC?.overrideValue !== null && action?.safeDC?.overrideValue !== undefined;
 }
 function toggleSaveDcOverride(actionIndex) {
      if (!props.isEnabled) return;
     const action = props.modelValue[actionIndex];
+    // Stelle sicher, dass die Action vom Typ SavingThrow ist und safeDC existiert
     if (!action || action.type !== 'savingThrow') return;
 
     const nextState = !isSaveDcOverride(action);
-    const currentDc = action.safeDC || {};
+    // Holen Sie den aktuellen Default-Wert, falls er für die Berechnung benötigt wird
+    const currentDefaultDc = action.safeDC?.defaultValue ?? 0;
 
     // Wenn aktiviert: Nutze Default DC (neu berechnet basierend auf Stat) oder 0
+    // Berechne den Default neu für den Fall, dass sich der Stat seit der letzten Berechnung geändert hat,
+    // aber der Override aktiv war.
     const calculatedDefaultDc = calculateSaveDC(props.basicsData, action.saveStat); // Recalculate based on current stat
-    const newValue = nextState ? (calculatedDefaultDc ?? 0) : null;
+    const newValue = nextState ? (calculatedDefaultDc ?? 0) : null; // Wenn aktivieren -> neuer Default, sonst null
 
-    // Update über emitUpdate (setzt safeDC Objekt neu)
+    // === KORRIGIERT ===
+    // Erstelle eine Kopie des FLACHEN Arrays
     const newActions = cloneDeep(props.modelValue);
-    if (!newActions[actionIndex].safeDC) newActions[actionIndex].safeDC = {}; // Ensure object exists
+     // Stelle sicher, dass safeDC Objekt in der Kopie existiert
+    if (!newActions[actionIndex].safeDC) {
+        newActions[actionIndex].safeDC = { defaultValue: 0, overrideValue: null };
+    }
+    // Setze den neuen overrideValue
     newActions[actionIndex].safeDC.overrideValue = newValue;
-    // Aktualisiere auch defaultValue wenn Override gesetzt WIRD (nächster Klick)
-     if(nextState) {
-          newActions[actionIndex].safeDC.defaultValue = calculatedDefaultDc;
-     }
 
+    // Aktualisiere auch defaultValue in der Kopie, WENN Override aktiviert WIRD
+    // Dies stellt sicher, dass der angezeigte Wert korrekt ist, wenn man toggelt
+    if (nextState) {
+         newActions[actionIndex].safeDC.defaultValue = calculatedDefaultDc; // Setze den Default auf den gerade berechneten Wert
+    }
+
+    // Emittiere das aktualisierte FLATE Array (emitUpdate wandelt es um)
     emitUpdate(newActions);
+    // ==================
 }
 
 
@@ -463,15 +531,16 @@ function toggleSaveDcOverride(actionIndex) {
 <template>
     <div :class="{'disabled-content': !isEnabled}">
         <div v-if="isLoadingData" class="pa-4 text-center text-disabled">Loading data...</div>
+        <!-- Zeige die Meldung, wenn das Array leer ist -->
         <div v-else-if="modelValue.length === 0" class="pa-4 text-center text-disabled">
-            No {{ actionGroupType }} added yet. Use the buttons below.
+            No {{ actionGroupType === 'actions' ? 'actions' : 'bonus actions' }} added yet. Use the buttons below.
         </div>
         <v-expansion-panels v-else variant="accordion" multiple>
-            <!-- Iteriere über alle Actions im Array -->
+            <!-- Iteriere über das FLACHE Array -->
             <v-expansion-panel v-for="(action, index) in modelValue" :key="index" elevation="1">
                 <v-expansion-panel-title :disabled="!isEnabled">
                      <!-- Zeige Action-Namen und Typ -->
-                    <span class="flex-grow-1 mr-2">{{ action.name || `${action.type || 'Unknown'} Action ${index + 1}` }}</span>
+                    <span class="flex-grow-1 mr-2">{{ action.name || `${action.type || 'Unknown'} ${actionGroupType === 'actions' ? 'Action' : 'Bonus Action'} ${index + 1}` }}</span>
                     <!-- Move Buttons -->
                     <v-btn icon="mdi-arrow-up-bold-box-outline" size="x-small" variant="text" @click.stop="moveAction(index, -1)" :disabled="index === 0 || !isEnabled" class="mr-1"/>
                     <v-btn icon="mdi-arrow-down-bold-box-outline" size="x-small" variant="text" @click.stop="moveAction(index, 1)" :disabled="index === modelValue.length - 1 || !isEnabled"/>
@@ -481,33 +550,28 @@ function toggleSaveDcOverride(actionIndex) {
 
                     <!-- === Layout Attack Roll === -->
                     <v-row dense v-if="action.type === 'attackRoll'">
-                         <!-- Zeile 1 -->
+                         <!-- ... (Layout Attack Roll wie zuvor) ... -->
+                         <!-- Stellen Sie sicher, dass die Logik im Template die korrigierten Funktionen verwendet -->
                          <v-col cols="12" md="6">
                             <v-text-field label="Name" :model-value="action.name" @update:model-value="updateActionField(index, 'name', $event)" density="compact" variant="outlined" clearable :disabled="!isEnabled"/>
                          </v-col>
                          <v-col cols="12" md="2">
                              <v-number-input label="Attack Bonus" :model-value="action.attackMod" @update:model-value="updateActionField(index, 'attackMod', parseInt($event, 10) || 0)" density="compact" variant="outlined" control-variant="stacked" :reverse="false" inset :disabled="!isEnabled" hide-details="auto"/>
                          </v-col>
-                         <!-- 4 breit leer -->
                          <v-col cols="12" md="4"></v-col>
-
-                         <!-- Zeile 2 -->
                          <v-col cols="12" md="4">
                              <v-select label="Melee/Ranged" :items="attackRanges" :model-value="action.rangeType" @update:model-value="updateActionField(index, 'rangeType', $event)" density="compact" variant="outlined" clearable :disabled="!isEnabled" hide-details="auto"/>
                          </v-col>
                          <v-col cols="12" md="2">
-                             <v-number-input label="Reach Melee" :model-value="action.reachMelee" @update:model-value="updateActionField(index, 'reachMelee', parseInt($event, 10) || 0)" suffix=" ft." density="compact" variant="outlined" control-variant="stacked" :reverse="false" inset :min="0" :disabled="!isEnabled" hide-details="auto"/>
+                             <v-number-input label="Reach Melee" :model-value="action.reachMelee" @update:model-value="updateActionField(index, 'reachMelee', parseInt($event, 10) || null)" suffix=" ft." density="compact" variant="outlined" control-variant="stacked" :reverse="false" inset :min="0" :disabled="!isEnabled" hide-details="auto"/>
                          </v-col>
                          <v-col cols="12" md="2">
-                             <v-number-input label="Reach Ranged" :model-value="action.reachRanged" @update:model-value="updateActionField(index, 'reachRanged', parseInt($event, 10) || 0)" suffix=" ft." density="compact" variant="outlined" control-variant="stacked" :reverse="false" inset :min="0" :disabled="!isEnabled" hide-details="auto"/>
+                             <v-number-input label="Reach Ranged" :model-value="action.reachRanged" @update:model-value="updateActionField(index, 'reachRanged', parseInt($event, 10) || null)" suffix=" ft." density="compact" variant="outlined" control-variant="stacked" :reverse="false" inset :min="0" :disabled="!isEnabled" hide-details="auto"/>
                          </v-col>
                          <v-col cols="12" md="2">
-                             <v-number-input label="Reach Disadvantage" :model-value="action.reachDisadvantage" @update:model-value="updateActionField(index, 'reachDisadvantage', parseInt($event, 10) || 0)" suffix=" ft." density="compact" variant="outlined" control-variant="stacked" :reverse="false" inset :min="0" :disabled="!isEnabled" hide-details="auto"/>
+                             <v-number-input label="Reach Disadvantage" :model-value="action.reachDisadvantage" @update:model-value="updateActionField(index, 'reachDisadvantage', parseInt($event, 10) || null)" suffix=" ft." density="compact" variant="outlined" control-variant="stacked" :reverse="false" inset :min="0" :disabled="!isEnabled" hide-details="auto"/>
                          </v-col>
-                         <!-- 2 breit leer -->
                          <v-col cols="12" md="2"></v-col>
-
-                         <!-- Zeilen für Damage Inputs -->
                          <template v-for="(damageEntry, damageIndex) in action.damage" :key="damageIndex">
                               <v-col cols="12" md="1" class="d-flex align-center py-0">
                                    <span class="text-caption">{{ damageIndex === 0 ? 'Hit:' : '' }}</span>
@@ -526,71 +590,60 @@ function toggleSaveDcOverride(actionIndex) {
                               </v-col>
                               <v-col cols="12" md="4" class="d-flex align-center py-0">
                                    <v-combobox label="Damage Type" :items="damageTypes" :model-value="damageEntry.type" @update:model-value="updateActionField(index, `damage[${damageIndex}].type`, $event)" density="compact" variant="outlined" :disabled="!isEnabled" hide-details="auto" class="flex-grow-1"/>
-                                    <v-btn icon="mdi-close" size="x-small" variant="text" color="error" @click="removeNestedArrayItem(index, 'damage', damageIndex)" :disabled="!isEnabled || action.damage.length <= 1" aria-label="Remove damage" class="ml-1"/> <!-- Button zum Entfernen -->
+                                    <v-btn icon="mdi-close" size="x-small" variant="text" color="error" @click="removeNestedArrayItem(index, 'damage', damageIndex)" :disabled="!isEnabled || action.damage.length <= 1" aria-label="Remove damage" class="ml-1"/>
                               </v-col>
                          </template>
-                          <!-- Button zum Hinzufügen einer Damage Reihe -->
                          <v-col cols="12" offset-md="1" md="11" class="py-0">
                               <v-btn block color="secondary" variant="text" @click="addNestedArrayItem(index, 'damage', { count: 1, size: 6, modifier: 0, type: '' })" :disabled="!isEnabled" prepend-icon="mdi-plus-circle-outline">Add Damage Entry</v-btn>
                          </v-col>
-
-
-                         <!-- Zeile Notes -->
                          <v-col cols="12">
                               <v-textarea label="Notes" :model-value="action.notes" @update:model-value="updateActionField(index, 'notes', $event)" density="compact" variant="outlined" clearable auto-grow rows="2" :disabled="!isEnabled"/>
                          </v-col>
-
                     </v-row>
 
                     <!-- === Layout Saving Throw === -->
                     <v-row dense v-else-if="action.type === 'savingThrow'">
-                        <!-- Zeile 1 -->
-                        <v-col cols="12" md="4">
-                            <v-text-field label="Name" :model-value="action.name" @update:model-value="updateActionField(index, 'name', $event)" density="compact" variant="outlined" clearable :disabled="!isEnabled"/>
-                        </v-col>
-                        <v-col cols="12" md="2">
-                            <v-select label="Save Stat" :items="statsOptions" :model-value="action.saveStat" @update:model-value="updateActionField(index, 'saveStat', $event)" density="compact" variant="outlined" clearable :disabled="!isEnabled" hide-details="auto"/>
-                        </v-col>
-                        <v-col cols="12" md="2">
-                            <!-- Save DC mit Override Logik -->
-                             <v-number-input
-                                 label="Save DC"
-                                 :model-value="isSaveDcOverride(action) ? action.safeDC?.overrideValue : action.safeDC?.defaultValue"
-                                 @update:model-value="updateActionField(index, 'safeDC.overrideValue', $event === '' || $event === null ? null : parseInt($event, 10))"
-                                 density="compact" variant="outlined"
-                                 :readonly="!isSaveDcOverride(action)"
-                                 :class="{'input-is-default': !isSaveDcOverride(action)}"
-                                 control-variant="stacked" :reverse="false" inset :min="0"
-                                 class="left-aligned-input"
-                                 :disabled="!isEnabled"
-                                  hide-details="auto"
-                             >
-                                <template v-slot:append-inner>
-                                    <v-tooltip location="top" :text="isSaveDcOverride(action) ? 'Use Default' : 'Override DC'">
-                                        <template v-slot:activator="{ props: tooltipProps }">
-                                            <v-btn v-bind="tooltipProps" :icon="isSaveDcOverride(action) ? 'mdi-lock-open-variant-outline' : 'mdi-lock-outline'" variant="text" size="x-small" @click.stop="toggleSaveDcOverride(index)" :disabled="!isEnabled"/>
-                                        </template>
-                                    </v-tooltip>
-                                </template>
-                             </v-number-input>
-                        </v-col>
-                        <!-- 4 breit leer -->
-                        <v-col cols="12" md="4"></v-col>
-
-                        <!-- Zeile 2 (Uses/Reset/Recharge) -->
+                         <!-- ... (Layout Saving Throw wie zuvor) ... -->
+                         <v-col cols="12" md="4">
+                             <v-text-field label="Name" :model-value="action.name" @update:model-value="updateActionField(index, 'name', $event)" density="compact" variant="outlined" clearable :disabled="!isEnabled"/>
+                         </v-col>
+                         <v-col cols="12" md="2">
+                             <v-select label="Save Stat" :items="statsOptions" :model-value="action.saveStat" @update:model-value="updateActionField(index, 'saveStat', $event)" density="compact" variant="outlined" clearable :disabled="!isEnabled" hide-details="auto"/>
+                         </v-col>
+                         <v-col cols="12" md="2">
+                              <!-- Save DC mit Override Logik -->
+                              <v-number-input
+                                  label="Save DC"
+                                  :model-value="isSaveDcOverride(action) ? action.safeDC?.overrideValue : action.safeDC?.defaultValue"
+                                  @update:model-value="updateActionField(index, 'safeDC.overrideValue', $event === '' || $event === null ? null : parseInt($event, 10))"
+                                  density="compact" variant="outlined"
+                                  :readonly="!isSaveDcOverride(action)"
+                                  :class="{'input-is-default': !isSaveDcOverride(action)}"
+                                  control-variant="stacked" :reverse="false" inset :min="0"
+                                  class="left-aligned-input"
+                                  :disabled="!isEnabled"
+                                   hide-details="auto"
+                              >
+                                 <template v-slot:append-inner>
+                                     <v-tooltip location="top" :text="isSaveDcOverride(action) ? 'Use Default' : 'Override DC'">
+                                         <template v-slot:activator="{ props: tooltipProps }">
+                                             <v-btn v-bind="tooltipProps" :icon="isSaveDcOverride(action) ? 'mdi-lock-open-variant-outline' : 'mdi-lock-outline'" variant="text" size="x-small" @click.stop="toggleSaveDcOverride(index)" :disabled="!isEnabled"/>
+                                         </template>
+                                     </v-tooltip>
+                                 </template>
+                              </v-number-input>
+                         </v-col>
+                         <v-col cols="12" md="4"></v-col>
                          <v-col cols="12" md="2">
                              <v-number-input label="Uses" :model-value="action.limitedUse?.count" @update:model-value="updateActionField(index, 'limitedUse.count', parseInt($event, 10) || null)" density="compact" variant="outlined" :min="0" control-variant="stacked" :reverse="false" inset :disabled="!isEnabled || areUsesResetDisabled(action)" hide-details="auto"/>
                          </v-col>
                          <v-col cols="12" md="4">
                              <v-select label="Reset Type" :items="resetTypes" :model-value="action.limitedUse?.rate" @update:model-value="updateActionField(index, 'limitedUse.rate', $event)" density="compact" variant="outlined" clearable :disabled="!isEnabled || areUsesResetDisabled(action)" hide-details="auto"/>
                          </v-col>
-                          <v-col cols="12" md="4">
+                         <v-col cols="12" md="4">
                               <v-select label="Recharge" :items="rechargeOptions" :model-value="action.recharge" @update:model-value="updateActionField(index, 'recharge', $event)" density="compact" variant="outlined" clearable :disabled="!isEnabled || isRechargeDisabled(action)" hide-details="auto"/>
                          </v-col>
-                        <!-- 2 breit leer -->
-                        <v-col cols="12" md="2"></v-col>
-
-                         <!-- Zeilen für Damage Inputs (Fail) -->
+                         <v-col cols="12" md="2"></v-col>
                          <template v-for="(damageEntry, damageIndex) in action.damage" :key="damageIndex">
                               <v-col cols="12" md="1" class="d-flex align-center py-0">
                                    <span class="text-caption">{{ damageIndex === 0 ? 'Fail:' : '' }}</span>
@@ -609,49 +662,36 @@ function toggleSaveDcOverride(actionIndex) {
                               </v-col>
                               <v-col cols="12" md="4" class="d-flex align-center py-0">
                                    <v-combobox label="Damage Type" :items="damageTypes" :model-value="damageEntry.type" @update:model-value="updateActionField(index, `damage[${damageIndex}].type`, $event)" density="compact" variant="outlined" :disabled="!isEnabled" hide-details="auto" class="flex-grow-1"/>
-                                    <v-btn icon="mdi-close" size="x-small" variant="text" color="error" @click="removeNestedArrayItem(index, 'damage', damageIndex)" :disabled="!isEnabled || action.damage.length <= 1" aria-label="Remove damage" class="ml-1"/> <!-- Button zum Entfernen -->
+                                    <v-btn icon="mdi-close" size="x-small" variant="text" color="error" @click="removeNestedArrayItem(index, 'damage', damageIndex)" :disabled="!isEnabled || action.damage.length <= 1" aria-label="Remove damage" class="ml-1"/>
                               </v-col>
                          </template>
-                          <!-- Button zum Hinzufügen einer Damage Reihe -->
                          <v-col cols="12" offset-md="1" md="11" class="py-0">
                               <v-btn block color="secondary" variant="text" @click="addNestedArrayItem(index, 'damage', { count: 1, size: 6, modifier: 0, type: '' })" :disabled="!isEnabled" prepend-icon="mdi-plus-circle-outline">Add Damage Entry (Fail)</v-btn>
                          </v-col>
-
-
-                        <!-- Zeile Notes -->
                          <v-col cols="12">
                               <v-textarea label="Notes" :model-value="action.notes" @update:model-value="updateActionField(index, 'notes', $event)" density="compact" variant="outlined" clearable auto-grow rows="2" :disabled="!isEnabled"/>
                          </v-col>
-
-                         <!-- Zeile Success Notes -->
-                         <v-col cols="12" md="1" class="d-flex align-center">
+                          <v-col cols="12" md="1" class="d-flex align-center">
                              <span class="text-caption">Success:</span>
                          </v-col>
                           <v-col cols="12" md="11">
                               <v-textarea label="Success Description" :model-value="action.successNotes" @update:model-value="updateActionField(index, 'successNotes', $event)" density="compact" variant="outlined" clearable auto-grow rows="2" :disabled="!isEnabled"/>
                          </v-col>
-
-                          <!-- Zeile Success or Fail Notes -->
-                         <v-col cols="12" md="2" class="d-flex align-center">
+                          <v-col cols="12" md="2" class="d-flex align-center">
                              <span class="text-caption">Success or Fail:</span>
                          </v-col>
                           <v-col cols="12" md="10">
                               <v-textarea label="Success or Fail Description" :model-value="action.succesOrFailNotes" @update:model-value="updateActionField(index, 'succesOrFailNotes', $event)" density="compact" variant="outlined" clearable auto-grow rows="2" :disabled="!isEnabled"/>
                          </v-col>
-
-
                     </v-row>
 
                     <!-- === Layout Other === -->
                     <v-row dense v-else-if="action.type === 'other'">
-                         <!-- Zeile 1 -->
+                         <!-- ... (Layout Other wie zuvor) ... -->
                          <v-col cols="12" md="6">
                             <v-text-field label="Name" :model-value="action.name" @update:model-value="updateActionField(index, 'name', $event)" density="compact" variant="outlined" clearable :disabled="!isEnabled"/>
                          </v-col>
-                         <!-- 6 breit leer -->
                          <v-col cols="12" md="6"></v-col>
-
-                         <!-- Zeile 2 (Uses/Reset/Recharge) -->
                          <v-col cols="12" md="2">
                              <v-number-input label="Uses" :model-value="action.limitedUse?.count" @update:model-value="updateActionField(index, 'limitedUse.count', parseInt($event, 10) || null)" density="compact" variant="outlined" :min="0" control-variant="stacked" :reverse="false" inset :disabled="!isEnabled || areUsesResetDisabled(action)" hide-details="auto"/>
                          </v-col>
@@ -661,10 +701,7 @@ function toggleSaveDcOverride(actionIndex) {
                           <v-col cols="12" md="4">
                               <v-select label="Recharge" :items="rechargeOptions" :model-value="action.recharge" @update:model-value="updateActionField(index, 'recharge', $event)" density="compact" variant="outlined" clearable :disabled="!isEnabled || isRechargeDisabled(action)" hide-details="auto"/>
                          </v-col>
-                        <!-- 2 breit leer -->
-                        <v-col cols="12" md="2"></v-col>
-
-                        <!-- Zeile Description -->
+                         <v-col cols="12" md="2"></v-col>
                          <v-col cols="12">
                               <v-textarea label="Description" :model-value="action.description" @update:model-value="updateActionField(index, 'description', $event)" density="compact" variant="outlined" clearable auto-grow rows="3" :disabled="!isEnabled"/>
                          </v-col>
@@ -731,7 +768,7 @@ function toggleSaveDcOverride(actionIndex) {
                      v-model="selectedTemplate"
                      density="compact" variant="outlined"
                      clearable
-                     :disabled="!isEnabled || isLoadingData || actionTemplates.length === 0"
+                     :disabled="!isEnabled || isLoadingData || templateOptions.length === 0 || !selectedActionType"
                      hide-details="auto"
                      placeholder="Select a template"
                   >
@@ -739,6 +776,9 @@ function toggleSaveDcOverride(actionIndex) {
                              <v-list-item v-if="isLoadingData">
                                   <v-progress-circular indeterminate color="primary" size="16" class="mr-2"></v-progress-circular>
                                  Loading templates...
+                             </v-list-item>
+                             <v-list-item v-else-if="!selectedActionType">
+                                 Select an Action Type first.
                              </v-list-item>
                              <v-list-item v-else>
                                  No templates found for "{{ selectedActionType }}".
@@ -753,7 +793,7 @@ function toggleSaveDcOverride(actionIndex) {
                        color="success"
                        variant="flat"
                        @click="handleAddAction"
-                       :disabled="!isEnabled || isLoadingData"
+                       :disabled="!isEnabled || isLoadingData || !selectedActionType"
                        prepend-icon="mdi-plus"
                    >
                        Add
@@ -771,7 +811,7 @@ function toggleSaveDcOverride(actionIndex) {
     pointer-events: none;
 }
 
-/* Styles für linksbündigen Input und Append/Prepend Platz */
+/* Styles für linksbündigen Number Input und Append/Prepend Platz */
 :deep(.left-aligned-input .v-field__input) {
   text-align: left !important;
 }

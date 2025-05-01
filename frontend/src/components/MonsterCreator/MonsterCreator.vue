@@ -30,6 +30,18 @@ function createEmptyMonster() {
         initExpertise: false
     };
 
+    const defaultSpellcasting = {
+         stat: '',
+         dc: { defaultValue: 0, overrideValue: null },
+         bonus: { defaultValue: 0, overrideValue: null },
+         hasAttackrolls: false,
+         requiresSComponents: false,
+         atWill: [],
+         once: [],
+         twice: [],
+         thrice: []
+    };
+
     return {
         complete: false,
         basics: {
@@ -52,9 +64,9 @@ function createEmptyMonster() {
         resistances: [], immunities: [], vulnerabilities: [], conditionImmunities: [],
         inventory: '',
         traits: [],
-        spellcasting: { /* ... wie zuvor ... */ },
-        actions: [], // Initialisiere als leeres ARRAY
-        bonusAction: [], // Initialisiere als leeres ARRAY
+        spellcasting: defaultSpellcasting,
+        actions: { attackRoll: [], savingThrow: [], other: [] },
+        bonusAction: { attackRoll: [], savingThrow: [], other: [] },
         multiattacks: '',
         reactions: [],
         legendaryActions: { uses: 0, usesInLair: 0, LegendaryResistanceUses: 0, legendaryResistanceType: '', legendaryAction: [] },
@@ -65,79 +77,139 @@ function createEmptyMonster() {
 function handleMonsterFieldUpdate({ path, value }) {
     console.log(`MonsterCreator: Received update - Path: "${path}", Value:`, value);
 
-    let targetPath = path;
-    if (emptyMonsterStructure.basics && path in emptyMonsterStructure.basics) {
-        targetPath = `basics.${path}`;
-    } else if (path === 'actions' || path === 'bonusAction' || path === 'traits') {
-        console.log(`MonsterCreator: Explicitly assigning new array for path: ${path}`);
-         // Stelle sicher, dass monsterBeingCreated diese Property hat
-         if (monsterBeingCreated[path]) {
-              monsterBeingCreated[path] = [...value]; // Nutze Spread für Array-Kopie
-         } else {
-              // Handle Fall, falls die Property noch nicht existiert (sollte nicht passieren bei createEmptyMonster)
-              console.warn(`MonsterCreator: Attempted to update non-existent array path: ${path}`);
-         };
-    } else if (emptyMonsterStructure.basics?.HP && path.startsWith('HP.')) {
-        targetPath = `basics.${path}`;
-    } else if (emptyMonsterStructure.basics?.stats && path.startsWith('stats.')) {
-        targetPath = `basics.${path}`;
-    } else if (emptyMonsterStructure.basics?.Initiative && path.startsWith('Initiative.')) {
-        targetPath = `basics.${path}`;
-    }
+    // Spezielle Pfade, die keine einfache set-Zuweisung sind (z.B. weil sie Berechnungen triggern)
+    // 'traits' und 'spellcasting' kommen als komplette Objekte/Arrays von ihren Komponenten
+    // 'actions' und 'bonusAction' kommen JETZT auch als komplette Objekte zurück (vom re-grouping in ActionConfigBase)
 
-    console.log(`MonsterCreator: Setting path "${targetPath}" with value:`, value);
-
-    const oldPB = get(monsterBeingCreated, 'basics.PB'); 
-    const oldStats = cloneDeep(get(monsterBeingCreated, 'basics.stats'));
-    const pbAfterUpdate = get(monsterBeingCreated, 'basics.PB'); // PB *nach* möglicher CR-Änderung
-
-    set(monsterBeingCreated, targetPath, value);
     let recalculateSaves = false;
     let recalculatePassives = false;
+    let recalculateSpell = false;
+    let recalculateInitiative = false;
 
-    if (path === 'basics.CR' && typeof value === 'number') {
-         updateProficiencyFromCR(value); 
-         recalculateSaves=true; 
-        }
-    if (path === 'basics.size' && get(monsterBeingCreated, 'basics.HP.overrideDie') ) { 
-        const sizeVal = value;
-        const hdMapping = { 'Tiny': 4, 'Small': 6, 'Medium': 8, 'Large': 10, 'Huge': 12, 'Gargantuan': 20, 'Titan': 20 };
-        const defaultDie = hdMapping[sizeVal] || 8;
-        set(monsterBeingCreated, 'basics.HP.defaultDie', defaultDie); 
+    const oldPB = get(monsterBeingCreated, 'basics.PB');
+    // Stats vor der Änderung kopieren, falls relevant
+    // const oldStats = cloneDeep(get(monsterBeingCreated, 'basics.stats')); // Nicht immer nötig zu kopieren
+
+    // Spezielle Behandlung für Pfade, die als Ganzes vom Child kommen
+    if (path === 'traits' || path === 'spellcasting' || path === 'actions' || path === 'bonusAction' ||
+        path === 'saves' || path === 'senses' || path === 'speeds' || path === 'resistImmun' || path === 'inventory') {
+         // Prüfen, ob sich der Wert tatsächlich unterscheidet (optional, kann Performance sparen)
+         if (!isEqual(get(monsterBeingCreated, path), value)) {
+             console.log(`MonsterCreator: Setting path "${path}" with value:`, value);
+             // Verwende Object.assign für top-level Objekte, set für tiefere Pfade
+             if (typeof value === 'object' && value !== null && !Array.isArray(value) && path !== 'traits' && path !== 'speeds' && path !== 'resistImmun' && path !== 'actions' && path !== 'bonusAction') {
+                  // Wenn es ein Objekt ist (saves, senses, spellcasting), merge es
+                  // Aber actions/bonusAction kommen als Objekt zurück, die ganz zugewiesen werden
+                  // traits/speeds/resistImmun kommen als Arrays zurück, die ganz zugewiesen werden
+                   Object.assign(get(monsterBeingCreated, path), value); // Merge für Teil-Objekte
+             } else {
+                 // Zuweisung für Arrays (traits, speeds, actions, bonusAction) oder String (inventory)
+                 set(monsterBeingCreated, path, value); // Set funktioniert auch für Top-Level
+             }
+
+              // Prüfe, ob diese Pfade Berechnungen triggern
+             if (path === 'saves') recalculateSaves = true; // Proficiencies geändert
+             if (path === 'skills') recalculatePassives = true; // skills werden separat geupdated
+             if (path === 'senses') recalculatePassives = true; // Passive Overrides/Defaults geändert (weniger wahrscheinlich hier getriggert)
+             if (path === 'spellcasting') recalculateSpell = true; // Casting Stat oder Overrides geändert
+         }
+         // Rückkehr nach Behandlung der spezifischen Pfade
+         // Die Überprüfung auf Änderungen an Basics-Stats/CR/PB passiert unten
+    } else {
+        // Standard-Behandlung für einzelne Felder (in basics, oder tiefere Pfade die nicht als Ganzes gemanagt werden)
+        // Dies ist der Teil, der hauptsächlich von BasicsConfig kommt
+         let targetPath = path;
+         if (emptyMonsterStructure.basics && path in emptyMonsterStructure.basics && typeof emptyMonsterStructure.basics[path] !== 'object') {
+             targetPath = `basics.${path}`; // Flache Basics-Felder
+         } else if (emptyMonsterStructure.basics?.HP && path.startsWith('HP.')) {
+             targetPath = `basics.${path}`;
+         } else if (emptyMonsterStructure.basics?.stats && path.startsWith('stats.')) {
+             targetPath = `basics.${path}`;
+         } else if (emptyMonsterStructure.basics?.Initiative && path.startsWith('Initiative.')) {
+             targetPath = `basics.${path}`;
+         } else if (path.startsWith('saves.')) { // Saves als Einzelpfade (z.B. saves.STR.proficient)
+              targetPath = path;
+              recalculateSaves = true; // saveProficiency geändert
+         } else if (path.startsWith('skills[')) { // Skills als Einzelpfade (z.B. skills[0].proficient)
+              targetPath = path;
+              recalculatePassives = true; // skillProficiency/Expertise geändert
+         }
+         // Füge weitere spezifische Pfade hinzu, falls nötig (z.B. spellcasting.dc.overrideValue)
+
+         console.log(`MonsterCreator: Setting path "${targetPath}" with value:`, value);
+         set(monsterBeingCreated, targetPath, value); // Setze den Wert für den identifizierten Pfad
+
+         // Prüfe, ob diese spezifischen Pfade Berechnungen triggern
+         if (targetPath.startsWith('basics.stats.')) {
+              recalculateSaves = true;
+              recalculatePassives = true;
+              // Auch Spellcasting neu berechnen, falls Casting Stat geändert wurde
+              if (monsterBeingCreated.spellcasting?.stat === targetPath.substring('basics.stats.'.length)) {
+                  recalculateSpell = true;
+              }
+         }
+         if (targetPath.startsWith('basics.Initiative.')) {
+             recalculateInitiative = true;
+         }
+         if (targetPath === 'basics.CR') {
+              updateProficiencyFromCR(value); // PB wird hier aktualisiert
+              recalculateSaves = true;
+              recalculateInitiative = true; // Init bonus hängt von PB ab
+              recalculateSpell = true; // Spell bonus/dc hängt von PB ab
+         }
+         if (targetPath === 'basics.size') {
+             // Handle HP die update based on size if overrideDie is null
+             const sizeVal = value;
+             const hdMapping = { 'Tiny': 4, 'Small': 6, 'Medium': 8, 'Large': 10, 'Huge': 12, 'Gargantuan': 20, 'Titan': 20 };
+             const defaultDie = hdMapping[sizeVal] || 8;
+             // Nur aktualisieren, wenn overrideDie nicht gesetzt ist
+             if (get(monsterBeingCreated, 'basics.HP.overrideDie') === null) {
+                 set(monsterBeingCreated, 'basics.HP.defaultDie', defaultDie);
+             }
+         }
+         // Trigger Spellcasting recalculation if Casting Stat changed via its own Select
+         if (targetPath === 'spellcasting.stat') {
+              recalculateSpell = true;
+         }
+         // Trigger Save DC recalculation if Save Stat changed via its own Select (in Save Config)
+         // This is handled *within* the Save Config now and emitted as saves.*.overrideValue,
+         // which falls into the first branch. If Save Config emitted saveStat change directly,
+         // you'd add logic here. Given the current ActionConfigBase, this is handled there.
     }
-    if (path === 'skills' || path.startsWith('skills[')) { // Wenn das Array selbst oder ein Element geändert wird
-        recalculatePassives = true;
-        recalculateAllSaveDefaults(); // Auch Saves neu berechnen, falls Skills Proficiency teilen (unwahrscheinlich, aber sicher)
+
+    // Trigger Neuberechnungen basierend auf den gesammelten Flags
+    // Stelle sicher, dass alle nötigen Daten (stats, PB, skills, skillsDataGlobal, spellcasting.stat)
+    // vorhanden sind, BEVOR die Berechnungsfunktionen aufgerufen werden.
+    // Die Berechnungsfunktionen selbst sollten auch robuste Guards haben.
+    const currentBasics = monsterBeingCreated.basics;
+    const currentSaves = monsterBeingCreated.saves;
+    const currentSkills = monsterBeingCreated.skills;
+    const currentSenses = monsterBeingCreated.senses;
+    const currentSpellcasting = monsterBeingCreated.spellcasting;
+
+    // Rekalculation Save Defaults (braucht basics.stats, basics.PB, saves)
+    if (recalculateSaves && currentBasics?.stats && typeof currentBasics.PB === 'number' && currentSaves) {
+         recalculateAllSaveDefaults();
     }
-    if (path === 'traits') {
-        console.log("MonsterCreator: Explicitly assigning new traits array");
-        monsterBeingCreated.traits = [...value];
+
+    // Rekalculation Passive Defaults (braucht basics.stats, basics.PB, skills, senses, skillsDataGlobal)
+    // Trigger auch, wenn skillsDataGlobal geladen ist (passiert onMounted)
+    if (recalculatePassives && currentBasics?.stats && typeof currentBasics.PB === 'number' && currentSkills && currentSenses && Object.keys(skillsDataGlobal.value).length > 0) {
+         recalculatePassiveDefaults();
     }
-    if (path.startsWith('basics.stats.')) { 
-        recalculateSaves=true; 
-        recalculatePassives=true; 
-    } 
-    if ((targetPath === 'basics.stats.DEX' || targetPath === 'basics.Initiative.initProficiency' || targetPath === 'basics.Initiative.initExpertise' || (targetPath === 'basics.CR' && oldPB !== pbAfterUpdate) ) && get(monsterBeingCreated, 'basics.Initiative.initOverrideValue') === null) { 
-        console.log("MonsterCreator: Triggering recalculateDefaultInitiative due to change in:", targetPath);
-        recalculateDefaultInitiative(); 
+
+    // Rekalculation Initiative Default (braucht basics.stats.DEX, basics.PB, basics.Initiative)
+    if (recalculateInitiative && currentBasics?.stats?.DEX !== undefined && typeof currentBasics.PB === 'number' && currentBasics?.Initiative) {
+         recalculateDefaultInitiative();
     }
-    if (targetPath === 'basics.Initiative.initOverrideValue' && value === null) { 
-        console.log("MonsterCreator: Triggering recalculateDefaultInitiative due to override removal");
-        recalculateDefaultInitiative();
+
+     // Rekalculation Spell Defaults (braucht basics.stats, basics.PB, spellcasting.stat)
+     // Trigger auch, wenn spellcasting.stat geändert wird ODER basics.stats/PB geändert werden
+     if (recalculateSpell && currentBasics?.stats && typeof currentBasics.PB === 'number' && currentSpellcasting?.stat) {
+          recalculateSpellDefaults(); // Rufe die Funktion in MonsterCreator auf
      }
-    if (path.startsWith('saves.')) { 
-        recalculateSaves = true; 
-    } // Save Prof/Override geändert
-    if (path.startsWith('skills.')) { 
-        recalculatePassives = true; 
-    }
-    if (targetPath.startsWith('basics.stats.') || targetPath.startsWith('saves.') || (targetPath === 'basics.CR' && oldPB !== pbAfterUpdate)) {
-        recalculateAllSaveDefaults(); 
-    }
 
-    if (recalculateSaves) recalculateAllSaveDefaults();
-    if (recalculatePassives) recalculatePassiveDefaults();
-
+    console.log('MonsterCreator: Monster data after update:', JSON.parse(JSON.stringify(monsterBeingCreated)));
 }
 
 function recalculateAllSaveDefaults() {
@@ -191,6 +263,45 @@ function recalculatePassiveDefaults() {
            }
      }
       console.log("MonsterCreator: Updated passive defaults:", JSON.parse(JSON.stringify(monsterBeingCreated.senses)));
+}
+
+function recalculateSpellDefaults() {
+    // Diese Funktion sollte die Berechnung für DC/Bonus Defaults in MonsterCreator handhaben
+    // und die defaults direkt in monsterBeingCreated.spellcasting.dc.defaultValue setzen,
+    // wenn kein Override gesetzt ist.
+    const stats = monsterBeingCreated.basics?.stats;
+    const pb = monsterBeingCreated.basics?.PB;
+    const castingStat = monsterBeingCreated.spellcasting?.stat;
+
+    if (!stats || typeof pb !== 'number' || !castingStat || stats[castingStat] === undefined) {
+        // console.warn("MonsterCreator: Skipping Spell Default calculation in MonsterCreator - data not ready.");
+        return;
+    }
+
+    const modifier = statModifier(stats[castingStat]);
+
+    const newDefaultDc = 8 + pb + modifier;
+    const newDefaultBonus = pb + modifier;
+
+    const currentDc = monsterBeingCreated.spellcasting.dc || {};
+    const currentBonus = monsterBeingCreated.spellcasting.bonus || {};
+
+    let updated = false;
+
+    if (currentDc.overrideValue === null && currentDc.defaultValue !== newDefaultDc) {
+         set(monsterBeingCreated, 'spellcasting.dc.defaultValue', newDefaultDc);
+         updated = true;
+    }
+     if (currentBonus.overrideValue === null && currentBonus.defaultValue !== newDefaultBonus) {
+         set(monsterBeingCreated, 'spellcasting.bonus.defaultValue', newDefaultBonus);
+         updated = true;
+     }
+
+     if (updated) {
+          console.log(`MonsterCreator: Updated spell defaults to DC ${newDefaultDc}, Bonus ${newDefaultBonus}`);
+          // Keine erneute emitUpdate hier, da wir bereits direkt im monsterBeingCreated Objekt arbeiten
+          // und die Reactive-System-Updates von dort aus gehen.
+     }
 }
 // ========================================================================
 
@@ -450,6 +561,8 @@ onMounted(async () => {
 
     recalculateAllSaveDefaults();
     recalculatePassiveDefaults();
+    recalculateDefaultInitiative();
+    recalculateSpellDefaults();
 });
 
 </script>
