@@ -59,6 +59,10 @@ const getDataForPanel = (panel) => {
              conditionImmunities: get(props.monsterData, 'conditionImmunities', [])
          };
     }
+    if (panel.path === 'actions' || panel.path === 'bonusAction') {
+         // Gehe davon aus, dass es bereits ein Array im monsterData ist
+         return get(props.monsterData, panel.path, []); // Default zu leerem Array
+    }
 
     return get(props.monsterData, panel.path, undefined);
 };
@@ -76,6 +80,7 @@ const getModelValueForComponent = (panel) => {
     if (panel.path === 'inventory') return data ?? '';
     if (panel.path === 'traits') return data ?? [];
     if (panel.path === 'spellcasting') return data ?? [];
+    if (panel.path === 'actions' || panel.path === 'bonusAction') return data ?? [];
 
     // Fallback: Standardmäßig das geholte Datum zurückgeben, oder undefined
     return data;
@@ -144,6 +149,18 @@ const getModelValueForComponent = (panel) => {
                       :basicsData="getDataForPanel({ path: 'basics' }) ?? {}"
                       :is-enabled="isEnabled"
                       @update:field="handleFieldUpdate($event)" />
+        <ActionsConfig v-else-if="panel.id === 'actions'"
+                      :modelValue="getModelValueForComponent(panel)" 
+                      :basicsData="getDataForPanel({ path: 'basics' }) ?? {}" 
+                      :is-enabled="isEnabled"
+                      @update:field="handleFieldUpdate($event)"
+                 />
+        <BonusActionsConfig v-else-if="panel.id === 'bonusactions'"
+                      :modelValue="getModelValueForComponent(panel)" 
+                      :basicsData="getDataForPanel({ path: 'basics' }) ?? {}" 
+                      :is-enabled="isEnabled"
+                      @update:field="handleFieldUpdate($event)"
+                 />
         <p v-else class="text-disabled pa-4">
           Configuration for {{ panel.title }} not implemented yet.
         </p>

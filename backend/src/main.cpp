@@ -7,8 +7,9 @@
 #include <exception>  // Für std::exception
 #include <cmath>      // Für std::floor
 #include <iomanip>    // Für std::setw (im dump für pretty print)
-#include <algorithm>  // Für std::transform, std::replace_if
+#include <algorithm>  // Für std::transform, std::replace_if, std::find, std::unique
 #include <cctype>     // Für ::tolower, ::isalnum
+#include <set>        // Für std::set (zum Verfolgen laufender Ladevorgänge)
 
 // Crow Header
 #include "crow.h"
@@ -37,16 +38,19 @@ struct CorsMiddleware {
 
 using json = nlohmann::json;
 
-// --- Konstanten für Verzeichnisse ---
+// --- Globale Konstanten und Caches ---
 const std::string encounters_base_dir = "../data/encounters";
 const std::string monsters_base_dir = "../data/monsters";
 const std::string dnddata_base_dir = "../data/DnDData";
 const std::string templates_base_dir = "../data/templates";
 const std::vector<std::string> valid_template_types = {"trait", "attackRoll", "savingThrow", "other"}; // Liste der erlaubten Template-Typen
 
-// --- Simpler In-Memory Cache für DnDData ---
+// Simpler In-Memory Cache für DnDData
 std::map<std::string, json> dndDataCache;
-// --- Ende Cache ---
+// Set zum Verfolgen, welche DnDData Dateien gerade geladen werden
+std::set<std::string> currently_loading_dnd_data;
+// --- Ende Globale Konstanten und Caches ---
+
 
 // --- Hilfsfunktionen für Template-Handling ---
 
@@ -148,22 +152,28 @@ json save_template_by_type(const std::string& type, const json& incoming_data) {
          throw std::runtime_error("Missing or empty 'name' field for template.");
      }
 
-    // Erstelle ID aus Name (+ Uses für Trait, oder andere Kriterien für Actions?)
-    // Für Actions nehmen wir einfach Name und Typ als Basis für die ID
-    std::string base_id = incoming_data["name"];
-    if (type == "trait" && incoming_data.contains("limitedUse") && incoming_data["limitedUse"].is_object() && incoming_data["limitedUse"].contains("count")) {
-        base_id += "_uses" + std::to_string(incoming_data["limitedUse"]["count"].get<int>());
-    } else if (type == "savingThrow" && incoming_data.contains("saveStat") && incoming_data["saveStat"].is_string()) {
-        base_id += "_" + incoming_data["saveStat"].get<std::string>();
+    // Erstelle ID aus Name (+ Zusätze basierend auf Typ für Eindeutigkeit)
+    std::string base_id_name = incoming_data["name"].get<std::string>();
+    std::string template_id = base_id_name;
+
+    if (type == "trait") {
+        if (incoming_data.contains("limitedUse") && incoming_data["limitedUse"].is_object() && incoming_data["limitedUse"].contains("count") && incoming_data["limitedUse"]["count"].is_number_integer() && incoming_data["limitedUse"]["count"].get<int>() > 0) {
+             template_id += "_uses" + std::to_string(incoming_data["limitedUse"]["count"].get<int>());
+        }
+    } else if (type == "savingThrow") {
+        if (incoming_data.contains("saveStat") && incoming_data["saveStat"].is_string() && !incoming_data["saveStat"].get<std::string>().empty()) {
+             template_id += "_" + incoming_data["saveStat"].get<std::string>();
+        }
     }
     // Fügen Sie hier Logik für andere Action-Typen hinzu, falls nötig, um IDs eindeutiger zu machen
+    // Z.B. für Attack Roll: rangeType? firstDamageType?
 
     // Sanitisiere ID
-    std::string template_id = base_id;
     std::transform(template_id.begin(), template_id.end(), template_id.begin(), ::tolower);
-    std::replace_if(template_id.begin(), template_id.end(), [](char c){ return !std::isalnum(c) && c != '_'; }, '_'); // Erlaubt Unterstrich
+    template_id.erase(std::remove_if(template_id.begin(), template_id.end(), [](char c){ return !std::isalnum(c) && c != '_'; }), template_id.end()); // Entfernt nicht-alphanumerische Zeichen außer Unterstrich
     template_id.erase(std::unique(template_id.begin(), template_id.end(), [](char a, char b){ return a == '_' && b == '_'; }), template_id.end()); // Entfernt doppelte Unterstriche
     template_id.erase(0, template_id.find_first_not_of('_')); // Entfernt führende Unterstriche
+    if (template_id.empty()) template_id = "template"; // Fallback falls Name nur aus Sonderzeichen bestand
     template_id.erase(template_id.find_last_not_of('_') + 1); // Entfernt nachgestellte Unterstriche
 
 
@@ -181,7 +191,7 @@ json save_template_by_type(const std::string& type, const json& incoming_data) {
 
         std::ofstream output_file(file_path);
         if (!output_file.is_open()) { throw std::runtime_error("Could not save template file."); }
-        output_file << incoming_data.dump(4); // Schreibe die empfangenen Daten
+        output_file << incoming_data.dump(4); // Schreibe die empfangenen Daten (mit 4 Spaces Einrückung)
         output_file.close();
 
         json response_data = incoming_data;
@@ -204,8 +214,6 @@ void delete_template_by_type(const std::string& type, const std::string& id) {
          std::filesystem::path file_path = get_template_filepath(type, id);
 
          if (!std::filesystem::exists(file_path)) {
-             // Prüfe hier nicht auf is_regular_file, um eine spezifischere 404 Meldung zu geben,
-             // wenn der Pfad existiert, aber kein File ist.
              throw std::runtime_error("Template not found for deletion."); // Eigene Meldung für 404
          }
          if (!std::filesystem::is_regular_file(file_path)) {
@@ -213,7 +221,7 @@ void delete_template_by_type(const std::string& type, const std::string& id) {
          }
 
          if (std::filesystem::remove(file_path)) {
-             // Erfolg, 204 No Content
+             // Erfolg, 204 No Content wird im Handler gesendet
          } else {
               throw std::runtime_error("Could not delete template file."); // Eigene Meldung für 500
          }
@@ -227,67 +235,59 @@ void delete_template_by_type(const std::string& type, const std::string& id) {
     }
 }
 
-// --- Hilfsfunktion zum Laden eines Monster-Statblocks (kann bleiben) ---
-// Gibt ein leeres JSON-Objekt zurück, wenn Laden fehlschlägt oder Felder fehlen
+// --- Hilfsfunktion zum Laden eines Monster-Statblocks (geringfügig angepasst) ---
+// Sucht jetzt in completed und uncompleted Ordnern
 json load_monster_statblock(const std::string& monster_id) {
-    // ... (bestehende Implementierung) ...
-     const std::string monsters_base_dir = "../data/monsters"; // Hinweis: base_dir ist im main, hier als Konstante kopiert
+     std::filesystem::path monster_file_path;
+     bool file_found = false;
 
-    std::filesystem::path monster_file_path;
-
-    try {
-        // Suche in beiden Ordnern
-        std::vector<std::string> potential_subdirs = {"completed", "uncompleted"};
-        bool file_found = false;
-        for(const auto& subdir : potential_subdirs) {
-             std::filesystem::path current_path;
-             try {
-                current_path = std::filesystem::absolute(std::filesystem::path(monsters_base_dir) / subdir / (monster_id + ".json")).lexically_normal();
-                if (std::filesystem::exists(current_path) && std::filesystem::is_regular_file(current_path)) {
-                    monster_file_path = current_path;
-                    file_found = true;
-                    break;
-                }
-             } catch(const std::exception& e) {
-                  std::cerr << "Fehler beim Suchen nach Monster " << monster_id << " in " << subdir << ": " << e.what() << std::endl;
-             }
-        }
-
-         if (!file_found) {
-             std::cerr << "Monster " << monster_id << " nicht in completed oder uncompleted gefunden." << std::endl;
-             return nullptr; // Signalisiert Fehler (oder 404)
+     try {
+         std::vector<std::string> potential_subdirs = {"completed", "uncompleted"};
+         for(const auto& subdir : potential_subdirs) {
+              std::filesystem::path current_path;
+              try {
+                 current_path = std::filesystem::absolute(std::filesystem::path(monsters_base_dir) / subdir / (monster_id + ".json")).lexically_normal();
+                 if (std::filesystem::exists(current_path) && std::filesystem::is_regular_file(current_path)) {
+                     monster_file_path = current_path;
+                     file_found = true;
+                     break; // Datei gefunden, Schleife beenden
+                 }
+              } catch(const std::exception& e) {
+                   std::cerr << "Fehler beim Suchen nach Monster " << monster_id << " in " << subdir << ": " << e.what() << std::endl;
+              }
          }
 
+          if (!file_found) {
+              std::cerr << "Monster " << monster_id << " nicht in completed oder uncompleted gefunden." << std::endl;
+              return nullptr; // Signalisiert 404
+          }
 
-        std::ifstream monster_file(monster_file_path);
-        if (!monster_file.is_open()) {
-            std::cerr << "Fehler: Monster-Datei konnte nicht geöffnet werden: " << monster_file_path << std::endl;
-             return nullptr;
-        }
+         std::ifstream monster_file(monster_file_path);
+         if (!monster_file.is_open()) {
+             std::cerr << "Fehler: Monster-Datei konnte nicht geöffnet werden: " << monster_file_path << std::endl;
+              return nullptr; // Signalisiert 500
+         }
 
-        json monster_data;
-        monster_file >> monster_data; // Parse JSON
-        return monster_data;
+         json monster_data;
+         monster_file >> monster_data; // Parse JSON
+         return monster_data;
 
-    } catch (const json::parse_error& e) {
-        std::cerr << "Fehler beim Parsen der Monster-JSON-Datei " << monster_file_path << ": " << e.what() << std::endl;
-        return nullptr;
-    } catch (const std::exception& e) {
-        std::cerr << "Fehler beim Laden der Monster-Datei " << monster_file_path << ": " << e.what() << std::endl;
-        return nullptr;
-    }
+     } catch (const json::parse_error& e) {
+         std::cerr << "Fehler beim Parsen der Monster-JSON-Datei " << monster_file_path << ": " << e.what() << std::endl;
+         return nullptr; // Signalisiert 500
+     } catch (const std::exception& e) {
+         std::cerr << "Fehler beim Laden der Monster-Datei " << monster_file_path << ": " << e.what() << std::endl;
+         return nullptr; // Signalisiert 500
+     }
 }
 // --- Ende Hilfsfunktion Monster Laden ---
 
 
 int main() {
     crow::App<CorsMiddleware> app;
-    // Konstanten für Verzeichnisse sind jetzt global definiert
+    // Globale Konstanten und Caches sind bereits deklariert
 
-    // --- Simpler In-Memory Cache für DnDData (kann bleiben) ---
-    // std::map<std::string, json> dndDataCache ist global
-
-    // --- GET /api/status (kann bleiben) ---
+    // --- GET /api/status ---
     CROW_ROUTE(app, "/api/status")([]() {
         json response;
         response["status"] = "OK";
@@ -299,8 +299,7 @@ int main() {
 
     // --- GET /api/encounters ---
     CROW_ROUTE(app, "/api/encounters")([&]() {
-        // ... (bestehende Implementierung) ...
-         json encounter_list = json::array();
+        json encounter_list = json::array();
         try {
             for (const auto& entry : std::filesystem::directory_iterator(encounters_base_dir)) {
                 if (entry.is_regular_file() && entry.path().extension() == ".json") {
@@ -330,7 +329,6 @@ int main() {
     // --- GET /api/encounters/{id} ---
      CROW_ROUTE(app, "/api/encounters/<string>")
         ([&](const crow::request& /*req*/, const std::string& encounter_id) {
-        // ... (bestehende Implementierung) ...
         std::filesystem::path encounter_file_path;
         try {
             encounter_file_path = std::filesystem::path(encounters_base_dir) / (encounter_id + ".json");
@@ -361,10 +359,9 @@ int main() {
         }
     });
 
-     // --- GET /api/monsters/summary (kann bleiben) ---
+     // --- GET /api/monsters/summary ---
      CROW_ROUTE(app, "/api/monsters/summary")([&]() {
-        // ... (bestehende Implementierung) ...
-         json monster_summary_list = json::array();
+        json monster_summary_list = json::array();
         try {
              for (const auto& entry : std::filesystem::recursive_directory_iterator(monsters_base_dir)) {
                  if (entry.is_regular_file() && entry.path().extension() == ".json") {
@@ -396,9 +393,8 @@ int main() {
         return res;
     });
 
-    // --- GET /api/spells (kann bleiben) ---
+    // --- GET /api/spells ---
     CROW_ROUTE(app, "/api/spells")([&]() {
-        // ... (bestehende Implementierung) ...
          const std::string spells_file_path_str = "../data/spells/spells.json";
         std::filesystem::path spells_file_path;
 
@@ -430,17 +426,17 @@ int main() {
         }
     });
 
-    // --- GET /api/dnddata/{filename} (kann bleiben) ---
+    // --- GET /api/dnddata/{filename} ---
     CROW_ROUTE(app, "/api/dnddata/<string>")
         ([&](const std::string& requested_filename) {
-        // ... (bestehende Implementierung) ...
-         if (requested_filename.empty()) { return crow::response(400, "{\"error\": \"Filename is required.\"}"); }
-        if (requested_filename.find("..") != std::string::npos) { return crow::response(400, "{\"error\": \"Invalid filename.\"islava"); } // Geändert: isValid statt islava
+        // === VALIDIERUNG ===
+        if (requested_filename.empty()) { return crow::response(400, "{\"error\": \"Filename is required.\"}"); }
+        if (requested_filename.find("..") != std::string::npos) { return crow::response(400, "{\"error\": \"Invalid characters in filename.\"}"); }
         if (requested_filename.length() <= 5 || requested_filename.substr(requested_filename.length() - 5) != ".json") { return crow::response(400, "{\"error\": \"Filename must end with .json\"}"); }
-
 
         const std::string filename = requested_filename;
 
+        // --- Cache Check ---
         if (dndDataCache.count(filename)) {
             crow::response res(dndDataCache[filename].dump());
             res.set_header("Content-Type", "application/json");
@@ -448,12 +444,14 @@ int main() {
             return res;
         }
 
-        if (loadingPromises.count(filename)) { // Prüfe map mit .count() statt struct mit .find()
-             // Wenn ein Promise läuft, gib 202 Accepted oder warte kurz (Warten komplex)
-             // Einfacher: Frontend soll mit Ladeanzeige warten
+        // --- Check if loading ---
+        if (currently_loading_dnd_data.count(filename)) {
+             // Data is already being loaded, inform client (202 Accepted)
              return crow::response(202, "{\"status\": \"Loading\", \"message\": \"Data is currently being loaded.\"}");
         }
 
+        // --- Start Loading ---
+        currently_loading_dnd_data.insert(filename); // Markiere als laufenden Ladevorgang
 
         std::filesystem::path file_path;
         try {
@@ -462,19 +460,23 @@ int main() {
 
             if (!std::filesystem::exists(file_path) || !std::filesystem::is_regular_file(file_path)) {
                 std::cerr << "Fehler: DnDData-Datei nicht gefunden: " << file_path << std::endl;
+                 currently_loading_dnd_data.erase(filename); // Entferne aus Ladeliste bei Fehler
                 return crow::response(404, "{\"error\": \"Requested DnD data file not found.\"}");
             }
 
             std::ifstream data_file(file_path);
             if (!data_file.is_open()) {
                  std::cerr << "Fehler: DnDData-Datei konnte nicht geöffnet werden: " << file_path << std::endl;
+                 currently_loading_dnd_data.erase(filename); // Entferne aus Ladeliste bei Fehler
                  return crow::response(500, "{\"error\": \"Could not open DnD data file.\"}");
             }
 
             json data_content;
-            data_file >> data_content;
+            data_file >> data_content; // Direkt als JSON parsen
 
-            dndDataCache[filename] = data_content; // Speichere im Cache
+            // --- Zum Cache hinzufügen ---
+            dndDataCache[filename] = data_content;
+            currently_loading_dnd_data.erase(filename); // Entferne aus Ladeliste bei Erfolg
 
             crow::response res(data_content.dump());
             res.set_header("Content-Type", "application/json");
@@ -483,15 +485,17 @@ int main() {
 
         } catch (const json::parse_error& e) {
             std::cerr << "Fehler beim Parsen der DnDData-Datei " << file_path << ": " << e.what() << std::endl;
+            currently_loading_dnd_data.erase(filename); // Entferne aus Ladeliste bei Fehler
             return crow::response(500, "{\"error\": \"Error reading DnD data content.\"}");
         } catch (const std::exception& e) {
             std::cerr << "Fehler beim Laden der DnDData-Datei " << filename << " (" << file_path << "): " << e.what() << std::endl;
+            currently_loading_dnd_data.erase(filename); // Entferne aus Ladeliste bei Fehler
             return crow::response(500, "{\"error\": \"Internal server error loading DnD data.\"}");
         }
     });
 
 
-    // --- NEUE Routen für ALLE Template-Typen (Trait, AttackRoll, SavingThrow, Other) ---
+    // --- Routen für ALLE Template-Typen (Trait, AttackRoll, SavingThrow, Other) ---
 
     // GET /api/templates/{type} (Liste aller Templates eines Typs)
     CROW_ROUTE(app, "/api/templates/<string>").methods("GET"_method)
@@ -521,13 +525,13 @@ int main() {
              res.set_header("Content-Type", "application/json");
              return res;
         } catch (const std::runtime_error& e) {
-            if (std::string(e.what()).find("Template not found") != std::string::npos) {
-                 return crow::response(404, "{\"error\": \"" + std::string(e.what()) + "\"}");
+            // Spezifischere Fehlerbehandlung basierend auf Meldung aus Helfer
+            std::string error_msg = e.what();
+            if (error_msg.find("Template not found") != std::string::npos || error_msg.find("Invalid characters") != std::string::npos) {
+                 return crow::response(404, "{\"error\": \"" + error_msg + "\"}"); // 404 Not Found oder 400 Bad Request
             }
-             if (std::string(e.what()).find("Invalid characters") != std::string::npos) {
-                 return crow::response(400, "{\"error\": \"" + std::string(e.what()) + "\"}");
-            }
-            return crow::response(500, "{\"error\": \"" + std::string(e.what()) + "\"}");
+            // Andere Laufzeitfehler (z.B. Datei nicht lesbar, Parsefehler)
+            return crow::response(500, "{\"error\": \"" + error_msg + "\"}");
         } catch (const std::exception& e) {
             return crow::response(500, "{\"error\": \"Internal server error: " + std::string(e.what()) + "\"}");
         }
@@ -548,14 +552,15 @@ int main() {
              res.set_header("Content-Type", "application/json");
              return res;
          } catch (const std::runtime_error& e) {
-             if (std::string(e.what()).find("Missing or empty") != std::string::npos) {
-                 return crow::response(400, "{\"error\": \"" + std::string(e.what()) + "\"}");
+             std::string error_msg = e.what();
+             if (error_msg.find("Missing or empty") != std::string::npos || error_msg.find("Invalid characters") != std::string::npos) {
+                 return crow::response(400, "{\"error\": \"" + error_msg + "\"}");
              }
-             if (std::string(e.what()).find("exists") != std::string::npos) {
-                  return crow::response(409, "{\"error\": \"" + std::string(e.what()) + "\"}"); // 409 Conflict
+             if (error_msg.find("exists") != std::string::npos) {
+                  return crow::response(409, "{\"error\": \"" + error_msg + "\"}"); // 409 Conflict
              }
-              // Fehler beim Speichern (Dateizugriff etc.)
-              return crow::response(500, "{\"error\": \"" + std::string(e.what()) + "\"}");
+              // Andere Laufzeitfehler (z.B. Datei konnte nicht gespeichert werden)
+              return crow::response(500, "{\"error\": \"" + error_msg + "\"}");
 
          } catch (const std::exception& e) {
              return crow::response(500, "{\"error\": \"Internal server error: " + std::string(e.what()) + "\"}");
@@ -574,14 +579,12 @@ int main() {
              return crow::response(204); // No Content
 
          } catch (const std::runtime_error& e) {
-             if (std::string(e.what()).find("Template not found") != std::string::npos || std::string(e.what()).find("Path exists but is not a regular file") != std::string::npos) {
-                  return crow::response(404, "{\"error\": \"" + std::string(e.what()) + "\"}");
+              std::string error_msg = e.what();
+             if (error_msg.find("Template not found") != std::string::npos || error_msg.find("Path exists but is not a regular file") != std::string::npos || error_msg.find("Invalid characters") != std::string::npos) {
+                  return crow::response(404, "{\"error\": \"" + error_msg + "\"}"); // 404 Not Found oder 400 Bad Request
              }
-             if (std::string(e.what()).find("Invalid characters") != std::string::npos) {
-                 return crow::response(400, "{\"error\": \"" + std::string(e.what()) + "\"}");
-            }
-              // Fehler beim Löschen (Dateizugriff etc.)
-              return crow::response(500, "{\"error\": \"" + std::string(e.what()) + "\"}");
+              // Andere Laufzeitfehler (z.B. Datei konnte nicht gelöscht werden)
+              return crow::response(500, "{\"error\": \"" + error_msg + "\"}");
 
          } catch (const std::exception& e) {
              return crow::response(500, "{\"error\": \"Internal server error: " + std::string(e.what()) + "\"}");
@@ -592,7 +595,6 @@ int main() {
 
     CROW_ROUTE(app, "/api/monsters/<string>").methods("PUT"_method)
         ([&](const crow::request& req, const std::string& monster_id_from_url){
-            // ... (bestehende Implementierung) ...
              json incoming_data;
             try { incoming_data = json::parse(req.body); } catch (...) { return crow::response(400, "{\"error\": \"Ungültiges JSON im Request Body.\"}"); }
 
