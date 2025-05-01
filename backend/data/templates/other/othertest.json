@@ -1,9 +1,0 @@
-{
-    "description": "Other Test",
-    "limitedUse": {
-        "count": 1,
-        "rate": "day"
-    },
-    "name": "Other Test",
-    "recharge": null
-}

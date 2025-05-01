@@ -1,0 +1,12 @@
+{
+    "attackMod": 6,
+    "damage": [],
+    "name": "Attack Roll Template Test",
+    "notes": "Attack Roll Template Test",
+    "originalIndex": 0,
+    "originalType": "attackRoll",
+    "rangeType": "ranged",
+    "reachDisadvantage": null,
+    "reachMelee": null,
+    "reachRanged": null
+}

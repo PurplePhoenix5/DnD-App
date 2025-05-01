@@ -1,8 +1,54 @@
 {
     "actions": {
-        "attackRoll": [],
-        "other": [],
-        "savingThrow": []
+        "attackRoll": [
+            {
+                "attackMod": 6,
+                "damage": [],
+                "name": "Attack Roll Template Test",
+                "notes": "Attack Roll Template Test",
+                "rangeType": "ranged",
+                "reachDisadvantage": null,
+                "reachMelee": null,
+                "reachRanged": null
+            }
+        ],
+        "other": [
+            {
+                "description": "Other Template Test",
+                "limitedUse": {
+                    "count": null,
+                    "rate": null
+                },
+                "name": "Other Template Test",
+                "recharge": "(6-6)"
+            }
+        ],
+        "savingThrow": [
+            {
+                "damage": [
+                    {
+                        "count": 1,
+                        "modifier": 3,
+                        "size": 6,
+                        "type": "Lightning"
+                    }
+                ],
+                "limitedUse": {
+                    "count": null,
+                    "rate": null
+                },
+                "name": "Saving Throw Template Test",
+                "notes": "Saving Throw Template Test",
+                "recharge": "(5-6)",
+                "safeDC": {
+                    "defaultValue": 10,
+                    "overrideValue": null
+                },
+                "saveStat": "INT",
+                "succesOrFailNotes": "Saving Throw Template Test",
+                "successNotes": "Saving Throw Template Test"
+            }
+        ]
     },
     "basics": {
         "AC": 22,

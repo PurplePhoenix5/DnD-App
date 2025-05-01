@@ -1,0 +1,26 @@
+{
+    "damage": [
+        {
+            "count": 1,
+            "modifier": 3,
+            "size": 6,
+            "type": "Lightning"
+        }
+    ],
+    "limitedUse": {
+        "count": null,
+        "rate": null
+    },
+    "name": "Saving Throw Template Test",
+    "notes": "Saving Throw Template Test",
+    "originalIndex": 0,
+    "originalType": "savingThrow",
+    "recharge": "(5-6)",
+    "safeDC": {
+        "defaultValue": 10,
+        "overrideValue": null
+    },
+    "saveStat": "INT",
+    "succesOrFailNotes": "Saving Throw Template Test",
+    "successNotes": "Saving Throw Template Test"
+}
