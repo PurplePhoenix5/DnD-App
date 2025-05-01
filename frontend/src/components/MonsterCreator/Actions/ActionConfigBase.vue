@@ -614,7 +614,7 @@ const mappedDiceOptions = computed(() => {
                          </v-col>
                     </v-row>
 
-                    <!-- === DeleteUndTemplate Zeile (für alle Typen) === -->
+                    <!-- === DeleteUndTemplate Zeile (für alle Typen - verschoben!) === -->
                     <v-row dense class="mt-4">
                          <v-col cols="12" md="6">
                             <v-btn @click="removeAction(index)" color="error" variant="outlined" :disabled="!isEnabled" block>Delete {{ actionGroupType === 'actions' ? 'Action' : 'Bonus Action' }}</v-btn>
@@ -645,6 +645,7 @@ const mappedDiceOptions = computed(() => {
                              </v-menu>
                          </v-col>
                     </v-row>
+                    <!-- ENDE DeleteUndTemplate Zeile -->
 
                 </v-expansion-panel-text>
             </v-expansion-panel>
