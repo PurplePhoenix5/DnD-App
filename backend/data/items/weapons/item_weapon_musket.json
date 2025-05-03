@@ -1,0 +1,14 @@
+{
+    "id": "item_weapon_musket",
+    "name": "Musket",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Martial Ranged",
+    "damage": { "diceCount": 1, "diceValue": 12, "type": "Piercing" },
+    "properties": ["Ammunition", "Loading", "Two-Handed"],
+    "range": { "normal": 40, "long": 120 },
+    "ammunitionType": "Bullet",
+    "mastery": "Slow",
+    "weight": 10,
+    "cost": { "amount": 500, "unit": "gp" }
+  }

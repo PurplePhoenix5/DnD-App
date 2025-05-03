@@ -1,0 +1,13 @@
+{
+    "id": "item_weapon_dagger",
+    "name": "Dagger",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Simple Melee",
+    "damage": { "diceCount": 1, "diceValue": 4, "type": "Piercing" },
+    "properties": ["Finesse", "Light", "Thrown"],
+    "range": { "normal": 20, "long": 60 },
+    "mastery": "Nick",
+    "weight": 1,
+    "cost": { "amount": 2, "unit": "gp" }
+  }

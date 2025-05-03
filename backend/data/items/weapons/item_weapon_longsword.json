@@ -1,0 +1,13 @@
+{
+    "id": "item_weapon_longsword",
+    "name": "Longsword",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Martial Melee",
+    "damage": { "diceCount": 1, "diceValue": 8, "type": "Slashing" },
+    "versatileDamage": { "diceCount": 1, "diceValue": 10, "type": "Slashing" },
+    "properties": ["Versatile"],
+    "mastery": "Sap",
+    "weight": 3,
+    "cost": { "amount": 15, "unit": "gp" }
+  }

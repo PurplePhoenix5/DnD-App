@@ -1,0 +1,14 @@
+{
+    "id": "item_weapon_shortbow",
+    "name": "Shortbow",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Simple Ranged",
+    "damage": { "diceCount": 1, "diceValue": 6, "type": "Piercing" },
+    "properties": ["Ammunition", "Two-Handed"],
+    "range": { "normal": 80, "long": 320 },
+    "ammunitionType": "Arrow",
+    "mastery": "Vex",
+    "weight": 2,
+    "cost": { "amount": 25, "unit": "gp" }
+  }

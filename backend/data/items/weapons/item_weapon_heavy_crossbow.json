@@ -1,0 +1,14 @@
+{
+    "id": "item_weapon_heavy_crossbow",
+    "name": "Heavy Crossbow",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Martial Ranged",
+    "damage": { "diceCount": 1, "diceValue": 10, "type": "Piercing" },
+    "properties": ["Ammunition", "Heavy", "Loading", "Two-Handed"],
+    "range": { "normal": 100, "long": 400 },
+    "ammunitionType": "Bolt",
+    "mastery": "Push",
+    "weight": 18,
+    "cost": { "amount": 50, "unit": "gp" }
+  }

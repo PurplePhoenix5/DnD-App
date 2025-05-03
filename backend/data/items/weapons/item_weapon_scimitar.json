@@ -1,0 +1,12 @@
+{
+    "id": "item_weapon_scimitar",
+    "name": "Scimitar",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Martial Melee",
+    "damage": { "diceCount": 1, "diceValue": 6, "type": "Slashing" },
+    "properties": ["Finesse", "Light"],
+    "mastery": "Nick",
+    "weight": 3,
+    "cost": { "amount": 25, "unit": "gp" }
+    }

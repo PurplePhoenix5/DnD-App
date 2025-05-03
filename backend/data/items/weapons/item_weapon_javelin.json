@@ -1,0 +1,13 @@
+{
+    "id": "item_weapon_javelin",
+    "name": "Javelin",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Simple Melee",
+    "damage": { "diceCount": 1, "diceValue": 6, "type": "Piercing" },
+    "properties": ["Thrown"],
+    "range": { "normal": 30, "long": 120 },
+    "mastery": "Slow",
+    "weight": 2,
+    "cost": { "amount": 5, "unit": "sp" }
+  }

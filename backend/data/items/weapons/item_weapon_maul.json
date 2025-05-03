@@ -1,0 +1,12 @@
+{
+    "id": "item_weapon_maul",
+    "name": "Maul",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Martial Melee",
+    "damage": { "diceCount": 2, "diceValue": 6, "type": "Bludgeoning" },
+    "properties": ["Heavy", "Two-Handed"],
+    "mastery": "Topple",
+    "weight": 10,
+    "cost": { "amount": 10, "unit": "gp" }
+  }

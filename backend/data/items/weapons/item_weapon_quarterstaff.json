@@ -1,0 +1,13 @@
+{
+    "id": "item_weapon_quarterstaff",
+    "name": "Quarterstaff",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Simple Melee",
+    "damage": { "diceCount": 1, "diceValue": 6, "type": "Bludgeoning" },
+    "versatileDamage": { "diceCount": 1, "diceValue": 8, "type": "Bludgeoning" },
+    "properties": ["Versatile"],
+    "mastery": "Topple",
+    "weight": 4,
+    "cost": { "amount": 2, "unit": "sp" }
+  }

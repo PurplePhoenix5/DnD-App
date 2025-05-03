@@ -1,0 +1,16 @@
+{
+    "id": "item_armor_chain_mail",
+    "name": "Chain Mail",
+    "type": "Armor",
+    "sourceBook": "SRD 5.2.1",
+    "armorCategory": "Heavy",
+    "baseAc": 16,
+    "addDexModifier": false,
+    "maxDexBonus": 0,
+    "strengthRequirement": 13,
+    "stealthDisadvantage": true,
+    "weight": 55,
+    "cost": { "amount": 75, "unit": "gp" },
+    "donTime": "10 Minutes",
+    "doffTime": "5 Minutes"
+  }

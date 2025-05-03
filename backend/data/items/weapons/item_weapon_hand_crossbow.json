@@ -1,0 +1,14 @@
+{
+    "id": "item_weapon_hand_crossbow",
+    "name": "Hand Crossbow",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Martial Ranged",
+    "damage": { "diceCount": 1, "diceValue": 6, "type": "Piercing" },
+    "properties": ["Ammunition", "Light", "Loading"],
+    "range": { "normal": 30, "long": 120 },
+    "ammunitionType": "Bolt",
+    "mastery": "Vex",
+    "weight": 3,
+    "cost": { "amount": 75, "unit": "gp" }
+  }

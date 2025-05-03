@@ -1,0 +1,12 @@
+{
+    "id": "item_weapon_whip",
+    "name": "Whip",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Martial Melee",
+    "damage": { "diceCount": 1, "diceValue": 4, "type": "Slashing" },
+    "properties": ["Finesse", "Reach"],
+    "mastery": "Slow",
+    "weight": 3,
+    "cost": { "amount": 2, "unit": "gp" }
+  }

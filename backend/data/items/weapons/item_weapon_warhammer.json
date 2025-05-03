@@ -1,0 +1,13 @@
+{
+    "id": "item_weapon_warhammer",
+    "name": "Warhammer",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Martial Melee",
+    "damage": { "diceCount": 1, "diceValue": 8, "type": "Bludgeoning" },
+    "versatileDamage": { "diceCount": 1, "diceValue": 10, "type": "Bludgeoning" },
+    "properties": ["Versatile"],
+    "mastery": "Push",
+    "weight": 5,
+    "cost": { "amount": 15, "unit": "gp" }
+  }

@@ -1,0 +1,16 @@
+{
+    "id": "item_armor_plate",
+    "name": "Plate Armor",
+    "type": "Armor",
+    "sourceBook": "SRD 5.2.1",
+    "armorCategory": "Heavy",
+    "baseAc": 18,
+    "addDexModifier": false,
+    "maxDexBonus": 0,
+    "strengthRequirement": 15,
+    "stealthDisadvantage": true,
+    "weight": 65,
+    "cost": { "amount": 1500, "unit": "gp" },
+    "donTime": "10 Minutes",
+    "doffTime": "5 Minutes"
+  }

@@ -1,0 +1,12 @@
+{
+    "id": "item_weapon_greataxe",
+    "name": "Greataxe",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Martial Melee",
+    "damage": { "diceCount": 1, "diceValue": 12, "type": "Slashing" },
+    "properties": ["Heavy", "Two-Handed"],
+    "mastery": "Cleave",
+    "weight": 7,
+    "cost": { "amount": 30, "unit": "gp" }
+    }

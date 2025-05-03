@@ -1,0 +1,12 @@
+{
+    "id": "item_weapon_pike",
+    "name": "Pike",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Martial Melee",
+    "damage": { "diceCount": 1, "diceValue": 10, "type": "Piercing" },
+    "properties": ["Heavy", "Reach", "Two-Handed"],
+    "mastery": "Push",
+    "weight": 18,
+    "cost": { "amount": 5, "unit": "gp" }
+  }

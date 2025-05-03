@@ -1,0 +1,16 @@
+{
+    "id": "item_armor_ring_mail",
+    "name": "Ring Mail",
+    "type": "Armor",
+    "sourceBook": "SRD 5.2.1",
+    "armorCategory": "Heavy",
+    "baseAc": 14,
+    "addDexModifier": false,
+    "maxDexBonus": 0,
+    "strengthRequirement": null,
+    "stealthDisadvantage": true,
+    "weight": 40,
+    "cost": { "amount": 30, "unit": "gp" },
+    "donTime": "10 Minutes",
+    "doffTime": "5 Minutes"
+  }

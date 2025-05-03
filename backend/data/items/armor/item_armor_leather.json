@@ -1,0 +1,16 @@
+{
+    "id": "item_armor_leather",
+    "name": "Leather Armor",
+    "type": "Armor",
+    "sourceBook": "SRD 5.2.1",
+    "armorCategory": "Light",
+    "baseAc": 11,
+    "addDexModifier": true,
+    "maxDexBonus": null,
+    "strengthRequirement": null,
+    "stealthDisadvantage": false,
+    "weight": 10,
+    "cost": { "amount": 10, "unit": "gp" },
+    "donTime": "1 Minute",
+    "doffTime": "1 Minute"
+    }

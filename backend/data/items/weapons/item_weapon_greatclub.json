@@ -1,0 +1,12 @@
+{
+    "id": "item_weapon_greatclub",
+    "name": "Greatclub",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Simple Melee",
+    "damage": { "diceCount": 1, "diceValue": 8, "type": "Bludgeoning" },
+    "properties": ["Two-Handed"],
+    "mastery": "Push",
+    "weight": 10,
+    "cost": { "amount": 2, "unit": "sp" }
+  }

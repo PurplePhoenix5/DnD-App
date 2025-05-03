@@ -1,0 +1,12 @@
+{
+    "id": "item_weapon_greatsword",
+    "name": "Greatsword",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Martial Melee",
+    "damage": { "diceCount": 2, "diceValue": 6, "type": "Slashing" },
+    "properties": ["Heavy", "Two-Handed"],
+    "mastery": "Graze",
+    "weight": 6,
+    "cost": { "amount": 50, "unit": "gp" }
+  }

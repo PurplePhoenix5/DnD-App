@@ -1,0 +1,14 @@
+{
+    "id": "item_weapon_light_crossbow",
+    "name": "Light Crossbow",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Simple Ranged",
+    "damage": { "diceCount": 1, "diceValue": 8, "type": "Piercing" },
+    "properties": ["Ammunition", "Loading", "Two-Handed"],
+    "range": { "normal": 80, "long": 320 },
+    "ammunitionType": "Bolt",
+    "mastery": "Slow",
+    "weight": 5,
+    "cost": { "amount": 25, "unit": "gp" }
+  }

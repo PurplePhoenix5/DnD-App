@@ -1,0 +1,12 @@
+{
+    "id": "item_weapon_lance",
+    "name": "Lance",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Martial Melee",
+    "damage": { "diceCount": 1, "diceValue": 10, "type": "Piercing" }, 
+    "properties": ["Heavy", "Reach", "Two-Handed (unless mounted)"], 
+    "mastery": "Topple",
+    "weight": 6,
+    "cost": { "amount": 10, "unit": "gp" }
+  }

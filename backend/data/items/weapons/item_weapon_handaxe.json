@@ -1,0 +1,13 @@
+{
+    "id": "item_weapon_handaxe",
+    "name": "Handaxe",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Simple Melee",
+    "damage": { "diceCount": 1, "diceValue": 6, "type": "Slashing" },
+    "properties": ["Light", "Thrown"],
+    "range": { "normal": 20, "long": 60 },
+    "mastery": "Vex",
+    "weight": 2,
+    "cost": { "amount": 5, "unit": "gp" }
+  }

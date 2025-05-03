@@ -1,0 +1,16 @@
+{
+    "id": "item_armor_padded",
+    "name": "Padded Armor",
+    "type": "Armor",
+    "sourceBook": "SRD 5.2.1",
+    "armorCategory": "Light",
+    "baseAc": 11,
+    "addDexModifier": true,
+    "maxDexBonus": null,
+    "strengthRequirement": null,
+    "stealthDisadvantage": true,
+    "weight": 8,
+    "cost": { "amount": 5, "unit": "gp" },
+    "donTime": "1 Minute",
+    "doffTime": "1 Minute"
+  }

@@ -1,0 +1,16 @@
+{
+    "id": "item_armor_hide",
+    "name": "Hide Armor",
+    "type": "Armor",
+    "sourceBook": "SRD 5.2.1",
+    "armorCategory": "Medium",
+    "baseAc": 12,
+    "addDexModifier": true,
+    "maxDexBonus": 2,
+    "strengthRequirement": null,
+    "stealthDisadvantage": false,
+    "weight": 12,
+    "cost": { "amount": 10, "unit": "gp" },
+    "donTime": "5 Minutes",
+    "doffTime": "1 Minute"
+  }

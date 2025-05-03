@@ -1,0 +1,13 @@
+{
+    "id": "item_weapon_light_hammer",
+    "name": "Light Hammer",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Simple Melee",
+    "damage": { "diceCount": 1, "diceValue": 4, "type": "Bludgeoning" },
+    "properties": ["Light", "Thrown"],
+    "range": { "normal": 20, "long": 60 },
+    "mastery": "Nick",
+    "weight": 2,
+    "cost": { "amount": 2, "unit": "gp" }
+  }

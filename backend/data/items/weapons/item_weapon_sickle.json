@@ -1,0 +1,12 @@
+{
+    "id": "item_weapon_sickle",
+    "name": "Sickle",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Simple Melee",
+    "damage": { "diceCount": 1, "diceValue": 4, "type": "Slashing" },
+    "properties": ["Light"],
+    "mastery": "Nick",
+    "weight": 2,
+    "cost": { "amount": 1, "unit": "gp" }
+  }

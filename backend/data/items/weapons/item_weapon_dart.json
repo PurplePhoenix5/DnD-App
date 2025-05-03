@@ -1,0 +1,13 @@
+{
+    "id": "item_weapon_dart",
+    "name": "Dart",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Simple Ranged",
+    "damage": { "diceCount": 1, "diceValue": 4, "type": "Piercing" },
+    "properties": ["Finesse", "Thrown"],
+    "range": { "normal": 20, "long": 60 },
+    "mastery": "Vex",
+    "weight": 0.25,
+    "cost": { "amount": 5, "unit": "cp" }
+  }

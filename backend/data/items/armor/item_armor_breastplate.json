@@ -1,0 +1,16 @@
+{
+    "id": "item_armor_breastplate",
+    "name": "Breastplate",
+    "type": "Armor",
+    "sourceBook": "SRD 5.2.1",
+    "armorCategory": "Medium",
+    "baseAc": 14,
+    "addDexModifier": true,
+    "maxDexBonus": 2,
+    "strengthRequirement": null,
+    "stealthDisadvantage": false,
+    "weight": 20,
+    "cost": { "amount": 400, "unit": "gp" },
+    "donTime": "5 Minutes",
+    "doffTime": "1 Minute"
+  }

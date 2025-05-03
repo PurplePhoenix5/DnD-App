@@ -1,0 +1,14 @@
+{
+    "id": "item_weapon_longbow",
+    "name": "Longbow",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Martial Ranged",
+    "damage": { "diceCount": 1, "diceValue": 8, "type": "Piercing" },
+    "properties": ["Ammunition", "Heavy", "Two-Handed"],
+    "range": { "normal": 150, "long": 600 },
+    "ammunitionType": "Arrow",
+    "mastery": "Slow",
+    "weight": 2,
+    "cost": { "amount": 50, "unit": "gp" }
+  }

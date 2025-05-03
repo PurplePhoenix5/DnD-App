@@ -1,0 +1,13 @@
+{
+    "id": "item_weapon_battleaxe",
+    "name": "Battleaxe",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Martial Melee",
+    "damage": { "diceCount": 1, "diceValue": 8, "type": "Slashing" },
+    "versatileDamage": { "diceCount": 1, "diceValue": 10, "type": "Slashing" },
+    "properties": ["Versatile"],
+    "mastery": "Topple",
+    "weight": 4,
+    "cost": { "amount": 10, "unit": "gp" }
+  }

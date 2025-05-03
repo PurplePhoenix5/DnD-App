@@ -1,0 +1,16 @@
+{
+    "id": "item_armor_splint",
+    "name": "Splint Armor",
+    "type": "Armor",
+    "sourceBook": "SRD 5.2.1",
+    "armorCategory": "Heavy",
+    "baseAc": 17,
+    "addDexModifier": false,
+    "maxDexBonus": 0,
+    "strengthRequirement": 15,
+    "stealthDisadvantage": true,
+    "weight": 60,
+    "cost": { "amount": 200, "unit": "gp" },
+    "donTime": "10 Minutes",
+    "doffTime": "5 Minutes"
+  }

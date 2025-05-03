@@ -1,0 +1,14 @@
+{
+    "id": "item_weapon_trident",
+    "name": "Trident",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Martial Melee",
+    "damage": { "diceCount": 1, "diceValue": 8, "type": "Piercing" }, 
+    "versatileDamage": { "diceCount": 1, "diceValue": 10, "type": "Piercing" },
+    "properties": ["Thrown", "Versatile"],
+    "range": { "normal": 20, "long": 60 },
+    "mastery": "Topple",
+    "weight": 4,
+    "cost": { "amount": 5, "unit": "gp" }
+  }

@@ -1,0 +1,14 @@
+{
+    "id": "item_shield",
+    "name": "Shield",
+    "type": "Shield",
+    "sourceBook": "SRD 5.2.1",
+    "armorCategory": "Shield",
+    "acBonus": 2,
+    "strengthRequirement": null,
+    "stealthDisadvantage": false,
+    "weight": 6,
+    "cost": { "amount": 10, "unit": "gp" },
+    "donTime": "Utilize Action",
+    "doffTime": "Utilize Action"
+  }

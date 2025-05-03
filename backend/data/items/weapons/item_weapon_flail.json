@@ -1,0 +1,12 @@
+{
+    "id": "item_weapon_flail",
+    "name": "Flail",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Martial Melee",
+    "damage": { "diceCount": 1, "diceValue": 8, "type": "Bludgeoning" },
+    "properties": [],
+    "mastery": "Sap",
+    "weight": 2,
+    "cost": { "amount": 10, "unit": "gp" }
+  }

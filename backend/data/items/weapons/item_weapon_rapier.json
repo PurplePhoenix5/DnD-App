@@ -1,0 +1,12 @@
+{
+    "id": "item_weapon_rapier",
+    "name": "Rapier",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Martial Melee",
+    "damage": { "diceCount": 1, "diceValue": 8, "type": "Piercing" },
+    "properties": ["Finesse"],
+    "mastery": "Vex",
+    "weight": 2,
+    "cost": { "amount": 25, "unit": "gp" }
+  }

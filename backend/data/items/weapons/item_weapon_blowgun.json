@@ -1,0 +1,14 @@
+{
+    "id": "item_weapon_blowgun",
+    "name": "Blowgun",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Martial Ranged",
+    "damage": { "diceCount": 1, "diceValue": 1, "type": "Piercing" },
+    "properties": ["Ammunition", "Loading"],
+    "range": { "normal": 25, "long": 100 },
+    "ammunitionType": "Needle",
+    "mastery": "Vex",
+    "weight": 1,
+    "cost": { "amount": 10, "unit": "gp" }
+  }

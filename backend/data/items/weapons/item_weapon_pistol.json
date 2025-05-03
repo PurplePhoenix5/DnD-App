@@ -1,0 +1,14 @@
+{
+    "id": "item_weapon_pistol",
+    "name": "Pistol",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Martial Ranged",
+    "damage": { "diceCount": 1, "diceValue": 10, "type": "Piercing" },
+    "properties": ["Ammunition", "Loading"],
+    "range": { "normal": 30, "long": 90 },
+    "ammunitionType": "Bullet",
+    "mastery": "Vex",
+    "weight": 3,
+    "cost": { "amount": 250, "unit": "gp" }
+  }

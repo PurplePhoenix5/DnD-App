@@ -1,0 +1,14 @@
+{
+    "id": "item_weapon_sling",
+    "name": "Sling",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Simple Ranged",
+    "damage": { "diceCount": 1, "diceValue": 4, "type": "Bludgeoning" },
+    "properties": ["Ammunition"],
+    "range": { "normal": 30, "long": 120 },
+    "ammunitionType": "Bullet",
+    "mastery": "Slow",
+    "weight": 0,
+    "cost": { "amount": 1, "unit": "sp" }
+  }

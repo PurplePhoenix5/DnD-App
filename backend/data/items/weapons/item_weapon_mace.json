@@ -1,0 +1,12 @@
+{
+    "id": "item_weapon_mace",
+    "name": "Mace",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Simple Melee",
+    "damage": { "diceCount": 1, "diceValue": 6, "type": "Bludgeoning" },
+    "properties": [],
+    "mastery": "Sap",
+    "weight": 4,
+    "cost": { "amount": 5, "unit": "gp" }
+  }

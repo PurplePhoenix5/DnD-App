@@ -1,0 +1,12 @@
+{
+    "id": "item_weapon_club",
+    "name": "Club",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Simple Melee",
+    "damage": { "diceCount": 1, "diceValue": 4, "type": "Bludgeoning" },
+    "properties": ["Light"],
+    "mastery": "Slow",
+    "weight": 2,
+    "cost": { "amount": 1, "unit": "sp" }
+  }

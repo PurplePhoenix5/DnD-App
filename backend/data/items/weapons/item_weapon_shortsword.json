@@ -1,0 +1,12 @@
+{
+    "id": "item_weapon_shortsword",
+    "name": "Shortsword",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Martial Melee",
+    "damage": { "diceCount": 1, "diceValue": 6, "type": "Piercing" },
+    "properties": ["Finesse", "Light"],
+    "mastery": "Vex",
+    "weight": 2,
+    "cost": { "amount": 10, "unit": "gp" }
+  }

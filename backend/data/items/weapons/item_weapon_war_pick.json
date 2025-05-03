@@ -1,0 +1,13 @@
+{
+    "id": "item_weapon_war_pick",
+    "name": "War Pick",
+    "type": "Weapon",
+    "sourceBook": "SRD 5.2.1",
+    "weaponCategory": "Martial Melee",
+    "damage": { "diceCount": 1, "diceValue": 8, "type": "Piercing" },
+    "versatileDamage": { "diceCount": 1, "diceValue": 10, "type": "Piercing" },
+    "properties": ["Versatile"],
+    "mastery": "Sap",
+    "weight": 2,
+    "cost": { "amount": 5, "unit": "gp" }
+  }
