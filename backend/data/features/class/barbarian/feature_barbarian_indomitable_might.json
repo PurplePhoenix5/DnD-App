@@ -1,0 +1,11 @@
+{
+    "id": "feature_barbarian_indomitable_might",
+    "name": "Indomitable Might",
+    "level": 18,
+    "source": "class_barbarian",
+    "description": [
+      "If your total for a Strength check or Strength saving throw is less than your Strength score, you can use that score in place of the total."
+    ],
+    "uses": null,
+    "actionType": "Passive"
+  }

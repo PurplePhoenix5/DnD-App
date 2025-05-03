@@ -1,0 +1,11 @@
+{
+    "id": "feature_barbarian_fast_movement",
+    "name": "Fast Movement",
+    "level": 5,
+    "source": "class_barbarian",
+    "description": [
+      "Your speed increases by 10 feet while you aren't wearing Heavy armor."
+    ],
+    "uses": null,
+    "actionType": "Passive"
+  }

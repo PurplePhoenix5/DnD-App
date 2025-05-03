@@ -1,0 +1,11 @@
+{
+    "id": "feature_barbarian_primal_champion",
+    "name": "Primal Champion",
+    "level": 20,
+    "source": "class_barbarian",
+    "description": [
+      "You embody primal power. Your Strength and Constitution scores increase by 4, to a maximum of 25."
+    ],
+    "uses": null,
+    "actionType": "Passive"
+  }

@@ -389,24 +389,6 @@ watch(selectedTemplate, (newValue) => {
     }
 });
 
-// --- Workaround für Number Input +/- auf null ---
-function handleNumberInputIncrement(index, field) {
-    const currentVal = get(flatActionsArray.value[index], field) ?? 0; // Default auf 0 bei null
-    updateActionField(index, field, currentVal + 1);
-}
-function handleNumberInputDecrement(index, field) {
-    const currentVal = get(flatActionsArray.value[index], field) ?? 0; // Default auf 0 bei null
-    updateActionField(index, field, currentVal - 1);
-}
-function handleNestedNumberInputIncrement(actionIndex, arrayField, itemIndex, field) {
-    const currentVal = get(flatActionsArray.value[actionIndex], `${arrayField}[${itemIndex}].${field}`) ?? 0;
-    updateActionField(actionIndex, `${arrayField}[${itemIndex}].${field}`, currentVal + 1);
-}
-function handleNestedNumberInputDecrement(actionIndex, arrayField, itemIndex, field) {
-    const currentVal = get(flatActionsArray.value[actionIndex], `${arrayField}[${itemIndex}].${field}`) ?? 0;
-    updateActionField(actionIndex, `${arrayField}[${itemIndex}].${field}`, currentVal - 1);
-}
-
 // Funktion zum Berechnen der angezeigten Average Damage + Modifier
 function calculateDisplayedAverageDamage(count, dieSize, modifier) {
     const numCount = parseInt(count, 10);
@@ -449,8 +431,8 @@ const mappedDiceOptions = computed(() => {
             <v-expansion-panel v-for="(action, index) in flatActionsArray" :key="index" elevation="1">
                 <v-expansion-panel-title :disabled="!isEnabled">
                     <span class="flex-grow-1 mr-2">{{ action.name || `${action.type || 'Unknown'} ${actionGroupType === 'actions' ? 'Action' : 'Bonus Action'} ${index + 1}` }}</span>
-                    <v-btn icon="mdi-arrow-up-bold-box-outline" size="x-small" variant="text" @click.stop="moveAction(index, -1)" :disabled="index === 0 || !isEnabled" class="mr-1"/>
-                    <v-btn icon="mdi-arrow-down-bold-box-outline" size="x-small" variant="text" @click.stop="moveAction(index, 1)" :disabled="index === flatActionsArray.length - 1 || !isEnabled"/>
+                    <v-btn icon="mdi-arrow-up-bold-box-outline" size="small" variant="text" @click.stop="moveAction(index, -1)" :disabled="index === 0 || !isEnabled" class="mr-1"/>
+                    <v-btn icon="mdi-arrow-down-bold-box-outline" size="small" variant="text" @click.stop="moveAction(index, 1)" :disabled="index === flatActionsArray.length - 1 || !isEnabled"/>
                 </v-expansion-panel-title>
                 <v-expansion-panel-text>
                     <!-- Layouts basierend auf action.type -->
@@ -470,13 +452,13 @@ const mappedDiceOptions = computed(() => {
                              <v-select label="Melee/Ranged" :items="attackRanges" :model-value="action.rangeType" @update:model-value="updateActionField(index, 'rangeType', $event)" density="compact" variant="outlined" clearable :disabled="!isEnabled" hide-details="auto"/>
                          </v-col>
                          <v-col cols="12" md="2">
-                             <v-number-input label="Reach Melee" :model-value="action.reachMelee" @update:model-value="updateActionField(index, 'reachMelee', parseInt($event, 10) || null)" suffix=" ft." density="compact" variant="outlined" control-variant="stacked" :reverse="false" inset :min="0" :disabled="!isEnabled" hide-details="auto"/>
+                             <v-number-input label="Reach Melee" :model-value="action.reachMelee" @update:model-value="updateActionField(index, 'reachMelee', parseInt($event, 10) || 0)" suffix=" ft." density="compact" variant="outlined" control-variant="stacked" :reverse="false" inset :min="0" :disabled="!isEnabled" hide-details="auto"/>
                          </v-col>
                          <v-col cols="12" md="2">
-                             <v-number-input label="Reach Ranged" :model-value="action.reachRanged" @update:model-value="updateActionField(index, 'reachRanged', parseInt($event, 10) || null)" suffix=" ft." density="compact" variant="outlined" control-variant="stacked" :reverse="false" inset :min="0" :disabled="!isEnabled" hide-details="auto"/>
+                             <v-number-input label="Reach Ranged" :model-value="action.reachRanged" @update:model-value="updateActionField(index, 'reachRanged', parseInt($event, 10) || 0)" suffix=" ft." density="compact" variant="outlined" control-variant="stacked" :reverse="false" inset :min="0" :disabled="!isEnabled" hide-details="auto"/>
                          </v-col>
                          <v-col cols="12" md="2">
-                             <v-number-input label="Reach Disadvantage" :model-value="action.reachDisadvantage" @update:model-value="updateActionField(index, 'reachDisadvantage', parseInt($event, 10) || null)" suffix=" ft." density="compact" variant="outlined" control-variant="stacked" :reverse="false" inset :min="0" :disabled="!isEnabled" hide-details="auto"/>
+                             <v-number-input label="Reach Disadvantage" :model-value="action.reachDisadvantage" @update:model-value="updateActionField(index, 'reachDisadvantage', parseInt($event, 10) || 0)" suffix=" ft." density="compact" variant="outlined" control-variant="stacked" :reverse="false" inset :min="0" :disabled="!isEnabled" hide-details="auto"/>
                          </v-col>
                          <v-col cols="12" md="2"></v-col>
                          <template v-for="(damageEntry, damageIndex) in action.damage" :key="damageIndex">
@@ -542,7 +524,7 @@ const mappedDiceOptions = computed(() => {
                          </v-col>
                          <v-col cols="12" md="4"></v-col>
                          <v-col cols="12" md="2">
-                             <v-number-input label="Uses" :model-value="action.limitedUse?.count" @update:model-value="updateActionField(index, 'limitedUse.count', parseInt($event, 10) || null)" density="compact" variant="outlined" :min="0" control-variant="stacked" :reverse="false" inset :disabled="!isEnabled || areUsesResetDisabled(action)" hide-details="auto"/>
+                             <v-number-input label="Uses" :model-value="action.limitedUse?.count" @update:model-value="updateActionField(index, 'limitedUse.count', parseInt($event, 10) || 0)" density="compact" variant="outlined" :min="0" control-variant="stacked" :reverse="false" inset :disabled="!isEnabled || areUsesResetDisabled(action)" hide-details="auto"/>
                          </v-col>
                          <v-col cols="12" md="4">
                              <v-select label="Reset Type" :items="resetTypes" :model-value="action.limitedUse?.rate" @update:model-value="updateActionField(index, 'limitedUse.rate', $event)" density="compact" variant="outlined" clearable :disabled="!isEnabled || areUsesResetDisabled(action)" hide-details="auto"/>
@@ -600,7 +582,7 @@ const mappedDiceOptions = computed(() => {
                          </v-col>
                          <v-col cols="12" md="6"></v-col>
                          <v-col cols="12" md="2">
-                             <v-number-input label="Uses" :model-value="action.limitedUse?.count" @update:model-value="updateActionField(index, 'limitedUse.count', parseInt($event, 10) || null)" density="compact" variant="outlined" :min="0" control-variant="stacked" :reverse="false" inset :disabled="!isEnabled || areUsesResetDisabled(action)" hide-details="auto"/>
+                             <v-number-input label="Uses" :model-value="action.limitedUse?.count" @update:model-value="updateActionField(index, 'limitedUse.count', parseInt($event, 10) || 0)" density="compact" variant="outlined" :min="0" control-variant="stacked" :reverse="false" inset :disabled="!isEnabled || areUsesResetDisabled(action)" hide-details="auto"/>
                          </v-col>
                          <v-col cols="12" md="4">
                              <v-select label="Reset Type" :items="resetTypes" :model-value="action.limitedUse?.rate" @update:model-value="updateActionField(index, 'limitedUse.rate', $event)" density="compact" variant="outlined" clearable :disabled="!isEnabled || areUsesResetDisabled(action)" hide-details="auto"/>

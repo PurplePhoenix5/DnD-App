@@ -1,0 +1,36 @@
+{
+    "id": "subclass_barbarian_berserker",
+    "name": "Path of the Berserker",
+    "parentClassTag": "class_barbarian",
+    "description": [ 
+      "Barbarians who walk the Path of the Berserker direct their Rage primarily toward violence.",
+      "Their path is one of untrammeled fury, and they thrill in the chaos of battle as they allow their Rage to seize and empower them."
+    ],
+    "sourceBook": "SRD 5.2.1",
+    "features": [
+      {
+        "level": 3,
+        "featureTags": [
+          "feature_berserker_frenzy" 
+        ]
+      },
+      {
+        "level": 6,
+        "featureTags": [
+          "feature_berserker_mindless_rage" 
+        ]
+      },
+      {
+        "level": 10,
+        "featureTags": [
+          "feature_berserker_retaliation" 
+        ]
+      },
+      {
+        "level": 14,
+        "featureTags": [
+          "feature_berserker_intimidating_presence" 
+        ]
+      }
+    ]
+  }

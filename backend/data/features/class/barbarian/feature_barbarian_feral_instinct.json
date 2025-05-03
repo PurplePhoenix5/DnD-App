@@ -1,0 +1,11 @@
+{
+    "id": "feature_barbarian_feral_instinct",
+    "name": "Feral Instinct",
+    "level": 7,
+    "source": "class_barbarian",
+    "description": [
+      "Your instincts are so honed that you have Advantage on Initiative rolls."
+    ],
+    "uses": null,
+    "actionType": "Passive"
+  }

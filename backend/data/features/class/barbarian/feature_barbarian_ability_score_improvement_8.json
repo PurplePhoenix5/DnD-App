@@ -1,0 +1,11 @@
+{
+    "id": "feature_barbarian_ability_score_improvement_8",
+    "name": "Ability Score Improvement",
+    "level": 8,
+    "source": "class_barbarian",
+    "description": [
+      "You gain the Ability Score Improvement feat (see “Feats”) or another feat of your choice for which you qualify. You gain this feature again at Barbarian levels 12 and 16."
+    ],
+    "uses": null,
+    "actionType": "Passive"
+  }

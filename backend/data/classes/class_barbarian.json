@@ -1,0 +1,73 @@
+{
+    "id": "class_barbarian", 
+    "name": "Barbarian",
+    "description": "A fierce warrior of primitive background who can enter a battle rage.", 
+    "hitDie": "d12",
+    "primaryAbility": ["Strength"], 
+    "savingThrowProficiencies": ["Strength", "Constitution"],
+    "armorProficiencies": ["Light", "Medium", "Shields"],
+    "weaponProficiencies": ["Simple", "Martial"],
+    "toolProficiencies": { 
+      "choices": 0, 
+      "options": [] 
+    },
+    "skillProficiencies": { 
+      "choices": 2, 
+      "options": [ 
+        "Animal Handling",
+        "Athletics",
+        "Intimidation",
+        "Nature",
+        "Perception",
+        "Survival"
+      ]
+    },
+    "startingEquipment": [ 
+      {
+        "option": "A",
+        "description": "(A) Greataxe, 4 Handaxes, Explorer's Pack, and 15 GP"
+        
+      },
+      {
+        "option": "B",
+        "description": "(B) 75 GP"
+        
+      }
+    ],
+    "multiclassing": { 
+      "prerequisites": {
+        "Strength": 13
+      },
+      "proficienciesGained": {
+        "armor": ["Shields"],
+        "weapons": ["Simple", "Martial"],
+        "tools": [],
+        "skills": { "choices": 0, "options": [] }
+      }
+    },
+    "features": [ 
+      { "level": 1, "featureTags": ["feature_barbarian_rage", "feature_barbarian_unarmored_defense", "feature_barbarian_weapon_mastery"] },
+      { "level": 2, "featureTags": ["feature_barbarian_danger_sense", "feature_barbarian_reckless_attack"] },
+      { "level": 3, "featureTags": ["feature_barbarian_subclass", "feature_barbarian_primal_knowledge"] },
+      { "level": 4, "featureTags": ["feature_generic_ability_score_improvement"] },
+      { "level": 5, "featureTags": ["feature_barbarian_extra_attack", "feature_barbarian_fast_movement"] },
+      { "level": 6, "featureTags": ["feature_barbarian_subclass_feature"] }, 
+      { "level": 7, "featureTags": ["feature_barbarian_feral_instinct", "feature_barbarian_instinctive_pounce"] },
+      { "level": 8, "featureTags": ["feature_generic_ability_score_improvement"] },
+      { "level": 9, "featureTags": ["feature_barbarian_brutal_strike"] },
+      { "level": 10, "featureTags": ["feature_barbarian_subclass_feature"] },
+      { "level": 11, "featureTags": ["feature_barbarian_relentless_rage"] },
+      { "level": 12, "featureTags": ["feature_generic_ability_score_improvement"] },
+      { "level": 13, "featureTags": ["feature_barbarian_improved_brutal_strike"] }, 
+      { "level": 14, "featureTags": ["feature_barbarian_subclass_feature"] },
+      { "level": 15, "featureTags": ["feature_barbarian_persistent_rage"] },
+      { "level": 16, "featureTags": ["feature_generic_ability_score_improvement"] },
+      { "level": 17, "featureTags": ["feature_barbarian_improved_brutal_strike_2d10"] }, 
+      { "level": 18, "featureTags": ["feature_barbarian_indomitable_might"] },
+      { "level": 19, "featureTags": ["feature_generic_epic_boon"] }, 
+      { "level": 20, "featureTags": ["feature_barbarian_primal_champion"] }
+    ],
+    "srdSubclasses": [ 
+      "subclass_barbarian_berserker"
+    ]
+  }

@@ -1,0 +1,14 @@
+{
+    "dm": {
+        "password": "password",
+        "role": "DM"
+    },
+    "player": {
+        "password": "password",
+        "role": "Player"
+    },
+    "dev": {
+        "password": "admin",
+        "role": "Dev" 
+    }
+}

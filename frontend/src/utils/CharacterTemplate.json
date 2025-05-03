@@ -1,0 +1,339 @@
+{
+    "type": "object",
+    "description": "Schema for a D&D 5e Character, using tags for reusable entities.",
+    "properties": {
+        "schemaVersion": {
+            "type": "string",
+            "description": "Version of this character schema, e.g., '1.0.0'"
+        },
+        "basics": {
+            "type": "object",
+            "description": "Core identifying information about the character.",
+            "properties": {
+                "name": { "type": "string", "description": "Character's full name." },
+                "image": { "type": "string", "description": "URL or path to the character portrait/token." },
+                "player": { "type": "string", "description": "Name of the player." },
+                "speciesTag": { "type": "string", "description": "Tag referencing the character's species (e.g., 'species_human', 'species_elf_high'). Details are in a separate species definition file." },
+                "level": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 20,
+                    "description": "Character's total level."
+                 },
+                 "xp": {
+                     "type": "integer",
+                     "minimum": 0,
+                     "description": "Current experience points."
+                 },
+                 "backgroundTag": { "type": "string", "description": "Tag referencing the character's background (e.g., 'background_acolyte'). Details in background definition file." },
+                 "alignment": { "type": "string", "description": "Character's alignment (e.g., 'Lawful Good', 'Chaotic Neutral', 'Unaligned')." }
+            },
+             "required": ["name", "speciesTag", "level"]
+        },
+        "classes": {
+             "type": "array",
+             "description": "List of classes and levels for multiclassing.",
+             "items": {
+                 "type": "object",
+                 "properties": {
+                     "classTag": { "type": "string", "description": "Tag referencing the class (e.g., 'class_fighter')." },
+                     "subclassTag": { "type": "string", "description": "Tag referencing the chosen subclass (e.g., 'subclass_battlemaster'). Can be null if no subclass chosen/available yet." },
+                     "level": { "type": "integer", "minimum": 1, "description": "Level in this specific class." }
+                 },
+                 "required": ["classTag", "level"]
+             }
+        },
+        "details": {
+            "type": "object",
+            "description": "Core stats, skills, proficiencies, and combat values.",
+            "properties": {
+                "abilityScores": {
+                    "type": "object",
+                    "description": "Base ability scores.",
+                    "properties": {
+                        "STR": { "type": "integer", "default": 10 },
+                        "DEX": { "type": "integer", "default": 10 },
+                        "CON": { "type": "integer", "default": 10 },
+                        "INT": { "type": "integer", "default": 10 },
+                        "WIS": { "type": "integer", "default": 10 },
+                        "CHA": { "type": "integer", "default": 10 }
+                    }
+                },
+                "savingThrows": {
+                     "type": "object",
+                     "description": "Proficiency overrides for saving throws.",
+                     "properties": {
+                         "STR": { "type": "boolean", "description": "Proficient in STR saves?", "default": false },
+                         "DEX": { "type": "boolean", "description": "Proficient in DEX saves?", "default": false },
+                         "CON": { "type": "boolean", "description": "Proficient in CON saves?", "default": false },
+                         "INT": { "type": "boolean", "description": "Proficient in INT saves?", "default": false },
+                         "WIS": { "type": "boolean", "description": "Proficient in WIS saves?", "default": false },
+                         "CHA": { "type": "boolean", "description": "Proficient in CHA saves?", "default": false }
+                     }
+                },
+                "skills": {
+                     "type": "object",
+                     "description": "Proficiency and expertise in skills.",
+                     "properties": {
+                         "acrobatics": { "type": "string", "enum": ["none", "proficient", "expertise"], "default": "none" },
+                         "animalHandling": { "type": "string", "enum": ["none", "proficient", "expertise"], "default": "none" },
+                         "arcana": { "type": "string", "enum": ["none", "proficient", "expertise"], "default": "none" },
+                         "athletics": { "type": "string", "enum": ["none", "proficient", "expertise"], "default": "none" },
+                         "deception": { "type": "string", "enum": ["none", "proficient", "expertise"], "default": "none" },
+                         "history": { "type": "string", "enum": ["none", "proficient", "expertise"], "default": "none" },
+                         "insight": { "type": "string", "enum": ["none", "proficient", "expertise"], "default": "none" },
+                         "intimidation": { "type": "string", "enum": ["none", "proficient", "expertise"], "default": "none" },
+                         "investigation": { "type": "string", "enum": ["none", "proficient", "expertise"], "default": "none" },
+                         "medicine": { "type": "string", "enum": ["none", "proficient", "expertise"], "default": "none" },
+                         "nature": { "type": "string", "enum": ["none", "proficient", "expertise"], "default": "none" },
+                         "perception": { "type": "string", "enum": ["none", "proficient", "expertise"], "default": "none" },
+                         "performance": { "type": "string", "enum": ["none", "proficient", "expertise"], "default": "none" },
+                         "persuasion": { "type": "string", "enum": ["none", "proficient", "expertise"], "default": "none" },
+                         "religion": { "type": "string", "enum": ["none", "proficient", "expertise"], "default": "none" },
+                         "sleightOfHand": { "type": "string", "enum": ["none", "proficient", "expertise"], "default": "none" },
+                         "stealth": { "type": "string", "enum": ["none", "proficient", "expertise"], "default": "none" },
+                         "survival": { "type": "string", "enum": ["none", "proficient", "expertise"], "default": "none" }
+                     }
+                },
+                 "proficiencies": {
+                     "type": "object",
+                     "description": "Proficiencies gained from sources other than class/background (e.g., species, feats).",
+                     "properties": {
+                         "armor": { "type": "array", "items": { "type": "string" }, "description": "e.g., ['Light Armor', 'Shields']" },
+                         "weapons": { "type": "array", "items": { "type": "string" }, "description": "e.g., ['Simple Weapons', 'Longswords']" },
+                         "tools": { "type": "array", "items": { "type": "string" }, "description": "e.g., ['Thieves Tools', 'Lute']" },
+                         "languages": { "type": "array", "items": { "type": "string" }, "description": "e.g., ['Elvish', 'Undercommon']" }
+                     }
+                 },
+                 "speeds": {
+                     "type": "object",
+                     "description": "Movement speeds.",
+                     "properties": {
+                        "walk": { "type": "integer", "default": 30 },
+                        "fly": { "type": "integer", "default": 0 },
+                        "swim": { "type": "integer", "default": 0 },
+                        "burrow": { "type": "integer", "default": 0 },
+                        "climb": { "type": "integer", "default": 0 }
+                     }
+                 },
+                 "armorClass": {
+                     "type": "object",
+                     "description": "Armor Class details.",
+                     "properties": {
+                        "base": { "type": "integer", "description": "Calculated AC value (including armor, dex, shield, etc.)." },
+                        "formula": { "type": "string", "description": "Optional: How AC is calculated (e.g., '10 + DEX', 'Plate Armor', 'Natural Armor')." },
+                        "override": { "type": "integer", "description": "Manual override for AC value.", "nullable": true, "default": null }
+                     }
+                 },
+                 "hitPoints": {
+                     "type": "object",
+                     "description": "Hit points and hit dice.",
+                     "properties": {
+                        "max": { "type": "integer", "description": "Maximum Hit Points." },
+                        "hitDiceType": { "type": "integer", "description": "Size of the hit die (e.g., 6 for d6, 8 for d8)." },
+                        "totalHitDice": { "type": "integer", "description": "Total number of hit dice (usually equal to level)." }
+                     },
+                     "required": ["max", "hitDiceType", "totalHitDice"]
+                 },
+                 "proficiencyBonus": {
+                     "type": "integer",
+                     "description": "Calculated proficiency bonus based on total level."
+                 },
+                "initiativeBonus": {
+                    "type": "integer",
+                    "description": "Calculated initiative bonus (usually DEX mod, potentially modified)."
+                }
+            }
+        },
+        "actions": {
+            "type": "object",
+            "description": "References to available actions, bonus actions, and reactions.",
+            "properties": {
+                "action": {
+                    "type": "array",
+                    "items": { "type": "string", "description": "Tag referencing an action definition (e.g., 'action_attack_longsword')." }
+                },
+                "bonusAction": {
+                    "type": "array",
+                    "items": { "type": "string", "description": "Tag referencing a bonus action definition." }
+                },
+                "reaction": {
+                    "type": "array",
+                    "items": { "type": "string", "description": "Tag referencing a reaction definition." }
+                },
+                "other": {
+                    "type": "array",
+                    "description": "Special actions not fitting standard categories (e.g., from items, features).",
+                    "items": { "type": "string", "description": "Tag referencing an 'other' action definition." }
+                }
+            }
+        },
+        "spells": {
+            "type": "object",
+            "description": "Spellcasting information.",
+            "properties": {
+                 "spellcastingAbility": { "type": "string", "enum": ["STR", "DEX", "CON", "INT", "WIS", "CHA", ""], "description": "Primary ability used for spellcasting." },
+                 "saveDC": {
+                     "type": "object",
+                     "properties": {
+                        "base": { "type": "integer", "description": "Calculated Spell Save DC." },
+                        "override": { "type": "integer", "description": "Manual override for DC.", "nullable": true, "default": null }
+                     }
+                 },
+                 "attackBonus": {
+                      "type": "object",
+                     "properties": {
+                        "base": { "type": "integer", "description": "Calculated Spell Attack Bonus." },
+                        "override": { "type": "integer", "description": "Manual override for bonus.", "nullable": true, "default": null }
+                     }
+                 },
+                 "slots": {
+                     "type": "object",
+                     "description": "Maximum spell slots per level.",
+                     "properties": {
+                         "level1": { "type": "integer", "default": 0 },
+                         "level2": { "type": "integer", "default": 0 },
+                         "level3": { "type": "integer", "default": 0 },
+                         "level4": { "type": "integer", "default": 0 },
+                         "level5": { "type": "integer", "default": 0 },
+                         "level6": { "type": "integer", "default": 0 },
+                         "level7": { "type": "integer", "default": 0 },
+                         "level8": { "type": "integer", "default": 0 },
+                         "level9": { "type": "integer", "default": 0 }
+                     }
+                 },
+                 "known": {
+                     "type": "array",
+                     "description": "List of tags for spells known (e.g., Sorcerer, Warlock).",
+                     "items": { "type": "string", "description": "Tag referencing a spell definition (e.g., 'spell_fireball')." }
+                 },
+                 "prepared": {
+                     "type": "array",
+                     "description": "List of tags for spells currently prepared (e.g., Cleric, Wizard).",
+                     "items": { "type": "string", "description": "Tag referencing a spell definition." }
+                 }
+            }
+        },
+        "inventory": {
+             "type": "object",
+             "description": "Items and currency carried by the character.",
+             "properties": {
+                 "items": {
+                     "type": "array",
+                     "items": {
+                         "type": "object",
+                         "properties": {
+                             "itemTag": { "type": "string", "description": "Tag referencing the item definition (e.g., 'item_longsword', 'item_potion_healing')." },
+                             "quantity": { "type": "integer", "minimum": 1, "default": 1 },
+                             "equipped": { "type": "boolean", "default": false, "description": "Is the item currently equipped (worn, wielded)?" },
+                             "attuned": { "type": "boolean", "default": false, "description": "Is the character attuned to this item?" },
+                             "notes": { "type": "string", "description": "Specific notes about this instance of the item (e.g., 'Engraved', 'Slightly damaged')." }
+                         },
+                         "required": ["itemTag"]
+                     }
+                 },
+                 "currency": {
+                     "type": "object",
+                     "properties": {
+                         "cp": { "type": "integer", "default": 0 },
+                         "sp": { "type": "integer", "default": 0 },
+                         "gp": { "type": "integer", "default": 0 },
+                         "pp": { "type": "integer", "default": 0 }
+                     }
+                 },
+                 "encumbrance": {
+                    "type": "object",
+                     "description": "Optional: Calculated weight carried and limits.",
+                     "properties": {
+                         "current": { "type": "number" },
+                         "max": { "type": "number" }
+                     }
+                 }
+             }
+        },
+        "featuresAndTraits": {
+            "type": "object",
+            "description": "Lists of tags referencing features and traits from various sources.",
+            "properties": {
+                "classFeatures": { "type": "array", "items": { "type": "string", "description": "Tag referencing a class feature (e.g., 'feature_fighter_second_wind')." } },
+                "subclassFeatures": { "type": "array", "items": { "type": "string", "description": "Tag referencing a subclass feature." } },
+                "speciesTraits": { "type": "array", "items": { "type": "string", "description": "Tag referencing a species trait (e.g., 'trait_elf_fey_ancestry')." } },
+                "feats": { "type": "array", "items": { "type": "string", "description": "Tag referencing a feat (e.g., 'feat_sharpshooter')." } },
+                "backgroundFeatures": { "type": "array", "items": { "type": "string", "description": "Tag referencing a background feature (e.g., 'feature_acolyte_shelter')." } }
+            }
+        },
+        "biography": {
+            "type": "object",
+            "description": "Character's background, appearance, and personality.",
+            "properties": {
+                 "appearance": { "type": "string", "description": "Description of the character's physical appearance." },
+                 "backstory": { "type": "string", "description": "The character's history." },
+                 "personalityTraits": { "type": "string", "description": "Personality traits (often 2 from background)." },
+                 "ideals": { "type": "string", "description": "Ideals (often 1 from background)." },
+                 "bonds": { "type": "string", "description": "Bonds (often 1 from background)." },
+                 "flaws": { "type": "string", "description": "Flaws (often 1 from background)." },
+                 "notes": { "type": "string", "description": "General notes, allies, enemies, organizations etc." }
+            }
+        },
+        "currentState": {
+            "type": "object",
+            "description": "Tracks values that change frequently during gameplay.",
+            "properties": {
+                 "hp": { "type": "integer", "description": "Current hit points." },
+                 "tempHp": { "type": "integer", "default": 0, "description": "Current temporary hit points." },
+                 "hitDiceUsed": { "type": "integer", "default": 0, "description": "Number of hit dice currently expended." },
+                 "deathSaves": {
+                     "type": "object",
+                     "properties": {
+                        "successes": { "type": "integer", "minimum": 0, "maximum": 3, "default": 0 },
+                        "failures": { "type": "integer", "minimum": 0, "maximum": 3, "default": 0 }
+                     }
+                 },
+                 "spellSlotsUsed": {
+                     "type": "object",
+                     "description": "Number of spell slots currently expended for each level.",
+                      "properties": {
+                         "level1": { "type": "integer", "default": 0 },
+                         "level2": { "type": "integer", "default": 0 },
+                         "level3": { "type": "integer", "default": 0 },
+                         "level4": { "type": "integer", "default": 0 },
+                         "level5": { "type": "integer", "default": 0 },
+                         "level6": { "type": "integer", "default": 0 },
+                         "level7": { "type": "integer", "default": 0 },
+                         "level8": { "type": "integer", "default": 0 },
+                         "level9": { "type": "integer", "default": 0 }
+                     }
+                 },
+                 "resourceUses": {
+                     "type": "array",
+                     "description": "Tracks uses of limited resources (e.g., Channel Divinity, Action Surge).",
+                     "items": {
+                         "type": "object",
+                         "properties": {
+                            "resourceTag": { "type": "string", "description": "Tag referencing the resource (e.g., 'resource_channel_divinity', 'feature_fighter_action_surge')." },
+                            "currentUses": { "type": "integer" }
+                         }
+                     }
+                 },
+                 "conditions": {
+                     "type": "array",
+                     "description": "List of condition tags currently affecting the character.",
+                     "items": { "type": "string", "description": "Tag referencing a condition (e.g., 'condition_blinded', 'condition_poisoned')." }
+                 },
+                 "activeEffects": {
+                      "type": "array",
+                      "description": "Temporary effects from spells, items, etc.",
+                      "items": {
+                          "type": "object",
+                          "properties": {
+                               "effectTag": { "type": "string", "description": "Tag referencing the effect (e.g., 'effect_bless_spell', 'effect_rage')." },
+                               "source": { "type": "string", "description": "Origin of the effect (e.g., 'Bless spell', 'Barbarian Rage')." },
+                               "duration": { "type": "string", "description": "Remaining duration (e.g., '1 minute', '3 rounds')." },
+                               "notes": { "type": "string", "description": "Specifics of this effect instance." }
+                          }
+                      }
+                 }
+            }
+        }
+    }
+}

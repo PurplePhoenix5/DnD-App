@@ -1,0 +1,11 @@
+{
+    "id": "feature_berserker_retaliation",
+    "name": "Retaliation",
+    "level": 10,
+    "source": "subclass_barbarian_berserker",
+    "description": [
+      "When you take damage from a creature that is within 5 feet of you, you can take a Reaction to make one melee attack against that creature, using a weapon or an Unarmed Strike."
+    ],
+    "uses": null,
+    "actionType": "Reaction"
+  }

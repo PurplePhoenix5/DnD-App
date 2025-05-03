@@ -1,0 +1,11 @@
+{
+    "id": "feature_berserker_mindless_rage",
+    "name": "Mindless Rage",
+    "level": 6,
+    "source": "subclass_barbarian_berserker",
+    "description": [
+      "You have Immunity to the Charmed and Frightened conditions while your Rage is active. If you're Charmed or Frightened when you enter your Rage, the condition ends on you."
+    ],
+    "uses": null,
+    "actionType": "Passive Enhancement"
+  }

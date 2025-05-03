@@ -1,0 +1,11 @@
+{
+    "id": "feature_barbarian_instinctive_pounce",
+    "name": "Instinctive Pounce",
+    "level": 7,
+    "source": "class_barbarian",
+    "description": [
+      "As part of the Bonus Action you take to enter your Rage, you can move up to half your Speed."
+    ],
+    "uses": null,
+    "actionType": "Passive Enhancement"
+  }

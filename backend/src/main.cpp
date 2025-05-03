@@ -10,6 +10,7 @@
 #include <algorithm>  // Für std::transform, std::replace_if, std::find, std::unique
 #include <cctype>     // Für ::tolower, ::isalnum
 #include <set>        // Für std::set (zum Verfolgen laufender Ladevorgänge)
+#include <map>        // Für Benutzerdaten
 
 // Crow Header
 #include "crow.h"
@@ -37,6 +38,43 @@ struct CorsMiddleware {
 };
 
 using json = nlohmann::json;
+
+const std::string user_data_file = "../data/users.json"; // Pfad zur Benutzerdatei
+
+// --- Simpler In-Memory Benutzerdaten-Speicher ---
+// WICHTIG: Dies ist NUR für Demo-Zwecke. Passwörter NIEMALS so speichern!
+// In einer echten Anwendung: Passwörter hashen & salzen, Datenbank verwenden.
+std::map<std::string, json> users_db;
+
+// Funktion zum Laden der Benutzerdaten aus einer Datei
+void load_users() {
+    try {
+        std::filesystem::path user_file_path = std::filesystem::absolute(user_data_file).lexically_normal();
+        if (std::filesystem::exists(user_file_path) && std::filesystem::is_regular_file(user_file_path)) {
+            std::ifstream user_file(user_file_path);
+            if (user_file.is_open()) {
+                json user_data_json;
+                user_file >> user_data_json;
+                if (user_data_json.is_object()) {
+                    users_db = user_data_json.get<std::map<std::string, json>>();
+                    std::cout << "Benutzerdaten geladen aus " << user_data_file << std::endl;
+                } else {
+                     std::cerr << "Warnung: users.json enthält kein gültiges JSON-Objekt." << std::endl;
+                }
+            } else {
+                std::cerr << "Warnung: Konnte users.json nicht öffnen." << std::endl;
+            }
+        } else {
+             std::cerr << "Warnung: users.json nicht gefunden. Verwende leere Benutzerdatenbank." << std::endl;
+             // Optional: Standardbenutzer erstellen, wenn keine Datei da ist
+             // users_db["dm"] = {{"password", "dm_password"}, {"role", "DM"}};
+             // users_db["player"] = {{"password", "player_password"}, {"role", "Player"}};
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Fehler beim Laden der Benutzerdaten: " << e.what() << std::endl;
+    }
+}
+// --- Ende Benutzerdaten ---
 
 // --- Globale Konstanten und Caches ---
 const std::string encounters_base_dir = "../data/encounters";
@@ -286,6 +324,75 @@ json load_monster_statblock(const std::string& monster_id) {
 int main() {
     crow::App<CorsMiddleware> app;
     // Globale Konstanten und Caches sind bereits deklariert
+
+    load_users();
+
+    // --- NEUE Route: POST /api/login ---
+    CROW_ROUTE(app, "/api/login").methods("POST"_method)
+    ([&](const crow::request& req) {
+        json request_body;
+        try {
+            request_body = json::parse(req.body);
+        } catch (const json::parse_error& e) {
+            return crow::response(400, "{\"error\": \"Invalid JSON body.\"}");
+        }
+
+        if (!request_body.contains("username") || !request_body["username"].is_string() ||
+            !request_body.contains("password") || !request_body["password"].is_string()) {
+            return crow::response(400, "{\"error\": \"Missing username or password.\"}");
+        }
+
+        std::string username = request_body["username"];
+        std::string password = request_body["password"];
+
+        // Suche Benutzer (Groß-/Kleinschreibung beachten beim Key der Map)
+        if (users_db.count(username)) {
+            const json& user_data = users_db[username];
+            // === UNSICHERER PASSWORTVERGLEICH (NUR FÜR DEMO) ===
+            if (user_data.contains("password") && user_data["password"] == password) {
+                // Erfolgreich eingeloggt
+                json response_data;
+                response_data["username"] = username;
+                response_data["role"] = user_data.value("role", "Player"); // Default "Player", falls Rolle fehlt
+                // Hier könnte man einen Session Token/JWT generieren und zurückgeben
+                std::cout << "Login erfolgreich für Benutzer: " << username << " mit Rolle: " << response_data["role"] << std::endl;
+                return crow::response(200, response_data.dump());
+            }
+            // === ENDE UNSICHERER VERGLEICH ===
+        }
+
+        // Benutzer nicht gefunden oder Passwort falsch
+        std::cerr << "Login fehlgeschlagen für Benutzer: " << username << std::endl;
+        return crow::response(401, "{\"error\": \"Invalid username or password.\"}"); // 401 Unauthorized
+    });
+
+    CROW_ROUTE(app, "/api/users/list").methods("GET"_method)
+    ([&]() {
+        json username_list = json::array();
+        // Iteriere über die geladenen Benutzerdaten (users_db ist global)
+        for(const auto& pair : users_db) {
+            username_list.push_back(pair.first); // Füge nur den Key (Username) hinzu
+        }
+        // Optional: Sortiere die Liste alphabetisch
+        // std::sort(username_list.begin(), username_list.end()); // Geht nicht direkt mit nlohmann::json array
+
+        // Wenn Sortierung benötigt wird, erst in std::vector umwandeln:
+        std::vector<std::string> sorted_usernames;
+        for(const auto& username_json : username_list) {
+             if (username_json.is_string()) {
+                 sorted_usernames.push_back(username_json.get<std::string>());
+             }
+        }
+        std::sort(sorted_usernames.begin(), sorted_usernames.end());
+
+        // Konvertiere sortierten Vektor zurück in JSON Array
+        json sorted_username_list = json::parse(json(sorted_usernames).dump()); // Konvertiere Vektor zu JSON
+
+
+        crow::response res(sorted_username_list.dump());
+        res.set_header("Content-Type", "application/json");
+        return res;
+    });
 
     // --- GET /api/status ---
     CROW_ROUTE(app, "/api/status")([]() {
@@ -726,6 +833,8 @@ int main() {
          return crow::response(500, "{\"error\": \"Internal server error during deletion.\"}");
      }
  });
+
+    
 
 
     // --- Server Start ---

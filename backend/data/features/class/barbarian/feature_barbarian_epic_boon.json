@@ -1,0 +1,11 @@
+{
+    "id": "feature_barbarian_epic_boon",
+    "name": "Epic Boon",
+    "level": 19,
+    "source": "class_barbarian",
+    "description": [
+      "You gain an Epic Boon feat (see “Feats”) or another feat of your choice for which you qualify. Boon of Irresistible Offense is recommended."
+    ],
+    "uses": null,
+    "actionType": "Passive"
+  }
