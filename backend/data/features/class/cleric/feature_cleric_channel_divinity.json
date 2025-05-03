@@ -1,0 +1,16 @@
+{
+    "id": "feature_cleric_channel_divinity",
+    "name": "Channel Divinity",
+    "level": 2,
+    "source": "class_cleric",
+    "description": [
+      "You can channel divine energy directly from the Outer Planes to fuel magical effects. You start with two such effects: Divine Spark and Turn Undead, each of which is described below. Each time you use this class's Channel Divinity, choose which Channel Divinity effect from this class to create. You gain additional effect options at higher Cleric levels.",
+      "You can use this class's Channel Divinity twice. You regain one of its expended uses when you finish a Short Rest, and you regain all expended uses when you finish a Long Rest. You gain additional uses when you reach certain Cleric levels, as shown in the Channel Divinity column of the Cleric Features table.",
+      "If a Channel Divinity effect requires a saving throw, the DC equals the spell save DC from this class's Spellcasting feature."
+    ],
+    "uses": {
+      "count": "Table:Channel Divinity",
+      "per": "Short or Long Rest"
+    },
+    "actionType": "Resource"
+  }

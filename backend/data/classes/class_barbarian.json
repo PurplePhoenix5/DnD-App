@@ -25,13 +25,23 @@
     "startingEquipment": [ 
       {
         "option": "A",
-        "description": "(A) Greataxe, 4 Handaxes, Explorer's Pack, and 15 GP"
-        
+        "description": "(A) Greataxe, 4 Handaxes, Explorer's Pack, and 15 GP",
+        "items": [
+          "item_greataxe",
+          "item_handaxe",
+          "item_handaxe",
+          "item_handaxe",
+          "item_handaxe",
+          "pack_explorers",
+          {"currency": "gp", "amount": 15}
+        ]
       },
       {
         "option": "B",
-        "description": "(B) 75 GP"
-        
+        "description": "(B) 75 GP",
+        "items": [
+          {"currency": "gp", "amount": 75}
+        ]
       }
     ],
     "multiclassing": { 
@@ -49,25 +59,47 @@
       { "level": 1, "featureTags": ["feature_barbarian_rage", "feature_barbarian_unarmored_defense", "feature_barbarian_weapon_mastery"] },
       { "level": 2, "featureTags": ["feature_barbarian_danger_sense", "feature_barbarian_reckless_attack"] },
       { "level": 3, "featureTags": ["feature_barbarian_subclass", "feature_barbarian_primal_knowledge"] },
-      { "level": 4, "featureTags": ["feature_generic_ability_score_improvement"] },
+      { "level": 4, "featureTags": ["feature_generic_ability_score_improvement_4"] },
       { "level": 5, "featureTags": ["feature_barbarian_extra_attack", "feature_barbarian_fast_movement"] },
-      { "level": 6, "featureTags": ["feature_barbarian_subclass_feature"] }, 
+      { "level": 6, "featureTags": [] }, 
       { "level": 7, "featureTags": ["feature_barbarian_feral_instinct", "feature_barbarian_instinctive_pounce"] },
-      { "level": 8, "featureTags": ["feature_generic_ability_score_improvement"] },
+      { "level": 8, "featureTags": ["feature_generic_ability_score_improvement_8"] },
       { "level": 9, "featureTags": ["feature_barbarian_brutal_strike"] },
-      { "level": 10, "featureTags": ["feature_barbarian_subclass_feature"] },
+      { "level": 10, "featureTags": [] },
       { "level": 11, "featureTags": ["feature_barbarian_relentless_rage"] },
-      { "level": 12, "featureTags": ["feature_generic_ability_score_improvement"] },
+      { "level": 12, "featureTags": ["feature_generic_ability_score_improvement_12"] },
       { "level": 13, "featureTags": ["feature_barbarian_improved_brutal_strike"] }, 
-      { "level": 14, "featureTags": ["feature_barbarian_subclass_feature"] },
+      { "level": 14, "featureTags": [] },
       { "level": 15, "featureTags": ["feature_barbarian_persistent_rage"] },
-      { "level": 16, "featureTags": ["feature_generic_ability_score_improvement"] },
+      { "level": 16, "featureTags": ["feature_generic_ability_score_improvement_16"] },
       { "level": 17, "featureTags": ["feature_barbarian_improved_brutal_strike_2d10"] }, 
       { "level": 18, "featureTags": ["feature_barbarian_indomitable_might"] },
       { "level": 19, "featureTags": ["feature_generic_epic_boon"] }, 
       { "level": 20, "featureTags": ["feature_barbarian_primal_champion"] }
     ],
-    "srdSubclasses": [ 
+    "Subclasses": [ 
       "subclass_barbarian_berserker"
-    ]
+    ],
+    "classTable": [
+    { "level": 1,  "proficiencyBonus": 2, "rages": 2, "rageDamage": 2, "weaponMasteryCount": 2 },
+    { "level": 2,  "proficiencyBonus": 2, "rages": 2, "rageDamage": 2, "weaponMasteryCount": 2 },
+    { "level": 3,  "proficiencyBonus": 2, "rages": 3, "rageDamage": 2, "weaponMasteryCount": 2 },
+    { "level": 4,  "proficiencyBonus": 2, "rages": 3, "rageDamage": 2, "weaponMasteryCount": 3 },
+    { "level": 5,  "proficiencyBonus": 3, "rages": 3, "rageDamage": 2, "weaponMasteryCount": 3 },
+    { "level": 6,  "proficiencyBonus": 3, "rages": 4, "rageDamage": 2, "weaponMasteryCount": 3 },
+    { "level": 7,  "proficiencyBonus": 3, "rages": 4, "rageDamage": 2, "weaponMasteryCount": 3 },
+    { "level": 8,  "proficiencyBonus": 3, "rages": 4, "rageDamage": 2, "weaponMasteryCount": 3 },
+    { "level": 9,  "proficiencyBonus": 4, "rages": 4, "rageDamage": 3, "weaponMasteryCount": 3 },
+    { "level": 10, "proficiencyBonus": 4, "rages": 4, "rageDamage": 3, "weaponMasteryCount": 4 },
+    { "level": 11, "proficiencyBonus": 4, "rages": 4, "rageDamage": 3, "weaponMasteryCount": 4 },
+    { "level": 12, "proficiencyBonus": 4, "rages": 5, "rageDamage": 3, "weaponMasteryCount": 4 },
+    { "level": 13, "proficiencyBonus": 5, "rages": 5, "rageDamage": 3, "weaponMasteryCount": 4 },
+    { "level": 14, "proficiencyBonus": 5, "rages": 5, "rageDamage": 3, "weaponMasteryCount": 4 },
+    { "level": 15, "proficiencyBonus": 5, "rages": 5, "rageDamage": 3, "weaponMasteryCount": 4 },
+    { "level": 16, "proficiencyBonus": 5, "rages": 5, "rageDamage": 4, "weaponMasteryCount": 4 },
+    { "level": 17, "proficiencyBonus": 6, "rages": 6, "rageDamage": 4, "weaponMasteryCount": 4 },
+    { "level": 18, "proficiencyBonus": 6, "rages": 6, "rageDamage": 4, "weaponMasteryCount": 4 },
+    { "level": 19, "proficiencyBonus": 6, "rages": 6, "rageDamage": 4, "weaponMasteryCount": 4 },
+    { "level": 20, "proficiencyBonus": 6, "rages": 6, "rageDamage": 4, "weaponMasteryCount": 4 } 
+  ]
   }

@@ -1,0 +1,11 @@
+{
+    "id": "feature_cleric_greater_divine_intervention",
+    "name": "Greater Divine Intervention",
+    "level": 20,
+    "source": "class_cleric",
+    "description": [
+      "You can call on even more powerful divine intervention. When you use your Divine Intervention feature, you can choose Wish when you select a spell. If you do so, you can't use Divine Intervention again until you finish 2d4 Long Rests."
+    ],
+    "uses": null,
+    "actionType": "Passive Enhancement"
+  }

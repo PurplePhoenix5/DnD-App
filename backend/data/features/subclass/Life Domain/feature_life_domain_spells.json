@@ -1,0 +1,12 @@
+{
+    "id": "feature_life_domain_spells",
+    "name": "Life Domain Spells",
+    "level": 3,
+    "source": "subclass_cleric_life",
+    "description": [
+      "Your connection to this divine domain ensures you always have certain spells ready. When you reach a Cleric level specified in the Life Domain Spells table, you thereafter always have the listed spells prepared.",
+      "These spells do not count against the number of spells you can prepare each day."
+    ],
+    "uses": null,
+    "actionType": "Passive"
+  }

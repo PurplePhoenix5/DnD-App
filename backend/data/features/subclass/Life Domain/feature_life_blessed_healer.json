@@ -1,0 +1,11 @@
+{
+    "id": "feature_life_blessed_healer",
+    "name": "Blessed Healer",
+    "level": 6,
+    "source": "subclass_cleric_life",
+    "description": [
+      "The healing spells you cast on others heal you as well. Immediately after you cast a spell with a spell slot that restores Hit Points to one or more creatures other than yourself, you regain Hit Points equal to 2 plus the spell slot's level."
+    ],
+    "uses": null,
+    "actionType": "Passive"
+  }

@@ -1,0 +1,38 @@
+{
+    "id": "subclass_cleric_life",
+    "name": "Life Domain",
+    "parentClassTag": "class_cleric",
+    "description": [
+      "The Life Domain focuses on the positive energy that helps sustain all life in the multiverse. Clerics who tap into this domain are masters of healing, using that life force to cure many hurts.",
+      "Existence itself relies on the positive energy associated with this domain, so a Cleric of almost any religious tradition might choose it. This domain is particularly associated with agricultural deities, gods of healing or endurance, and gods of home and community. Religious orders of healing also seek the magic of this domain."
+    ],
+    "sourceBook": "SRD 5.2.1",
+    "domainSpells": [ 
+      { "clericLevel": 3, "spellTags": ["spell_aid", "spell_bless", "spell_cure_wounds", "spell_lesser_restoration"] },
+      { "clericLevel": 5, "spellTags": ["spell_mass_healing_word", "spell_revivify"] },
+      { "clericLevel": 7, "spellTags": ["spell_aura_of_life", "spell_death_ward"] },
+      { "clericLevel": 9, "spellTags": ["spell_greater_restoration", "spell_mass_cure_wounds"] }
+    ],
+    "features": [
+      {
+        "level": 3, 
+        "featureTags": [
+          "feature_life_domain_spells", 
+          "feature_life_disciple_of_life",
+          "feature_life_preserve_life" 
+        ]
+      },
+      {
+        "level": 6,
+        "featureTags": [
+          "feature_life_blessed_healer"
+        ]
+      },
+      {
+        "level": 17,
+        "featureTags": [
+          "feature_life_supreme_healing"
+        ]
+      }
+    ]
+  }

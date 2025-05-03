@@ -1,0 +1,10 @@
+{
+    "id": "feature_generic_ability_score_improvement_16",
+    "name": "Ability Score Improvement",
+    "level": 16,
+    "description": [
+      "You gain the Ability Score Improvement feat (see “Feats”) or another feat of your choice for which you qualify."
+    ],
+    "uses": null,
+    "actionType": "Passive"
+  }
